@@ -1,0 +1,14 @@
+[Unit]
+Description=Chatty Automation API
+After=network.target
+
+[Service]
+Type=simple
+WorkingDirectory=__CHATTY_ROOT__
+Environment=CHATTY_SECRETS_FILE=%h/.config/chatty/secrets.env
+ExecStart=__CHATTY_ROOT__/python3 -m uvicorn AUTOMATION_API_SERVER:app --host 0.0.0.0 --port 8080
+Restart=always
+RestartSec=5
+
+[Install]
+WantedBy=default.target

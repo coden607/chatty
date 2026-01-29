@@ -1,0 +1,340 @@
+{
+  "name": "Advanced Database Integration Workflow",
+  "nodes": [
+    {
+      "parameters": {
+        "respondWith": "form",
+        "options": {
+          "title": "Database Integration & Analysis",
+          "formFields": {
+            "queryType": {
+              "type": "options",
+              "required": true,
+              "options": [
+                {"label": "Customer Data Analysis", "value": "customer_analysis"},
+                {"label": "Sales Performance", "value": "sales_performance"},
+                {"label": "Inventory Optimization", "value": "inventory_optimization"},
+                {"label": "Financial Reporting", "value": "financial_reporting"},
+                {"label": "User Behavior Analytics", "value": "user_behavior"}
+              ],
+              "displayName": "Analysis Type"
+            },
+            "databaseType": {
+              "type": "options",
+              "options": [
+                {"label": "PostgreSQL", "value": "postgres"},
+                {"label": "MySQL", "value": "mysql"},
+                {"label": "MongoDB", "value": "mongodb"},
+                {"label": "Redis Cache", "value": "redis"},
+                {"label": "BigQuery", "value": "bigquery"}
+              ],
+              "displayName": "Database Type",
+              "default": "postgres"
+            },
+            "timeRange": {
+              "type": "options",
+              "options": [
+                {"label": "Last 7 days", "value": "7d"},
+                {"label": "Last 30 days", "value": "30d"},
+                {"label": "Last 90 days", "value": "90d"},
+                {"label": "Last year", "value": "1y"},
+                {"label": "Custom range", "value": "custom"}
+              ],
+              "displayName": "Time Range",
+              "default": "30d"
+            },
+            "customQuery": {
+              "type": "string",
+              "placeholder": "Optional: Provide custom SQL/query for advanced analysis",
+              "displayName": "Custom Query (Optional)"
+            }
+          }
+        }
+      },
+      "id": "database-input",
+      "name": "Database Analysis Input",
+      "type": "n8n-nodes-base.manualTrigger",
+      "typeVersion": 1,
+      "position": [240, 300]
+    },
+    {
+      "parameters": {
+        "values": {
+          "string": [
+            {
+              "name": "analysisQuery",
+              "value": "Perform {{if($node[\"Database Analysis Input\"].form[\"queryType\"] === 'customer_analysis', 'comprehensive customer data analysis', if($node[\"Database Analysis Input\"].form[\"queryType\"] === 'sales_performance', 'sales performance and revenue analysis', if($node[\"Database Analysis Input\"].form[\"queryType\"] === 'inventory_optimization', 'inventory optimization and supply chain analysis', if($node[\"Database Analysis Input\"].form[\"queryType\"] === 'financial_reporting', 'financial reporting and budget analysis', 'user behavior and engagement analysis')))))}} using {{if($node[\"Database Analysis Input\"].form[\"databaseType\"] === 'postgres', 'PostgreSQL', if($node[\"Database Analysis Input\"].form[\"databaseType\"] === 'mysql', 'MySQL', if($node[\"Database Analysis Input\"].form[\"databaseType\"] === 'mongodb', 'MongoDB', if($node[\"Database Analysis Input\"].form[\"databaseType\"] === 'redis', 'Redis cache', 'Google BigQuery')))))}} database. Time range: {{$node[\"Database Analysis Input\"].form[\"timeRange\"]}}. {{if($node[\"Database Analysis Input\"].form[\"customQuery\"], 'Custom query: ' + $node[\"Database Analysis Input\"].form[\"customQuery\"], 'Use standard optimized queries')}}."
+            },
+            {
+              "name": "queryType",
+              "value": "{{$node[\"Database Analysis Input\"].form[\"queryType\"]}}"
+            },
+            {
+              "name": "databaseType",
+              "value": "{{$node[\"Database Analysis Input\"].form[\"databaseType\"]}}"
+            }
+          ]
+        }
+      },
+      "id": "prepare-database-query",
+      "name": "Prepare Database Query",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.2,
+      "position": [440, 300]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://api.anthropic.com/v1/messages",
+        "bodyContentType": "json",
+        "bodyParameters": {
+          "parameters": [
+            {
+              "name": "model",
+              "value": "claude-3-5-sonnet-20241022"
+            },
+            {
+              "name": "max_tokens",
+              "value": 4000
+            },
+            {
+              "name": "messages",
+              "value": "[{\"role\": \"user\", \"content\": \"You are a senior database architect and data analyst. {{$node[\"Prepare Database Query\"].json[\"analysisQuery\"]}}\\n\\nProvide: optimized database queries, data extraction strategies, performance considerations, and initial analytical insights based on typical database schemas and best practices.\"}]"
+            }
+          ]
+        },
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "x-api-key",
+              "value": "{{$credentials.anthropicApiKey}}"
+            },
+            {
+              "name": "anthropic-version",
+              "value": "2023-06-01"
+            }
+          ]
+        }
+      },
+      "id": "claude-database-architecture",
+      "name": "Claude Database Architecture",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.1,
+      "position": [640, 300],
+      "credentials": {
+        "httpRequest": {
+          "id": "anthropic-api-credentials",
+          "name": "Anthropic API"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://api.x.ai/v1/chat/completions",
+        "bodyContentType": "json",
+        "bodyParameters": {
+          "parameters": [
+            {
+              "name": "model",
+              "value": "grok-beta"
+            },
+            {
+              "name": "messages",
+              "value": "[{\"role\": \"system\", \"content\": \"You are an innovative data scientist with expertise in advanced analytics and machine learning.\"}, {\"role\": \"user\", \"content\": \"Enhance this database analysis with advanced data science techniques: {{$node[\"Claude Database Architecture\"].json[\"content\"][0][\"text\"]}}\\n\\nAdd: predictive analytics, machine learning insights, anomaly detection, trend forecasting, and data visualization recommendations.\"}]"
+            }
+          ]
+        },
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Authorization",
+              "value": "Bearer {{$credentials.grokApiKey}}"
+            }
+          ]
+        }
+      },
+      "id": "grok-advanced-analytics",
+      "name": "Grok Advanced Analytics",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.1,
+      "position": [840, 300],
+      "credentials": {
+        "httpRequest": {
+          "id": "grok-api-credentials",
+          "name": "Grok API"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://generativelanguage.googleapis.com/v1beta/models/gemini-pro:generateContent",
+        "bodyContentType": "json",
+        "bodyParameters": {
+          "parameters": [
+            {
+              "name": "contents",
+              "value": "[{\"parts\": [{\"text\": \"You are a database performance optimization and security expert. Create comprehensive database integration and optimization plans:\\n\\nDatabase Analysis: {{$node[\"Prepare Database Query\"].json[\"analysisQuery\"]}}\\n\\nClaude's Architecture: {{$node[\"Claude Database Architecture\"].json[\"content\"][0][\"text\"]}}\\n\\nGrok's Advanced Analytics: {{$node[\"Grok Advanced Analytics\"].json[\"choices\"][0][\"message\"][\"content\"]}}\\n\\nProvide: performance optimization strategies, security implementations, backup and recovery plans, scalability solutions, and integration APIs.\"}]}]"
+            }
+          ]
+        },
+        "queryParameters": {
+          "parameters": [
+            {
+              "name": "key",
+              "value": "{{$credentials.googleGeminiApiKey}}"
+            }
+          ]
+        }
+      },
+      "id": "gemini-database-optimization",
+      "name": "Gemini Database Optimization",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.1,
+      "position": [1040, 300],
+      "credentials": {
+        "httpRequest": {
+          "id": "google-gemini-api-credentials",
+          "name": "Google Gemini API"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://api.deepseek.com/v1/chat/completions",
+        "bodyContentType": "json",
+        "bodyParameters": {
+          "parameters": [
+            {
+              "name": "model",
+              "value": "deepseek-chat"
+            },
+            {
+              "name": "messages",
+              "value": "[{\"role\": \"system\", \"content\": \"You are the ultimate database integration and analytics synthesis expert, creating complete database solutions with actionable insights.\"}, {\"role\": \"user\", \"content\": \"Synthesize all database analysis components into a comprehensive database integration and analytics solution:\\n\\nAnalysis Type: {{$node[\"Prepare Database Query\"].json[\"queryType\"]}}\\n\\nDatabase: {{$node[\"Prepare Database Query\"].json[\"databaseType\"]}}\\n\\nClaude's Database Strategy: {{$node[\"Claude Database Architecture\"].json[\"content\"][0][\"text\"]}}\\n\\nGrok's Advanced Analytics: {{$node[\"Grok Advanced Analytics\"].json[\"choices\"][0][\"message\"][\"content\"]}}\\n\\nGemini's Optimization: {{$node[\"Gemini Database Optimization\"].json[\"candidates\"][0][\"content\"][\"parts\"][0][\"text\"]}}\\n\\nDeliver: complete database integration plan, analytical dashboards, performance monitoring, automated reporting, and strategic recommendations.\"}]"
+            }
+          ]
+        },
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Authorization",
+              "value": "Bearer {{$credentials.deepseekApiKey}}"
+            }
+          ]
+        }
+      },
+      "id": "deepseek-database-synthesis",
+      "name": "DeepSeek Database Synthesis",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.1,
+      "position": [1240, 300],
+      "credentials": {
+        "httpRequest": {
+          "id": "deepseek-api-credentials",
+          "name": "DeepSeek API"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "respondWith": "lastNode",
+        "responseHeaders": {
+          "Content-Type": "text/markdown"
+        }
+      },
+      "id": "output-database-solution",
+      "name": "Output Complete Database Solution",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1,
+      "position": [1440, 300]
+    }
+  ],
+  "connections": {
+    "database-input": {
+      "main": [
+        [
+          {
+            "node": "prepare-database-query",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "prepare-database-query": {
+      "main": [
+        [
+          {
+            "node": "claude-database-architecture",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "claude-database-architecture": {
+      "main": [
+        [
+          {
+            "node": "grok-advanced-analytics",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "grok-advanced-analytics": {
+      "main": [
+        [
+          {
+            "node": "gemini-database-optimization",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "gemini-database-optimization": {
+      "main": [
+        [
+          {
+            "node": "deepseek-database-synthesis",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "deepseek-database-synthesis": {
+      "main": [
+        [
+          {
+            "node": "output-database-solution",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "staticData": null,
+  "meta": {
+    "instanceId": "database-integration-workflow-v1"
+  },
+  "versionId": "1.0.0",
+  "triggerCount": 1,
+  "tags": [
+    "database",
+    "analytics",
+    "integration",
+    "performance",
+    "optimization",
+    "n8n-workflow"
+  ]
+}
+
+
+

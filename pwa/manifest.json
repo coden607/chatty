@@ -1,0 +1,23 @@
+{
+  "name": "Chatty Autonomous Console",
+  "short_name": "Chatty",
+  "start_url": "/leads_dashboard.html",
+  "display": "standalone",
+  "background_color": "#0b0e14",
+  "theme_color": "#0b0e14",
+  "description": "Portable autonomous control center for NarcoGuard workflows.",
+  "icons": [
+    {
+      "src": "/pwa/icon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any"
+    },
+    {
+      "src": "/pwa/icon-maskable.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "maskable"
+    }
+  ]
+}

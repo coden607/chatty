@@ -1,0 +1,138 @@
+{
+  "grants": [
+    {
+      "name": "SAMHSA First Responder Comprehensive Addiction and Recovery Act (CARA) - TI-24-006",
+      "agency": "Substance Abuse and Mental Health Services Administration (SAMHSA)",
+      "deadline": "2024-04-15",
+      "submission_window": "FY2024 NOFO",
+      "submission_address": "Submit via Grants.gov",
+      "contact": "DTPFRCARA@samhsa.hhs.gov (Program); FOACSAP@samhsa.hhs.gov (Budget)",
+      "portal_url": "https://www.samhsa.gov/grants/grant-announcements/ti-24-006",
+      "min_amount": 300000,
+      "max_amount": 800000,
+      "recommended_request": 400000,
+      "rolling": false,
+      "status": "closed",
+      "focus_areas": [
+        "overdose",
+        "harm reduction",
+        "naloxone",
+        "first responders",
+        "public health"
+      ],
+      "eligibility": [
+        "states",
+        "local governmental entities",
+        "tribes and tribal organizations"
+      ],
+      "last_verified": "2026-01-10",
+      "verification_notes": "FY2024 NOFO; deadline passed."
+    },
+    {
+      "name": "National Institutes of Health (NIH) SBIR",
+      "agency": "National Institutes of Health (NIH)",
+      "deadline": null,
+      "submission_window": "Paused pending SBIR/STTR reauthorization; NIH NOFOs expired.",
+      "submission_address": "Submit via NIH ASSIST or Grants.gov",
+      "contact": "NIH SBIR/STTR Help Desk",
+      "portal_url": "https://seed.nih.gov",
+      "min_amount": 50000,
+      "max_amount": 300000,
+      "recommended_request": 250000,
+      "rolling": false,
+      "status": "paused",
+      "focus_areas": [
+        "public health",
+        "medtech",
+        "overdose",
+        "wearable",
+        "ai"
+      ],
+      "eligibility": [
+        "US small business",
+        "for-profit",
+        "SBIR Phase I"
+      ],
+      "last_verified": "2026-01-10",
+      "verification_notes": "NIH SBIR/STTR legislative authority expired on 2025-10-01; NIH NOFOs are expired per NOT-OD-26-006."
+    },
+    {
+      "name": "NSF Smart & Connected Health",
+      "agency": "National Science Foundation (NSF)",
+      "deadline": null,
+      "submission_window": "No upcoming due dates listed on NSF program page.",
+      "submission_address": "Submit via Research.gov",
+      "contact": "sch-correspondence@nsf.gov (Program contacts: Goli Yamini, Christopher C. Yang, James E. Fowler, Sylvia Spengler, Betty K. Tuller, Oleg V. Sokolsky)",
+      "portal_url": "https://www.nsf.gov",
+      "min_amount": 200000,
+      "max_amount": 500000,
+      "recommended_request": 400000,
+      "rolling": false,
+      "status": "no_upcoming_due_dates",
+      "focus_areas": [
+        "public health",
+        "medtech",
+        "ai",
+        "wearable",
+        "smart health"
+      ],
+      "eligibility": [
+        "US organization",
+        "research partnership",
+        "pilot deployment"
+      ],
+      "last_verified": "2026-01-10",
+      "verification_notes": "NSF SCH program page lists program contacts and reports no upcoming due dates."
+    },
+    {
+      "name": "NYS Health Foundation",
+      "agency": "New York State Health Foundation",
+      "deadline": "2025-11-20T13:00:00",
+      "submission_window": "2026 Special Projects Fund RFP open; LOI due Nov 20, 2025 at 1:00 p.m.",
+      "submission_address": "Submit via NYS Health Foundation grants portal",
+      "contact": "Info@NYHealthFoundation.org",
+      "portal_url": "https://nyshealthfoundation.org",
+      "min_amount": 50000,
+      "max_amount": 300000,
+      "recommended_request": 250000,
+      "focus_areas": [
+        "public health",
+        "harm reduction",
+        "overdose",
+        "community health"
+      ],
+      "eligibility": [
+        "New York State organization",
+        "public health initiative"
+      ],
+      "last_verified": "2026-01-10",
+      "verification_notes": "Apply for Funding page lists 2026 Special Projects Fund LOI due date."
+    },
+    {
+      "name": "Broome County Opioid Settlement Fund",
+      "agency": "Broome County, NY",
+      "deadline": null,
+      "submission_window": "RFP cycle varies; awards page confirms funding rounds.",
+      "submission_address": "Contact Broome County Health Department for current RFP",
+      "contact": "BCHealth@broomecountyny.gov",
+      "portal_url": "https://broomecountyny.gov/health/opioid/settlement/funding/awardees",
+      "min_amount": 25000,
+      "max_amount": 250000,
+      "recommended_request": 200000,
+      "rolling": true,
+      "status": "open",
+      "focus_areas": [
+        "opioid",
+        "harm reduction",
+        "overdose",
+        "community health"
+      ],
+      "eligibility": [
+        "Broome County organizations",
+        "opioid response initiatives"
+      ],
+      "last_verified": "2026-01-10",
+      "verification_notes": "Awardees page confirms active settlement funding; current RFP deadline not found online."
+    }
+  ]
+}

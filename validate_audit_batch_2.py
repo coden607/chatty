@@ -1,0 +1,119 @@
+import os
+import requests
+from dotenv import load_dotenv
+
+_secrets_file = os.getenv("CHATTY_SECRETS_FILE", ".env")
+load_dotenv(_secrets_file)
+
+def test_openai(key):
+    if not key: return "MISSING"
+    try:
+        headers = {"Authorization": f"Bearer {key}"}
+        response = requests.post("https://api.openai.com/v1/chat/completions", 
+                                headers=headers, 
+                                json={"model": "gpt-3.5-turbo", "messages": [{"role": "user", "content": "hi"}], "max_tokens": 5},
+                                timeout=10)
+        if response.status_code == 200: return "GOOD"
+        try:
+            data = response.json()
+            if "insufficient_quota" in str(data): return "NO FUNDS"
+            return f"BAD ({response.status_code}): {data.get('error', {}).get('message', 'Unknown error')}"
+        except: return f"BAD ({response.status_code})"
+    except Exception as e: return f"FAILED: {str(e)}"
+
+def test_anthropic(key):
+    if not key: return "MISSING"
+    try:
+        headers = {"x-api-key": key, "anthropic-version": "2023-06-01", "content-type": "application/json"}
+        response = requests.post("https://api.anthropic.com/v1/messages", 
+                                headers=headers, 
+                                json={"model": "claude-3-haiku-20240307", "max_tokens": 5, "messages": [{"role": "user", "content": "hi"}]},
+                                timeout=10)
+        if response.status_code == 200: return "GOOD"
+        try:
+            data = response.json()
+            if "credit balance is too low" in str(data): return "NO FUNDS"
+            return f"BAD ({response.status_code}): {data.get('error', {}).get('message', 'Unknown error')}"
+        except: return f"BAD ({response.status_code})"
+    except Exception as e: return f"FAILED: {str(e)}"
+
+def test_deepseek(key):
+    if not key: return "MISSING"
+    try:
+        headers = {"Authorization": f"Bearer {key}"}
+        response = requests.post("https://api.deepseek.com/chat/completions", 
+                                headers=headers, 
+                                json={"model": "deepseek-chat", "messages": [{"role": "user", "content": "hi"}], "max_tokens": 5},
+                                timeout=10)
+        if response.status_code == 200: return "GOOD"
+        return f"BAD ({response.status_code})"
+    except Exception as e: return f"FAILED: {str(e)}"
+
+def test_moonshot(key):
+    if not key: return "MISSING"
+    try:
+        headers = {"Authorization": f"Bearer {key}"}
+        response = requests.post("https://api.moonshot.cn/v1/chat/completions", 
+                                headers=headers, 
+                                json={"model": "moonshot-v1-8k", "messages": [{"role": "user", "content": "hi"}]},
+                                timeout=10)
+        if response.status_code == 200: return "GOOD"
+        return f"BAD ({response.status_code})"
+    except Exception as e: return f"FAILED: {str(e)}"
+
+def test_openrouter(key):
+    if not key: return "MISSING"
+    try:
+        headers = {"Authorization": f"Bearer {key}", "HTTP-Referer": "https://narcoguard.com", "X-Title": "NarcoGuard AI"}
+        response = requests.post("https://openrouter.ai/api/v1/chat/completions", 
+                                headers=headers, 
+                                json={"model": "openai/gpt-3.5-turbo", "messages": [{"role": "user", "content": "hi"}]},
+                                timeout=10)
+        if response.status_code == 200: return "GOOD"
+        return f"BAD ({response.status_code})"
+    except Exception as e: return f"FAILED: {str(e)}"
+
+print("--- Second Key Audit Batch ---")
+
+# Load keys from environment
+def _collect_keys(prefix: str, count: int = 6):
+    keys = []
+    for i in range(count):
+        name = f"{prefix}_API_KEY" if i == 0 else f"{prefix}_API_KEY_{i+1}"
+        value = os.getenv(name)
+        if value:
+            keys.append(value)
+    return keys
+
+deepseek_keys = _collect_keys("DEEPSEEK", count=2)
+openrouter_keys = _collect_keys("OPENROUTER", count=6)
+moonshot_keys = _collect_keys("MOONSHOT", count=2)
+anthropic_keys = _collect_keys("ANTHROPIC", count=4)
+
+print("\n--- Testing DeepSeek ---")
+if deepseek_keys:
+    for i, key in enumerate(deepseek_keys):
+        print(f"DeepSeek {i+1}: {test_deepseek(key)}")
+else:
+    print("DeepSeek: MISSING")
+
+print("\n--- Testing OpenRouter (New) ---")
+if openrouter_keys:
+    for i, key in enumerate(openrouter_keys):
+        print(f"OpenRouter {i+1} ({key[:10]}...): {test_openrouter(key)}")
+else:
+    print("OpenRouter: MISSING")
+
+print("\n--- Testing Moonshot ---")
+if moonshot_keys:
+    for i, key in enumerate(moonshot_keys):
+        print(f"Moonshot {i+1}: {test_moonshot(key)}")
+else:
+    print("Moonshot: MISSING")
+
+print("\n--- Testing Anthropic (New) ---")
+if anthropic_keys:
+    for i, key in enumerate(anthropic_keys):
+        print(f"Anthropic {i+1}: {test_anthropic(key)}")
+else:
+    print("Anthropic: MISSING")

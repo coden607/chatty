@@ -1,0 +1,578 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>
+      Chatty - Autonomous AI Agent Platform | Automate Your Business
+    </title>
+    <meta
+      name="description"
+      content="Build custom AI agents that automate your business processes. No coding required. Start automating in minutes."
+    />
+
+    <style>
+      * {
+        margin: 0;
+        padding: 0;
+        box-sizing: border-box;
+      }
+
+      :root {
+        --primary: #6366f1;
+        --primary-dark: #4f46e5;
+        --secondary: #8b5cf6;
+        --accent: #ec4899;
+        --dark: #0f172a;
+        --dark-light: #1e293b;
+        --gray: #64748b;
+        --light: #f8fafc;
+        --success: #10b981;
+      }
+
+      body {
+        font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto,
+          "Helvetica Neue", Arial, sans-serif;
+        line-height: 1.6;
+        color: var(--dark);
+        background: var(--light);
+      }
+
+      /* Hero Section */
+      .hero {
+        background: linear-gradient(
+          135deg,
+          var(--primary) 0%,
+          var(--secondary) 100%
+        );
+        color: white;
+        padding: 120px 20px 80px;
+        text-align: center;
+        position: relative;
+        overflow: hidden;
+      }
+
+      .hero::before {
+        content: "";
+        position: absolute;
+        top: 0;
+        left: 0;
+        right: 0;
+        bottom: 0;
+        background: url('data:image/svg+xml,<svg width="100" height="100" xmlns="http://www.w3.org/2000/svg"><defs><pattern id="grid" width="100" height="100" patternUnits="userSpaceOnUse"><path d="M 100 0 L 0 0 0 100" fill="none" stroke="rgba(255,255,255,0.1)" stroke-width="1"/></pattern></defs><rect width="100%" height="100%" fill="url(%23grid)"/></svg>');
+        opacity: 0.3;
+      }
+
+      .hero-content {
+        max-width: 1200px;
+        margin: 0 auto;
+        position: relative;
+        z-index: 1;
+      }
+
+      .hero h1 {
+        font-size: 3.5rem;
+        font-weight: 800;
+        margin-bottom: 24px;
+        line-height: 1.2;
+      }
+
+      .hero p {
+        font-size: 1.5rem;
+        margin-bottom: 40px;
+        opacity: 0.95;
+      }
+
+      .cta-buttons {
+        display: flex;
+        gap: 20px;
+        justify-content: center;
+        flex-wrap: wrap;
+      }
+
+      .btn {
+        padding: 16px 40px;
+        font-size: 1.1rem;
+        font-weight: 600;
+        border: none;
+        border-radius: 12px;
+        cursor: pointer;
+        transition: all 0.3s ease;
+        text-decoration: none;
+        display: inline-block;
+      }
+
+      .btn-primary {
+        background: white;
+        color: var(--primary);
+        box-shadow: 0 10px 30px rgba(0, 0, 0, 0.2);
+      }
+
+      .btn-primary:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 15px 40px rgba(0, 0, 0, 0.3);
+      }
+
+      .btn-secondary {
+        background: rgba(255, 255, 255, 0.2);
+        color: white;
+        border: 2px solid white;
+      }
+
+      .btn-secondary:hover {
+        background: rgba(255, 255, 255, 0.3);
+      }
+
+      /* Features Section */
+      .features {
+        padding: 80px 20px;
+        background: white;
+      }
+
+      .container {
+        max-width: 1200px;
+        margin: 0 auto;
+      }
+
+      .section-title {
+        text-align: center;
+        font-size: 2.5rem;
+        font-weight: 700;
+        margin-bottom: 60px;
+        color: var(--dark);
+      }
+
+      .features-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+        gap: 40px;
+      }
+
+      .feature-card {
+        padding: 40px;
+        background: var(--light);
+        border-radius: 16px;
+        transition: all 0.3s ease;
+      }
+
+      .feature-card:hover {
+        transform: translateY(-5px);
+        box-shadow: 0 20px 40px rgba(0, 0, 0, 0.1);
+      }
+
+      .feature-icon {
+        font-size: 3rem;
+        margin-bottom: 20px;
+      }
+
+      .feature-card h3 {
+        font-size: 1.5rem;
+        margin-bottom: 16px;
+        color: var(--dark);
+      }
+
+      .feature-card p {
+        color: var(--gray);
+        line-height: 1.8;
+      }
+
+      /* Pricing Section */
+      .pricing {
+        padding: 80px 20px;
+        background: var(--light);
+      }
+
+      .pricing-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+        gap: 40px;
+        max-width: 1200px;
+        margin: 0 auto;
+      }
+
+      .pricing-card {
+        background: white;
+        padding: 40px;
+        border-radius: 16px;
+        text-align: center;
+        border: 2px solid transparent;
+        transition: all 0.3s ease;
+      }
+
+      .pricing-card.featured {
+        border-color: var(--primary);
+        transform: scale(1.05);
+        box-shadow: 0 20px 60px rgba(99, 102, 241, 0.2);
+      }
+
+      .pricing-card:hover {
+        transform: translateY(-5px) scale(1.02);
+        box-shadow: 0 20px 40px rgba(0, 0, 0, 0.1);
+      }
+
+      .pricing-card.featured:hover {
+        transform: translateY(-5px) scale(1.07);
+      }
+
+      .plan-name {
+        font-size: 1.5rem;
+        font-weight: 700;
+        margin-bottom: 16px;
+        color: var(--dark);
+      }
+
+      .plan-price {
+        font-size: 3rem;
+        font-weight: 800;
+        color: var(--primary);
+        margin-bottom: 8px;
+      }
+
+      .plan-price span {
+        font-size: 1.2rem;
+        color: var(--gray);
+      }
+
+      .plan-features {
+        list-style: none;
+        margin: 30px 0;
+        text-align: left;
+      }
+
+      .plan-features li {
+        padding: 12px 0;
+        border-bottom: 1px solid var(--light);
+      }
+
+      .plan-features li:before {
+        content: "✓ ";
+        color: var(--success);
+        font-weight: bold;
+        margin-right: 8px;
+      }
+
+      /* CTA Section */
+      .cta-section {
+        padding: 100px 20px;
+        background: linear-gradient(
+          135deg,
+          var(--dark) 0%,
+          var(--dark-light) 100%
+        );
+        color: white;
+        text-align: center;
+      }
+
+      .cta-section h2 {
+        font-size: 2.5rem;
+        margin-bottom: 24px;
+      }
+
+      .cta-section p {
+        font-size: 1.3rem;
+        margin-bottom: 40px;
+        opacity: 0.9;
+      }
+
+      /* Email Capture Form */
+      .email-form {
+        max-width: 500px;
+        margin: 0 auto;
+        display: flex;
+        gap: 12px;
+        flex-wrap: wrap;
+        justify-content: center;
+      }
+
+      .email-form input {
+        flex: 1;
+        min-width: 250px;
+        padding: 16px 24px;
+        font-size: 1rem;
+        border: none;
+        border-radius: 12px;
+        outline: none;
+      }
+
+      .email-form button {
+        padding: 16px 40px;
+        font-size: 1rem;
+        font-weight: 600;
+        background: var(--primary);
+        color: white;
+        border: none;
+        border-radius: 12px;
+        cursor: pointer;
+        transition: all 0.3s ease;
+      }
+
+      .email-form button:hover {
+        background: var(--primary-dark);
+        transform: translateY(-2px);
+      }
+
+      /* Footer */
+      footer {
+        background: var(--dark);
+        color: white;
+        padding: 40px 20px;
+        text-align: center;
+      }
+
+      footer p {
+        opacity: 0.7;
+      }
+
+      /* Responsive */
+      @media (max-width: 768px) {
+        .hero h1 {
+          font-size: 2.5rem;
+        }
+
+        .hero p {
+          font-size: 1.2rem;
+        }
+
+        .section-title {
+          font-size: 2rem;
+        }
+
+        .pricing-card.featured {
+          transform: scale(1);
+        }
+      }
+
+      /* Success Message */
+      .success-message {
+        display: none;
+        background: var(--success);
+        color: white;
+        padding: 16px;
+        border-radius: 12px;
+        margin-top: 20px;
+        animation: slideIn 0.3s ease;
+      }
+
+      @keyframes slideIn {
+        from {
+          opacity: 0;
+          transform: translateY(-10px);
+        }
+        to {
+          opacity: 1;
+          transform: translateY(0);
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <!-- Hero Section -->
+    <section class="hero">
+      <div class="hero-content">
+        <h1>Build AI Agents That Work For You</h1>
+        <p>Automate your business with custom AI agents. No coding required.</p>
+        <div class="cta-buttons">
+          <a href="#pricing" class="btn btn-primary">Start Free Trial</a>
+          <a href="#features" class="btn btn-secondary">Learn More</a>
+        </div>
+      </div>
+    </section>
+
+    <!-- Features Section -->
+    <section id="features" class="features">
+      <div class="container">
+        <h2 class="section-title">Powerful Features</h2>
+        <div class="features-grid">
+          <div class="feature-card">
+            <div class="feature-icon">🤖</div>
+            <h3>Custom AI Agents</h3>
+            <p>
+              Create specialized AI agents for any task. From customer service
+              to content creation, Chatty handles it all.
+            </p>
+          </div>
+          <div class="feature-card">
+            <div class="feature-icon">⚡</div>
+            <h3>Workflow Automation</h3>
+            <p>
+              Automate complex business processes with visual workflow builder.
+              Connect multiple agents seamlessly.
+            </p>
+          </div>
+          <div class="feature-card">
+            <div class="feature-icon">🔄</div>
+            <h3>24/7 Operation</h3>
+            <p>
+              Your AI agents work around the clock, handling tasks while you
+              sleep. Never miss an opportunity.
+            </p>
+          </div>
+          <div class="feature-card">
+            <div class="feature-icon">📊</div>
+            <h3>Real-Time Analytics</h3>
+            <p>
+              Track performance, monitor efficiency, and optimize your
+              automation with detailed analytics.
+            </p>
+          </div>
+          <div class="feature-card">
+            <div class="feature-icon">🔐</div>
+            <h3>Enterprise Security</h3>
+            <p>
+              Bank-level encryption, SOC 2 compliance, and enterprise-grade
+              security for your data.
+            </p>
+          </div>
+          <div class="feature-card">
+            <div class="feature-icon">🚀</div>
+            <h3>Easy Integration</h3>
+            <p>
+              Connect with 1000+ tools and services. Stripe, SendGrid, Twitter,
+              and more out of the box.
+            </p>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- Pricing Section -->
+    <section id="pricing" class="pricing">
+      <div class="container">
+        <h2 class="section-title">Simple, Transparent Pricing</h2>
+        <div class="pricing-grid">
+          <div class="pricing-card">
+            <div class="plan-name">Starter</div>
+            <div class="plan-price">$29<span>/month</span></div>
+            <ul class="plan-features">
+              <li>5 AI Agents</li>
+              <li>10 Workflows</li>
+              <li>1,000 Tasks/month</li>
+              <li>Email Support</li>
+              <li>Basic Analytics</li>
+            </ul>
+            <button class="btn btn-primary" onclick="selectPlan('starter')">
+              Get Started
+            </button>
+          </div>
+
+          <div class="pricing-card featured">
+            <div class="plan-name">Professional</div>
+            <div class="plan-price">$99<span>/month</span></div>
+            <ul class="plan-features">
+              <li>Unlimited AI Agents</li>
+              <li>Unlimited Workflows</li>
+              <li>10,000 Tasks/month</li>
+              <li>Priority Support</li>
+              <li>Advanced Analytics</li>
+              <li>Custom Integrations</li>
+              <li>API Access</li>
+            </ul>
+            <button
+              class="btn btn-primary"
+              onclick="selectPlan('professional')"
+            >
+              Get Started
+            </button>
+          </div>
+
+          <div class="pricing-card">
+            <div class="plan-name">Enterprise</div>
+            <div class="plan-price">Custom</div>
+            <ul class="plan-features">
+              <li>Everything in Professional</li>
+              <li>Unlimited Tasks</li>
+              <li>Dedicated Support</li>
+              <li>Custom Development</li>
+              <li>SLA Guarantee</li>
+              <li>On-Premise Option</li>
+            </ul>
+            <button class="btn btn-primary" onclick="selectPlan('enterprise')">
+              Contact Sales
+            </button>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- CTA Section -->
+    <section class="cta-section">
+      <div class="container">
+        <h2>Ready to Automate Your Business?</h2>
+        <p>
+          Join thousands of businesses already using CHATTY to save time and
+          increase productivity.
+        </p>
+        <form class="email-form" onsubmit="captureEmail(event)">
+          <input
+            type="email"
+            id="email"
+            placeholder="Enter your email"
+            required
+          />
+          <button type="submit">Start Free Trial</button>
+        </form>
+        <div id="success-message" class="success-message">
+          ✓ Success! Check your email to get started.
+        </div>
+      </div>
+    </section>
+
+    <!-- Footer -->
+    <footer>
+      <div class="container">
+        <p>&copy; 2026 CHATTY. All rights reserved.</p>
+        <p>Automate your business with AI agents.</p>
+      </div>
+    </footer>
+
+    <script>
+      function selectPlan(plan) {
+        // Redirect to Stripe checkout (will be configured with real Stripe)
+        alert(`Selected ${plan} plan. Redirecting to checkout...`);
+        // window.location.href = `/checkout?plan=${plan}`;
+      }
+
+      function captureEmail(event) {
+        event.preventDefault();
+        const email = document.getElementById("email").value;
+
+        // Send to backend (will be implemented with real API)
+        fetch("/api/capture-lead", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({ email: email, source: "landing_page" }),
+        })
+          .then((response) => response.json())
+          .then((data) => {
+            document.getElementById("success-message").style.display = "block";
+            document.getElementById("email").value = "";
+
+            // Hide success message after 5 seconds
+            setTimeout(() => {
+              document.getElementById("success-message").style.display = "none";
+            }, 5000);
+          })
+          .catch((error) => {
+            console.error("Error:", error);
+            alert("Thanks for your interest! We'll be in touch soon.");
+          });
+      }
+
+      // Smooth scrolling for anchor links
+      document.querySelectorAll('a[href^="#"]').forEach((anchor) => {
+        anchor.addEventListener("click", function (e) {
+          e.preventDefault();
+          const target = document.querySelector(this.getAttribute("href"));
+          if (target) {
+            target.scrollIntoView({
+              behavior: "smooth",
+              block: "start",
+            });
+          }
+        });
+      });
+    </script>
+  </body>
+</html>

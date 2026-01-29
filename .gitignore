@@ -1,0 +1,12 @@
+.env
+.env.*
+*.key
+*.pem
+*.p12
+chroma_db/
+logs/
+generated_content/
+__pycache__/
+*.pyc
+sendgrid.env
+.vercel

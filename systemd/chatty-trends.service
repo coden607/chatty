@@ -1,0 +1,9 @@
+[Unit]
+Description=Chatty YouTube Trend Fetcher
+After=network.target
+
+[Service]
+Type=oneshot
+WorkingDirectory=__CHATTY_ROOT__
+EnvironmentFile=__CHATTY_ROOT__/.env
+ExecStart=__CHATTY_ROOT__/python3 __CHATTY_ROOT__/scripts/youtube_trend_fetcher.py
