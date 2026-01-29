@@ -1,0 +1,14 @@
+[Unit]
+Description=Chatty Automation Loop
+After=network.target
+
+[Service]
+Type=simple
+WorkingDirectory=__CHATTY_ROOT__
+Environment=CHATTY_SECRETS_FILE=%h/.config/chatty/secrets.env
+ExecStart=__CHATTY_ROOT__/python3 __CHATTY_ROOT__/START_COMPLETE_AUTOMATION.py
+Restart=always
+RestartSec=5
+
+[Install]
+WantedBy=default.target

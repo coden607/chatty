@@ -1,0 +1,203 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>CHATTY AI Workflow Selector</title>
+    <style>
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            margin: 0;
+            padding: 20px;
+            min-height: 100vh;
+        }
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            background: white;
+            border-radius: 15px;
+            box-shadow: 0 20px 40px rgba(0,0,0,0.1);
+            overflow: hidden;
+        }
+        .header {
+            background: linear-gradient(135deg, #4a90e2, #7c3aed);
+            color: white;
+            padding: 30px;
+            text-align: center;
+        }
+        .workflow-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(350px, 1fr));
+            gap: 20px;
+            padding: 30px;
+        }
+        .workflow-card {
+            background: #f8f9fa;
+            border-radius: 10px;
+            padding: 25px;
+            border: 2px solid transparent;
+            transition: all 0.3s ease;
+            cursor: pointer;
+        }
+        .workflow-card:hover {
+            border-color: #4a90e2;
+            transform: translateY(-5px);
+            box-shadow: 0 10px 25px rgba(0,0,0,0.15);
+        }
+        .workflow-icon {
+            font-size: 3em;
+            margin-bottom: 15px;
+            display: block;
+        }
+        .workflow-title {
+            font-size: 1.3em;
+            font-weight: bold;
+            margin-bottom: 10px;
+            color: #333;
+        }
+        .workflow-description {
+            color: #666;
+            line-height: 1.5;
+        }
+        .ai-sequence {
+            margin-top: 15px;
+            padding: 10px;
+            background: #e8f4fd;
+            border-radius: 5px;
+            font-size: 0.9em;
+        }
+        .ai-sequence strong {
+            color: #4a90e2;
+        }
+        .execute-btn {
+            background: linear-gradient(135deg, #4a90e2, #7c3aed);
+            color: white;
+            border: none;
+            padding: 12px 25px;
+            border-radius: 25px;
+            font-size: 1em;
+            cursor: pointer;
+            margin-top: 15px;
+            transition: all 0.3s ease;
+        }
+        .execute-btn:hover {
+            transform: scale(1.05);
+            box-shadow: 0 5px 15px rgba(74, 144, 226, 0.4);
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>🤖 CHATTY AI Workflow Selector</h1>
+            <p>Choose your specialized multi-AI collaboration workflow</p>
+        </div>
+
+        <div class="workflow-grid" id="workflowGrid">
+            <!-- Workflows will be populated by JavaScript -->
+        </div>
+    </div>
+
+    <script>
+        const workflows = {
+            business_strategy: {
+                icon: "📊",
+                title: "Business Strategy Development",
+                description: "Comprehensive business planning with market analysis, financial projections, and strategic positioning",
+                ai_sequence: ["Claude", "Grok", "Gemini", "DeepSeek"],
+                iterations: 2
+            },
+            creative_content: {
+                icon: "🎨",
+                title: "Creative Content Generation",
+                description: "AI-powered content creation for marketing, blogs, social media, and creative writing",
+                ai_sequence: ["Gemini", "Claude", "Grok", "DeepSeek"],
+                iterations: 3
+            },
+            technical_development: {
+                icon: "💻",
+                title: "Technical Architecture & Development",
+                description: "Software architecture, technical specifications, APIs, and development planning",
+                ai_sequence: ["Claude", "DeepSeek", "Grok", "Gemini"],
+                iterations: 2
+            },
+            research_analysis: {
+                icon: "🔬",
+                title: "Research & Analysis",
+                description: "Comprehensive research, data analysis, insights generation, and strategic recommendations",
+                ai_sequence: ["Grok", "Claude", "DeepSeek", "Gemini"],
+                iterations: 3
+            },
+            customer_service: {
+                icon: "🎧",
+                title: "Customer Service Optimization",
+                description: "Customer journey analysis, support automation, chatbots, and service strategy",
+                ai_sequence: ["Claude", "Gemini", "Grok", "DeepSeek"],
+                iterations: 2
+            },
+            marketing_campaign: {
+                icon: "📢",
+                title: "Marketing Campaign Creation",
+                description: "Complete marketing campaign development with creative concepts, strategy, and execution plans",
+                ai_sequence: ["Gemini", "Claude", "Grok", "DeepSeek"],
+                iterations: 2
+            }
+        };
+
+        function createWorkflowCards() {
+            const grid = document.getElementById('workflowGrid');
+
+            Object.entries(workflows).forEach(([key, workflow]) => {
+                const card = document.createElement('div');
+                card.className = 'workflow-card';
+                card.onclick = () => executeWorkflow(key);
+
+                card.innerHTML = `
+                    <div class="workflow-icon">${workflow.icon}</div>
+                    <div class="workflow-title">${workflow.title}</div>
+                    <div class="workflow-description">${workflow.description}</div>
+                    <div class="ai-sequence">
+                        <strong>AI Sequence:</strong> ${workflow.ai_sequence.join(' → ')}<br>
+                        <strong>Iterations:</strong> ${workflow.iterations}
+                    </div>
+                    <button class="execute-btn" onclick="executeWorkflow('${key}')">🚀 Execute Workflow</button>
+                `;
+
+                grid.appendChild(card);
+            });
+        }
+
+        function executeWorkflow(workflowType) {
+            const workflow = workflows[workflowType];
+
+            // Create a form to submit to N8N
+            const form = document.createElement('form');
+            form.method = 'POST';
+            form.action = 'http://localhost:5678/webhook/multi-ai-collaboration';
+
+            // Add workflow data
+            const data = {
+                userPrompt: `Create a comprehensive ${workflow.title.toLowerCase()} for a [describe your project/idea]`,
+                maxIterations: workflow.iterations,
+                workflowType: workflowType,
+                aiSequence: workflow.ai_sequence.join(', ')
+            };
+
+            Object.keys(data).forEach(key => {
+                const input = document.createElement('input');
+                input.type = 'hidden';
+                input.name = key;
+                input.value = data[key];
+                form.appendChild(input);
+            });
+
+            document.body.appendChild(form);
+            form.submit();
+        }
+
+        // Initialize the interface
+        createWorkflowCards();
+    </script>
+</body>
+</html>

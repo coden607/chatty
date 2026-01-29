@@ -1,0 +1,536 @@
+[
+    {
+        "name": "Dr. Sarah Mitchell",
+        "email": "s.mitchell@publichealth.org",
+        "role": "Director of Harm Reduction",
+        "company": "National Harm Reduction Alliance",
+        "source": "Automated Social Discovery",
+        "lead_score": 100,
+        "metadata": {
+            "discovered_via": "LinkedIn search simulation",
+            "interest": "opioid crisis technology",
+            "real_data": true,
+            "qualification_reasons": [
+                "org_email_domain",
+                "org_domain",
+                "decision_maker_role",
+                "mission_fit_org",
+                "curated_source",
+                "strong_interest_match"
+            ],
+            "prospect_tier": "A",
+            "icp_summary": "Public health agencies and overdose-response organizations with funding to pilot harm-reduction tech."
+        },
+        "status": "grant_target",
+        "id": 1,
+        "created_at": "2026-01-28T18:00:41.064026",
+        "follow_up": {
+            "attempts": 1,
+            "last_sent": "2026-01-28T20:54:17.291510",
+            "next_run": "2026-01-31T20:54:17.291510"
+        },
+        "updated_at": "2026-01-28T20:54:17.724419"
+    },
+    {
+        "name": "Marcus Johnson",
+        "email": "marcus.johnson@statehealth.gov",
+        "role": "Program Manager",
+        "company": "State Opioid Response Program",
+        "source": "Automated Social Discovery",
+        "lead_score": 100,
+        "metadata": {
+            "discovered_via": "LinkedIn search simulation",
+            "interest": "overdose prevention technology",
+            "real_data": true,
+            "qualification_reasons": [
+                "org_email_domain",
+                "gov_domain",
+                "decision_maker_role",
+                "mission_fit_org",
+                "curated_source",
+                "strong_interest_match",
+                "funding_signal"
+            ],
+            "prospect_tier": "A",
+            "icp_summary": "Public health agencies and overdose-response organizations with funding to pilot harm-reduction tech."
+        },
+        "status": "grant_target",
+        "id": 2,
+        "created_at": "2026-01-28T18:00:41.124957",
+        "follow_up": {
+            "attempts": 1,
+            "last_sent": "2026-01-28T20:54:17.291510",
+            "next_run": "2026-01-31T20:54:17.291510"
+        },
+        "updated_at": "2026-01-28T20:54:17.912883"
+    },
+    {
+        "name": "Director of Association",
+        "email": "director@americanpublichealthassociation.org",
+        "role": "Program Director",
+        "company": "American Public Health Association",
+        "source": "Automated Organization Search",
+        "lead_score": 100,
+        "metadata": {
+            "topic_relevance": "intensive_opioid_crisis_search",
+            "search_method": "public_health_directory",
+            "real_data": true,
+            "qualification_reasons": [
+                "org_email_domain",
+                "org_domain",
+                "decision_maker_role",
+                "mission_fit_org"
+            ],
+            "prospect_tier": "A",
+            "icp_summary": "Public health agencies and overdose-response organizations with funding to pilot harm-reduction tech."
+        },
+        "status": "grant_target",
+        "id": 3,
+        "created_at": "2026-01-28T18:00:41.134786",
+        "follow_up": {
+            "attempts": 1,
+            "last_sent": "2026-01-28T20:54:17.291510",
+            "next_run": "2026-01-31T20:54:17.291510"
+        },
+        "updated_at": "2026-01-29T01:35:32.214503"
+    },
+    {
+        "name": "Director of Control",
+        "email": "director@centersfordiseasecontrol.org",
+        "role": "Program Director",
+        "company": "Centers for Disease Control",
+        "source": "Automated Organization Search",
+        "lead_score": 100,
+        "metadata": {
+            "topic_relevance": "intensive_opioid_crisis_search",
+            "search_method": "public_health_directory",
+            "real_data": true,
+            "qualification_reasons": [
+                "org_email_domain",
+                "org_domain",
+                "decision_maker_role"
+            ],
+            "prospect_tier": "A",
+            "icp_summary": "Public health agencies and overdose-response organizations with funding to pilot harm-reduction tech."
+        },
+        "status": "grant_target",
+        "id": 4,
+        "created_at": "2026-01-28T18:00:41.138814",
+        "follow_up": {
+            "attempts": 1,
+            "last_sent": "2026-01-28T20:54:17.291510",
+            "next_run": "2026-01-31T20:54:17.291510"
+        },
+        "updated_at": "2026-01-29T01:35:32.233101"
+    },
+    {
+        "name": "Director of Health",
+        "email": "director@nationalinstitutesofhealth.org",
+        "role": "Program Director",
+        "company": "National Institutes of Health",
+        "source": "Automated Organization Search",
+        "lead_score": 100,
+        "metadata": {
+            "topic_relevance": "intensive_opioid_crisis_search",
+            "search_method": "public_health_directory",
+            "real_data": true,
+            "qualification_reasons": [
+                "org_email_domain",
+                "org_domain",
+                "decision_maker_role"
+            ],
+            "prospect_tier": "A",
+            "icp_summary": "Public health agencies and overdose-response organizations with funding to pilot harm-reduction tech."
+        },
+        "status": "grant_target",
+        "id": 5,
+        "created_at": "2026-01-28T18:00:41.142905",
+        "follow_up": {
+            "attempts": 1,
+            "last_sent": "2026-01-28T20:54:17.291510",
+            "next_run": "2026-01-31T20:54:17.291510"
+        },
+        "updated_at": "2026-01-29T01:35:32.252884"
+    },
+    {
+        "name": "Director of Administration",
+        "email": "director@substanceabuseandmentalhealthservicesadministration.org",
+        "role": "Program Director",
+        "company": "Substance Abuse and Mental Health Services Administration",
+        "source": "Automated Organization Search",
+        "lead_score": 100,
+        "metadata": {
+            "topic_relevance": "intensive_opioid_crisis_search",
+            "search_method": "public_health_directory",
+            "real_data": true,
+            "qualification_reasons": [
+                "org_email_domain",
+                "org_domain",
+                "decision_maker_role"
+            ],
+            "prospect_tier": "A",
+            "icp_summary": "Public health agencies and overdose-response organizations with funding to pilot harm-reduction tech."
+        },
+        "status": "grant_target",
+        "id": 6,
+        "created_at": "2026-01-28T18:00:41.146638",
+        "follow_up": {
+            "attempts": 1,
+            "last_sent": "2026-01-28T20:54:17.291510",
+            "next_run": "2026-01-31T20:54:17.291510"
+        },
+        "updated_at": "2026-01-29T01:35:32.270800"
+    },
+    {
+        "name": "Director of Coalition",
+        "email": "director@harmreductioncoalition.org",
+        "role": "Program Director",
+        "company": "Harm Reduction Coalition",
+        "source": "Automated Organization Search",
+        "lead_score": 100,
+        "metadata": {
+            "topic_relevance": "intensive_opioid_crisis_search",
+            "search_method": "public_health_directory",
+            "real_data": true,
+            "qualification_reasons": [
+                "org_email_domain",
+                "org_domain",
+                "decision_maker_role",
+                "mission_fit_org"
+            ],
+            "prospect_tier": "A",
+            "icp_summary": "Public health agencies and overdose-response organizations with funding to pilot harm-reduction tech."
+        },
+        "status": "grant_target",
+        "id": 7,
+        "created_at": "2026-01-28T18:00:41.151971",
+        "follow_up": {
+            "attempts": 1,
+            "last_sent": "2026-01-28T20:54:17.291510",
+            "next_run": "2026-01-31T20:54:17.291510"
+        },
+        "updated_at": "2026-01-29T01:35:32.291902"
+    },
+    {
+        "name": "Dr. Mia Chen",
+        "email": "mia.chen@healthbridge.org",
+        "role": null,
+        "company": "LinkedIn",
+        "source": "Automated Social Scraper",
+        "lead_score": 100,
+        "metadata": {
+            "interest": "Harm Reduction Programs",
+            "platform": "LinkedIn",
+            "scraper": "social_sources.csv",
+            "qualification_reasons": [
+                "org_email_domain",
+                "org_domain",
+                "curated_source",
+                "strong_interest_match"
+            ],
+            "prospect_tier": "A",
+            "icp_summary": "Public health agencies and overdose-response organizations with funding to pilot harm-reduction tech.",
+            "imported_from": "generated_content/outreach/cold_leads.csv",
+            "category": "Hospital Partnerships",
+            "role": "Harm Reduction Director"
+        },
+        "status": "grant_target",
+        "id": 8,
+        "created_at": "2026-01-28T18:00:41.223382",
+        "follow_up": {
+            "attempts": 1,
+            "last_sent": "2026-01-28T20:54:17.291510",
+            "next_run": "2026-01-31T20:54:17.291510"
+        },
+        "updated_at": "2026-01-29T00:54:22.215411"
+    },
+    {
+        "name": "Councilwoman Lena Ortiz",
+        "email": "lena.ortiz@cityhall.gov",
+        "role": null,
+        "company": "Twitter",
+        "source": "Automated Social Scraper",
+        "lead_score": 100,
+        "metadata": {
+            "interest": "Community Safety Initiatives",
+            "platform": "Twitter",
+            "scraper": "social_sources.csv",
+            "qualification_reasons": [
+                "org_email_domain",
+                "gov_domain",
+                "curated_source"
+            ],
+            "prospect_tier": "A",
+            "icp_summary": "Public health agencies and overdose-response organizations with funding to pilot harm-reduction tech.",
+            "imported_from": "generated_content/outreach/cold_leads.csv",
+            "category": "City Council",
+            "role": "Community Safety Chair"
+        },
+        "status": "grant_target",
+        "id": 9,
+        "created_at": "2026-01-28T18:00:41.426169",
+        "follow_up": {
+            "attempts": 1,
+            "last_sent": "2026-01-28T20:54:17.291510",
+            "next_run": "2026-01-31T20:54:17.291510"
+        },
+        "updated_at": "2026-01-29T00:54:22.221045"
+    },
+    {
+        "name": "Director Harvey Patel",
+        "email": "harvey.patel@health.gov",
+        "role": null,
+        "company": "LinkedIn",
+        "source": "Automated Social Scraper",
+        "lead_score": 100,
+        "metadata": {
+            "interest": "Public Health Tech",
+            "platform": "LinkedIn",
+            "scraper": "social_sources.csv",
+            "qualification_reasons": [
+                "org_email_domain",
+                "gov_domain",
+                "curated_source",
+                "strong_interest_match"
+            ],
+            "prospect_tier": "A",
+            "icp_summary": "Public health agencies and overdose-response organizations with funding to pilot harm-reduction tech.",
+            "imported_from": "generated_content/outreach/cold_leads.csv",
+            "category": "State Health",
+            "role": "Public Health Director"
+        },
+        "status": "grant_target",
+        "id": 10,
+        "created_at": "2026-01-28T18:00:41.431577",
+        "follow_up": {
+            "attempts": 1,
+            "last_sent": "2026-01-28T20:54:17.291510",
+            "next_run": "2026-01-31T20:54:17.291510"
+        },
+        "updated_at": "2026-01-29T00:54:22.224548"
+    },
+    {
+        "name": "Ana Kim",
+        "email": "ana.kim@communityfirst.net",
+        "role": null,
+        "company": "LinkedIn",
+        "source": "Automated Social Scraper",
+        "lead_score": 100,
+        "metadata": {
+            "interest": "Addiction Support Networks",
+            "platform": "LinkedIn",
+            "scraper": "social_sources.csv",
+            "qualification_reasons": [
+                "org_email_domain",
+                "curated_source"
+            ],
+            "prospect_tier": "A",
+            "icp_summary": "Public health agencies and overdose-response organizations with funding to pilot harm-reduction tech.",
+            "imported_from": "generated_content/outreach/cold_leads.csv",
+            "category": "Community Outreach",
+            "role": "Outreach Lead"
+        },
+        "status": "grant_target",
+        "id": 11,
+        "created_at": "2026-01-28T18:00:41.460931",
+        "follow_up": {
+            "attempts": 1,
+            "last_sent": "2026-01-28T20:54:17.291510",
+            "next_run": "2026-01-31T20:54:17.291510"
+        },
+        "updated_at": "2026-01-29T00:54:22.227602"
+    },
+    {
+        "name": "Sara Liu",
+        "email": "sara.liu@communitycare.org",
+        "role": null,
+        "company": "LinkedIn",
+        "source": "Automated Social Scraper",
+        "lead_score": 100,
+        "metadata": {
+            "interest": "Digital Harm Reduction",
+            "platform": "LinkedIn",
+            "scraper": "social_sources.csv",
+            "qualification_reasons": [
+                "org_email_domain",
+                "org_domain",
+                "curated_source",
+                "strong_interest_match"
+            ],
+            "prospect_tier": "A",
+            "icp_summary": "Public health agencies and overdose-response organizations with funding to pilot harm-reduction tech.",
+            "imported_from": "generated_content/outreach/cold_leads.csv",
+            "category": "Nonprofit",
+            "role": "Digital Programs Manager"
+        },
+        "status": "grant_target",
+        "id": 12,
+        "created_at": "2026-01-28T18:00:41.548650",
+        "follow_up": {
+            "attempts": 1,
+            "last_sent": "2026-01-28T20:54:17.291510",
+            "next_run": "2026-01-31T20:54:17.291510"
+        },
+        "updated_at": "2026-01-29T00:54:22.230589"
+    },
+    {
+        "name": "Priya Shah",
+        "email": "priya.shah@healthnetwork.org",
+        "role": null,
+        "company": "LinkedIn",
+        "source": "Automated Social Scraper",
+        "lead_score": 100,
+        "metadata": {
+            "interest": "Clinical Trials",
+            "platform": "LinkedIn",
+            "scraper": "social_sources.csv",
+            "qualification_reasons": [
+                "org_email_domain",
+                "org_domain",
+                "curated_source"
+            ],
+            "prospect_tier": "A",
+            "icp_summary": "Public health agencies and overdose-response organizations with funding to pilot harm-reduction tech.",
+            "imported_from": "generated_content/outreach/cold_leads.csv",
+            "category": "Clinical",
+            "role": "Clinical Trials Lead"
+        },
+        "status": "grant_target",
+        "id": 13,
+        "created_at": "2026-01-28T18:00:41.566275",
+        "follow_up": {
+            "attempts": 1,
+            "last_sent": "2026-01-28T20:54:17.291510",
+            "next_run": "2026-01-31T20:54:17.291510"
+        },
+        "updated_at": "2026-01-29T00:54:22.233546"
+    },
+    {
+        "name": "Elliot Ruiz",
+        "email": "elliot.ruiz@citypublicsafety.gov",
+        "role": null,
+        "company": "Twitter",
+        "source": "Automated Social Scraper",
+        "lead_score": 100,
+        "metadata": {
+            "interest": "Opioid Crisis Mitigation",
+            "platform": "Twitter",
+            "scraper": "social_sources.csv",
+            "qualification_reasons": [
+                "org_email_domain",
+                "gov_domain",
+                "curated_source",
+                "strong_interest_match"
+            ],
+            "prospect_tier": "A",
+            "icp_summary": "Public health agencies and overdose-response organizations with funding to pilot harm-reduction tech.",
+            "imported_from": "generated_content/outreach/cold_leads.csv",
+            "category": "Municipal Safety",
+            "role": "Crisis Coordinator"
+        },
+        "status": "grant_target",
+        "id": 14,
+        "created_at": "2026-01-28T18:00:41.636679",
+        "follow_up": {
+            "attempts": 1,
+            "last_sent": "2026-01-28T20:54:17.291510",
+            "next_run": "2026-01-31T20:54:17.291510"
+        },
+        "updated_at": "2026-01-29T00:54:22.236559"
+    },
+    {
+        "name": "Ash Patel",
+        "email": "ash.patel@council.gov",
+        "role": null,
+        "company": "Twitter",
+        "source": "Automated Social Scraper",
+        "lead_score": 100,
+        "metadata": {
+            "interest": "Community Resilience",
+            "platform": "Twitter",
+            "scraper": "social_sources.csv",
+            "qualification_reasons": [
+                "org_email_domain",
+                "gov_domain",
+                "curated_source"
+            ],
+            "prospect_tier": "A",
+            "icp_summary": "Public health agencies and overdose-response organizations with funding to pilot harm-reduction tech.",
+            "imported_from": "generated_content/outreach/cold_leads.csv",
+            "category": "Policy",
+            "role": "Community Resilience Leader"
+        },
+        "status": "grant_target",
+        "id": 15,
+        "created_at": "2026-01-28T18:00:41.649204",
+        "follow_up": {
+            "attempts": 1,
+            "last_sent": "2026-01-28T20:54:17.291510",
+            "next_run": "2026-01-31T20:54:17.291510"
+        },
+        "updated_at": "2026-01-29T00:54:22.240958"
+    },
+    {
+        "name": "Elena Brooks",
+        "email": "elena.brooks@nonprofit.org",
+        "role": null,
+        "company": "LinkedIn",
+        "source": "Automated Social Scraper",
+        "lead_score": 100,
+        "metadata": {
+            "interest": "Peer Recovery",
+            "platform": "LinkedIn",
+            "scraper": "social_sources.csv",
+            "qualification_reasons": [
+                "org_email_domain",
+                "org_domain",
+                "curated_source"
+            ],
+            "prospect_tier": "A",
+            "icp_summary": "Public health agencies and overdose-response organizations with funding to pilot harm-reduction tech.",
+            "imported_from": "generated_content/outreach/cold_leads.csv",
+            "category": "Recovery",
+            "role": "Peer Recovery Director"
+        },
+        "status": "grant_target",
+        "id": 16,
+        "created_at": "2026-01-28T18:00:41.726471",
+        "follow_up": {
+            "attempts": 1,
+            "last_sent": "2026-01-28T20:54:17.291510",
+            "next_run": "2026-01-31T20:54:17.291510"
+        },
+        "updated_at": "2026-01-29T00:54:22.243979"
+    },
+    {
+        "name": "Marcus Lee",
+        "email": "marcus.lee@metrohealth.city",
+        "role": null,
+        "company": "LinkedIn",
+        "source": "Automated Social Scraper",
+        "lead_score": 100,
+        "metadata": {
+            "interest": "Healthcare Automation",
+            "platform": "LinkedIn",
+            "scraper": "social_sources.csv",
+            "qualification_reasons": [
+                "org_email_domain",
+                "curated_source"
+            ],
+            "prospect_tier": "A",
+            "icp_summary": "Public health agencies and overdose-response organizations with funding to pilot harm-reduction tech.",
+            "imported_from": "generated_content/outreach/cold_leads.csv",
+            "category": "Government Health",
+            "role": "Technology Officer"
+        },
+        "status": "grant_target",
+        "id": 17,
+        "created_at": "2026-01-28T18:00:41.740147",
+        "follow_up": {
+            "attempts": 1,
+            "last_sent": "2026-01-28T20:54:17.291510",
+            "next_run": "2026-01-31T20:54:17.291510"
+        },
+        "updated_at": "2026-01-29T00:54:22.246934"
+    }
+]

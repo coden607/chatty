@@ -1,0 +1,13 @@
+[Unit]
+Description=Chatty Dashboard UI
+After=network.target
+
+[Service]
+Type=simple
+WorkingDirectory=__CHATTY_ROOT__
+ExecStart=__CHATTY_ROOT__/python3 -m http.server 8090 --directory __CHATTY_ROOT__
+Restart=always
+RestartSec=5
+
+[Install]
+WantedBy=default.target

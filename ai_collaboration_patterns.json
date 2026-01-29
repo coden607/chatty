@@ -1,0 +1,10 @@
+{
+  "sequential": "Each AI builds directly on the previous response",
+  "parallel": "All AIs work simultaneously on different aspects",
+  "iterative": "Multiple rounds of refinement and improvement",
+  "specialized": "Each AI focuses on their area of expertise",
+  "consensus": "AIs debate and reach consensus on solutions",
+  "creative": "Focus on innovative and creative approaches",
+  "analytical": "Emphasis on data-driven and logical analysis",
+  "synthetic": "Combine multiple perspectives into unified solution"
+}

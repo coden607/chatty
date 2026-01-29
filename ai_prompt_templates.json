@@ -1,0 +1,20 @@
+{
+  "business_plan": {
+    "executive_summary": "Create a compelling executive summary for: {prompt}",
+    "market_analysis": "Conduct thorough market analysis for: {prompt}",
+    "financial_projections": "Develop realistic financial projections for: {prompt}",
+    "risk_assessment": "Identify and assess risks for: {prompt}"
+  },
+  "content_marketing": {
+    "audience_analysis": "Analyze target audience for: {prompt}",
+    "content_strategy": "Develop content marketing strategy for: {prompt}",
+    "content_calendar": "Create content calendar for: {prompt}",
+    "engagement_tactics": "Design engagement tactics for: {prompt}"
+  },
+  "product_development": {
+    "requirements_gathering": "Gather detailed requirements for: {prompt}",
+    "architecture_design": "Design system architecture for: {prompt}",
+    "development_plan": "Create development roadmap for: {prompt}",
+    "testing_strategy": "Develop testing strategy for: {prompt}"
+  }
+}

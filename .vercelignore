@@ -1,0 +1,11 @@
+logs/
+chroma_db/
+generated_content/
+__pycache__/
+.pytest_cache/
+tmp/
+trend_data/
+.env
+.env.example
+.env.template
+sendgrid.env

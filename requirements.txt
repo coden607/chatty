@@ -1,0 +1,60 @@
+# CHATTY Complete Automation System - Python Dependencies
+
+# Core Framework
+flask>=3.0.0
+flask-cors>=4.0.0
+flask-sqlalchemy>=3.1.1
+python-dotenv>=1.0.0
+fastapi>=0.110.0
+uvicorn>=0.27.0
+
+# Database
+psycopg2-binary>=2.9.9
+sqlalchemy>=2.0.23
+
+# Async Support
+asyncio>=3.4.3
+aiohttp>=3.9.1
+
+# AI & Content Generation
+anthropic>=0.18.0
+openai>=1.10.0
+
+# Payment Processing
+stripe>=7.0.0
+
+# Email Marketing
+sendgrid>=6.11.0
+
+# Social Media APIs
+tweepy>=4.14.0
+python-linkedin-v2>=0.1.0
+
+# SEO & Analytics
+google-api-python-client>=2.111.0
+google-analytics-data>=0.18.0
+
+# Web Scraping & Content
+beautifulsoup4>=4.12.2
+requests>=2.31.0
+markdown>=3.5.1
+
+# Utilities
+python-dateutil>=2.8.2
+pytz>=2023.3
+pyyaml>=6.0.1
+
+# Monitoring & Logging
+sentry-sdk>=1.39.1
+
+# Testing
+pytest>=7.4.3
+pytest-asyncio>=0.21.1
+
+# AI Agent Frameworks
+langchain>=0.1.0
+langchain-anthropic>=0.1.0
+langchain-openai>=0.0.5
+crewai>=0.1.0
+pydantic-ai>=0.0.1
+chromadb>=0.4.22
