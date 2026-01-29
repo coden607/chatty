@@ -10,3 +10,4 @@ __pycache__/
 *.pyc
 sendgrid.env
 .vercel
+runtime/chatty.out
