@@ -163,7 +163,7 @@ Make it informative, engaging, and mission-focused."""
         # Use the shared generator from Revenue Engine if available, or implement here
         try:
             from AUTOMATED_REVENUE_ENGINE import revenue_engine
-            return revenue_engine.generate_ai_content(system_prompt, user_prompt, max_tokens=4000)
+            return await revenue_engine.generate_ai_content(system_prompt, user_prompt, max_tokens=4000)
         except Exception as e:
             logger.error(f"Fallback to internal Acquisition Generator: {e}")
             return f"# {topic}\n\nContent about {topic}..."
@@ -316,7 +316,7 @@ Make it informative, engaging, and mission-focused."""
             
             Format as JSON: {{"twitter": "...", "linkedin": "...", "facebook": "..."}}"""
             
-            content_json = revenue_engine.generate_ai_content(system_prompt, user_prompt)
+            content_json = await revenue_engine.generate_ai_content(system_prompt, user_prompt)
             
             # Try to parse JSON if AI returned it, otherwise split or use as is
             try:
@@ -504,7 +504,7 @@ Make it informative, engaging, and mission-focused."""
             
             Include a footer linking to NarcoGuard."""
             
-            content = revenue_engine.generate_ai_content(system_prompt, user_prompt)
+            content = await revenue_engine.generate_ai_content(system_prompt, user_prompt)
             
             output_dir = Path("generated_content/lead_magnets")
             output_dir.mkdir(parents=True, exist_ok=True)
@@ -529,7 +529,7 @@ Make it informative, engaging, and mission-focused."""
                 # Generate generic nurture content for this batch (optimizing API calls)
                 subject = "New Technology for Harm Reduction"
                 prompt = "Write a warm, professional 150-word email update about how NarcoGuard's automated watch is detecting overdoses in Broome County. Ask for a pilot meeting."
-                body = revenue_engine.generate_ai_content("You are a helpful account manager.", prompt)
+                body = await revenue_engine.generate_ai_content("You are a helpful account manager.", prompt)
                 
                 for lead in leads_chunk:
                     # In a real system, we'd use SendGrid here
@@ -1029,7 +1029,7 @@ Make it informative, engaging, and mission-focused."""
             Mission: NarcoGuard is an AI life-saving watch for overdose prevention.
             Link: https://v0-narcoguard-pwa-build.vercel.app
             """
-            strategy = revenue_engine.generate_ai_content(system_prompt, user_prompt)
+            strategy = await revenue_engine.generate_ai_content(system_prompt, user_prompt)
             output_dir = os.path.join(os.getcwd(), "generated_content", "conversion_strategies")
             os.makedirs(output_dir, exist_ok=True)
             filename = f"high_value_{lead.get('id', 'unknown')}_{datetime.now().strftime('%Y%m%d_%H%M%S')}.md"
@@ -1075,7 +1075,7 @@ Make it informative, engaging, and mission-focused."""
         """
         
         try:
-            strategy = revenue_engine.generate_ai_content(system_prompt, user_prompt)
+            strategy = await revenue_engine.generate_ai_content(system_prompt, user_prompt)
             
             # Update lead status
             update_lead_status(lead_id, "engaging")
@@ -1558,7 +1558,7 @@ Make it informative, engaging, and mission-focused."""
         # Use AI to generate search queries for relevant professionals
         try:
             from AUTOMATED_REVENUE_ENGINE import revenue_engine
-            search_queries = revenue_engine.generate_ai_content(
+            search_queries = await revenue_engine.generate_ai_content(
                 system_prompt="You are a professional network researcher.",
                 user_prompt="""
                 Generate 10 specific LinkedIn search queries to find public health directors,
