@@ -1427,7 +1427,7 @@ async def draft_proposal(payload: DraftRequest):
         
         Keep it professional, persuasive, and mission-driven."""
         
-        draft = revenue_engine.generate_ai_content(system_prompt, user_prompt)
+        draft = await revenue_engine.generate_ai_content(system_prompt, user_prompt)
         return {"draft": draft}
     except Exception as e:
         logger.error(f"Proposal generation failed: {e}")
@@ -1451,7 +1451,7 @@ async def investor_weekly(payload: DraftRequest):
         
         Tone: Transparent, ambitious, data-driven."""
         
-        draft = revenue_engine.generate_ai_content(system_prompt, user_prompt)
+        draft = await revenue_engine.generate_ai_content(system_prompt, user_prompt)
         return {"draft": draft}
     except Exception as e:
         logger.error(f"Investor update generation failed: {e}")
@@ -1475,7 +1475,7 @@ async def investor_narrative(payload: DraftRequest):
         
         Focus on the urgency of the opioid crisis and the scalability of our AI solution."""
         
-        draft = revenue_engine.generate_ai_content(system_prompt, user_prompt)
+        draft = await revenue_engine.generate_ai_content(system_prompt, user_prompt)
         return {"draft": draft}
     except Exception as e:
         logger.error(f"Narrative generation failed: {e}")
@@ -1513,7 +1513,7 @@ async def press_pitch(payload: PressPitchRequest):
         
         Make it punchy and hard-hitting."""
         
-        draft = revenue_engine.generate_ai_content(system_prompt, user_prompt)
+        draft = await revenue_engine.generate_ai_content(system_prompt, user_prompt)
         return {"draft": draft}
     except Exception as e:
         logger.error(f"Pitch generation failed: {e}")
@@ -1533,7 +1533,7 @@ async def video_script(payload: VideoScriptRequest):
         Style: TikTok/Reels style - fast paced, engaging hooks.
         Focus: Saving lives, technology, hope."""
         
-        draft = revenue_engine.generate_ai_content(system_prompt, user_prompt)
+        draft = await revenue_engine.generate_ai_content(system_prompt, user_prompt)
         return {"draft": draft}
     except Exception as e:
         logger.error(f"Script generation failed: {e}")
@@ -1555,7 +1555,7 @@ async def partner_brief(payload: PartnerBriefRequest):
         - Resource requirements
         - Next steps discussion points"""
         
-        draft = revenue_engine.generate_ai_content(system_prompt, user_prompt)
+        draft = await revenue_engine.generate_ai_content(system_prompt, user_prompt)
         return {"draft": draft}
     except Exception as e:
         logger.error(f"Brief generation failed: {e}")
@@ -1623,7 +1623,7 @@ async def weekly_brief():
         
         Focus on progress, autonomy, and key wins. If logs are empty, state that the system is initializing."""
         
-        summary = revenue_engine.generate_ai_content(system_prompt, user_prompt)
+        summary = await revenue_engine.generate_ai_content(system_prompt, user_prompt)
         # Keep it brief if AI rambles
         if len(summary) > 200:
             summary = summary[:197] + "..."
