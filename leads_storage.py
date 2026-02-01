@@ -1,9 +1,45 @@
 import json
 import os
+import time
 from datetime import datetime
 from typing import List, Dict, Any
 
-LEADS_FILE = "/home/coden809/CHATTY/leads.json"
+# Use a path relative to the script location to avoid hardcoded absolute paths
+LEADS_FILE = os.path.join(os.path.dirname(os.path.abspath(__file__)), "leads.json")
+
+# Performance optimization: In-memory cache with mtime validation
+# Bolt ⚡: Caching avoids redundant disk I/O and JSON parsing for every call
+_leads_cache = None
+_last_mtime = 0
+
+def get_all_leads() -> List[Dict[str, Any]]:
+    """Get all leads from storage (with in-memory caching for performance)"""
+    global _leads_cache, _last_mtime
+
+    if not os.path.exists(LEADS_FILE):
+        return []
+
+    try:
+        # Only reload if the file has changed on disk
+        current_mtime = os.path.getmtime(LEADS_FILE)
+        if _leads_cache is not None and current_mtime <= _last_mtime:
+            return _leads_cache
+
+        with open(LEADS_FILE, "r") as f:
+            _leads_cache = json.load(f)
+            _last_mtime = current_mtime
+            return _leads_cache
+    except Exception:
+        # Fallback to empty if file is corrupt or inaccessible
+        return _leads_cache if _leads_cache is not None else []
+
+def _write_leads(leads: List[Dict[str, Any]]):
+    """Internal helper to write leads and update cache"""
+    global _leads_cache, _last_mtime
+    with open(LEADS_FILE, "w") as f:
+        json.dump(leads, f, indent=4)
+    _leads_cache = leads
+    _last_mtime = os.path.getmtime(LEADS_FILE)
 
 def save_lead(lead_data: Dict[str, Any]):
     """Save a lead to the JSON storage (dedupe by email)."""
@@ -25,8 +61,7 @@ def save_lead(lead_data: Dict[str, Any]):
                 lead["follow_up"] = lead_data["follow_up"]
             else:
                 lead.setdefault("follow_up", {"attempts": 0, "last_sent": None, "next_run": None})
-            with open(LEADS_FILE, "w") as f:
-                json.dump(leads, f, indent=4)
+            _write_leads(leads)
             return lead
 
     lead_id = len(leads) + 1
@@ -38,45 +73,37 @@ def save_lead(lead_data: Dict[str, Any]):
         lead_data["follow_up"] = {"attempts": 0, "last_sent": None, "next_run": None}
 
     leads.append(lead_data)
-
-    with open(LEADS_FILE, "w") as f:
-        json.dump(leads, f, indent=4)
+    _write_leads(leads)
 
     return lead_data
-
-def get_all_leads() -> List[Dict[str, Any]]:
-    """Get all leads from storage"""
-    if not os.path.exists(LEADS_FILE):
-        return []
-    
-    try:
-        with open(LEADS_FILE, "r") as f:
-            return json.load(f)
-    except Exception:
-        return []
 
 def update_lead_status(lead_id: int, status: str):
     """Update a lead's status"""
     leads = get_all_leads()
+    updated = False
     for lead in leads:
         if lead.get("id") == lead_id:
             lead["status"] = status
             lead["updated_at"] = datetime.now().isoformat()
+            updated = True
             break
     
-    with open(LEADS_FILE, "w") as f:
-        json.dump(leads, f, indent=4)
+    if updated:
+        _write_leads(leads)
 
 def update_lead_follow_up(lead_id: int, follow_up_payload: Dict[str, Any]):
     """Update a lead's follow-up metadata"""
     leads = get_all_leads()
+    updated = False
     for lead in leads:
         if lead.get("id") == lead_id:
             lead["follow_up"] = follow_up_payload
             lead["updated_at"] = datetime.now().isoformat()
+            updated = True
             break
-    with open(LEADS_FILE, "w") as f:
-        json.dump(leads, f, indent=4)
+
+    if updated:
+        _write_leads(leads)
 
 
 def add_lead(name: str, email: str, source: str, metadata: Dict[str, Any] = None) -> Dict[str, Any]:
