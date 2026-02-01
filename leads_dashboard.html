@@ -765,6 +765,16 @@
       const apiBase = "http://localhost:8080";
       let selectedAgent = null;
 
+      function escapeHTML(str) {
+        if (!str) return "";
+        return String(str)
+          .replace(/&/g, "&amp;")
+          .replace(/</g, "&lt;")
+          .replace(/>/g, "&gt;")
+          .replace(/"/g, "&quot;")
+          .replace(/'/g, "&#039;");
+      }
+
       async function fetchLeads() {
         try {
           const response = await fetch(`${apiBase}/api/leads`);
@@ -844,20 +854,22 @@
           
           row.innerHTML = `
                     <td>
-                        <div class="lead-name">${lead.name}</div>
-                        <div class="lead-email">${lead.email}</div>
+                        <div class="lead-name">${escapeHTML(lead.name)}</div>
+                        <div class="lead-email">${escapeHTML(lead.email)}</div>
                     </td>
-                    <td style="font-size: 0.9rem;">${lead.source}</td>
+                    <td style="font-size: 0.9rem;">${escapeHTML(lead.source)}</td>
                     <td>
                         <div class="score-bar">
                             <div class="score-fill" style="width: ${lead.lead_score}%"></div>
                         </div>
                         <span style="font-size: 0.75rem; margin-top: 4px; display: block;">${lead.lead_score}%</span>
                     </td>
-                    <td><span class="badge ${badgeClass}">${lead.status}</span></td>
+                    <td><span class="badge ${badgeClass}">${escapeHTML(lead.status)}</span></td>
                     <td style="color: var(--text-muted); font-size: 0.8rem;">${date}</td>
                     <td>
-                        <button id="btn-${lead.id}" class="btn" style="padding: 8px 16px; font-size: 0.8rem;" onclick="focusAgent(${lead.id}, '${lead.name}')">Focus Agent</button>
+                        <button id="btn-${lead.id}" class="btn" style="padding: 8px 16px; font-size: 0.8rem;"
+                                data-id="${lead.id}" data-name="${escapeHTML(lead.name)}"
+                                onclick="focusAgent(this.dataset.id, this.dataset.name)">Focus Agent</button>
                     </td>
                 `;
           body.appendChild(row);
@@ -890,18 +902,18 @@
           const stepItems = workflow.steps
             .map(
               (step) =>
-                `<li class="step-item"><span>${step.name}</span><span class="step-status ${step.status}">${step.status}</span></li>`
+                `<li class="step-item"><span>${escapeHTML(step.name)}</span><span class="step-status ${escapeHTML(step.status)}">${escapeHTML(step.status)}</span></li>`
             )
             .join("");
 
           card.innerHTML = `
-            <div class="workflow-title">${workflow.name}</div>
+            <div class="workflow-title">${escapeHTML(workflow.name)}</div>
             <div class="workflow-meta">
-              <span>${workflow.owner}</span>
+              <span>${escapeHTML(workflow.owner)}</span>
               <span>Progress: ${workflow.progress}%</span>
             </div>
             <div class="workflow-meta">
-              <span>Status: ${workflow.status}</span>
+              <span>Status: ${escapeHTML(workflow.status)}</span>
               <span>Last run: ${lastRun}</span>
             </div>
             <ul class="step-list">${stepItems}</ul>
@@ -942,7 +954,7 @@
           chip.className = "agent-chip";
           chip.type = "button";
           chip.style.cursor = "pointer";
-          chip.innerHTML = `<span class="agent-dot"></span>${agent.name}`;
+          chip.innerHTML = `<span class="agent-dot"></span>${escapeHTML(agent.name)}`;
           chip.onclick = () => {
             selectedAgent = agent.name;
             document.querySelectorAll(".agent-chip").forEach((el) => {
@@ -1000,7 +1012,7 @@
           .slice(0, 8)
           .map(
             (entry) =>
-              `<div class="log-entry"><strong>${entry.targets.join(", ")}</strong> • ${new Date(entry.timestamp).toLocaleTimeString()}<br>${entry.prompt}</div>`
+              `<div class="log-entry"><strong>${escapeHTML(entry.targets.join(", "))}</strong> • ${new Date(entry.timestamp).toLocaleTimeString()}<br>${escapeHTML(entry.prompt)}</div>`
           )
           .join("");
       }
@@ -1025,7 +1037,7 @@
           .slice(0, 8)
           .map(
             (task) =>
-              `<div class="task-item"><strong>${task.title}</strong><br>${task.owner} • ${task.priority} • ${task.status}</div>`
+              `<div class="task-item"><strong>${escapeHTML(task.title)}</strong><br>${escapeHTML(task.owner)} • ${escapeHTML(task.priority)} • ${escapeHTML(task.status)}</div>`
           )
           .join("");
       }
@@ -1079,7 +1091,7 @@
           .slice(0, 10)
           .map(
             (event) =>
-              `<div class="log-entry"><strong>${event.agent}</strong> • ${event.event}<br>${event.detail}</div>`
+              `<div class="log-entry"><strong>${escapeHTML(event.agent)}</strong> • ${escapeHTML(event.event)}<br>${escapeHTML(event.detail)}</div>`
           )
           .join("");
       }
@@ -1104,7 +1116,7 @@
           .slice(0, 8)
           .map(
             (message) =>
-              `<div class="log-entry"><strong>${message.channel}</strong> • ${new Date(message.timestamp).toLocaleTimeString()}<br>${message.message}</div>`
+              `<div class="log-entry"><strong>${escapeHTML(message.channel)}</strong> • ${new Date(message.timestamp).toLocaleTimeString()}<br>${escapeHTML(message.message)}</div>`
           )
           .join("");
       }
@@ -1161,7 +1173,7 @@
 
       function renderAutonomyStatus(state, settings) {
         const status = document.getElementById("autonomy-status");
-        status.innerHTML = `<strong>Status:</strong> ${state.running ? "running" : "stopped"} • Mode: ${state.mode}<br><strong>Last tick:</strong> ${state.last_tick || "n/a"}`;
+        status.innerHTML = `<strong>Status:</strong> ${state.running ? "running" : "stopped"} • Mode: ${escapeHTML(state.mode)}<br><strong>Last tick:</strong> ${escapeHTML(state.last_tick) || "n/a"}`;
         document.getElementById("autonomy-budget").value = settings.daily_budget ?? "";
         document.getElementById("autonomy-channel").value = settings.primary_channel ?? "";
       }
@@ -1210,8 +1222,8 @@
         }
         list.innerHTML = pipelinesData
           .map((pipeline) => {
-            const stages = pipeline.stages.map((stage) => `${stage.name}: ${stage.status}`).join(" • ");
-            return `<div class="pipeline-card"><strong>${pipeline.name}</strong><br>${stages}<br>Progress: ${pipeline.progress}%</div>`;
+            const stages = pipeline.stages.map((stage) => `${escapeHTML(stage.name)}: ${escapeHTML(stage.status)}`).join(" • ");
+            return `<div class="pipeline-card"><strong>${escapeHTML(pipeline.name)}</strong><br>${stages}<br>Progress: ${pipeline.progress}%</div>`;
           })
           .join("");
       }
@@ -1242,7 +1254,7 @@
           .slice(0, 6)
           .map(
             (item) =>
-              `<div class="log-entry"><strong>${item.name}</strong> • ${item.channel}<br>${item.goal} • ${item.status}</div>`
+              `<div class="log-entry"><strong>${escapeHTML(item.name)}</strong> • ${escapeHTML(item.channel)}<br>${escapeHTML(item.goal)} • ${escapeHTML(item.status)}</div>`
           )
           .join("");
       }
@@ -1287,7 +1299,7 @@
           .slice(0, 6)
           .map(
             (item) =>
-              `<div class="log-entry"><strong>${item.name}</strong> • ${item.trigger}<br>${item.description || "No description"}<br>${item.path}</div>`
+              `<div class="log-entry"><strong>${escapeHTML(item.name)}</strong> • ${escapeHTML(item.trigger)}<br>${escapeHTML(item.description) || "No description"}<br>${escapeHTML(item.path)}</div>`
           )
           .join("");
       }
@@ -1344,7 +1356,7 @@
         }
         list.innerHTML = items
           .slice(0, 8)
-          .map((item) => `<div class="log-entry"><strong>${item.title}</strong><br>${item.source} • ${item.status}</div>`)
+          .map((item) => `<div class="log-entry"><strong>${escapeHTML(item.title)}</strong><br>${escapeHTML(item.source)} • ${escapeHTML(item.status)}</div>`)
           .join("");
       }
 
@@ -1371,7 +1383,7 @@
         }
         list.innerHTML = items
           .slice(0, 6)
-          .map((item) => `<div class="log-entry"><strong>${item.name}</strong><br>${item.deadline}</div>`)
+          .map((item) => `<div class="log-entry"><strong>${escapeHTML(item.name)}</strong><br>${escapeHTML(item.deadline)}</div>`)
           .join("");
       }
 
@@ -1410,7 +1422,7 @@
         }
         list.innerHTML = items
           .slice(0, 6)
-          .map((item) => `<div class="log-entry"><strong>${item.name}</strong><br>${item.metric} • ${item.status}</div>`)
+          .map((item) => `<div class="log-entry"><strong>${escapeHTML(item.name)}</strong><br>${escapeHTML(item.metric)} • ${escapeHTML(item.status)}</div>`)
           .join("");
       }
 
@@ -1482,7 +1494,7 @@
         }
         list.innerHTML = items
           .slice(0, 6)
-          .map((item) => `<div class="log-entry"><strong>${item.metric}</strong><br>${item.value} vs ${item.baseline}</div>`)
+          .map((item) => `<div class="log-entry"><strong>${escapeHTML(item.metric)}</strong><br>${escapeHTML(item.value)} vs ${escapeHTML(item.baseline)}</div>`)
           .join("");
       }
 
@@ -1506,7 +1518,7 @@
           .slice(0, 10)
           .map(
             (item) =>
-              `<div class="log-entry"><strong>${item.category}</strong> • ${item.name}<br>${item.owner} • ${new Date(item.timestamp).toLocaleTimeString()}</div>`
+              `<div class="log-entry"><strong>${escapeHTML(item.category)}</strong> • ${escapeHTML(item.name)}<br>${escapeHTML(item.owner)} • ${new Date(item.timestamp).toLocaleTimeString()}</div>`
           )
           .join("");
       }

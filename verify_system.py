@@ -18,7 +18,7 @@ class SystemVerification:
     """Comprehensive system verification"""
     
     def __init__(self):
-        self.base_path = Path('/home/coden809/CHATTY')
+        self.base_path = Path('.')
         self.issues = []
         self.warnings = []
         self.passed = []
