@@ -532,5 +532,22 @@
             "next_run": "2026-01-31T20:54:17.291510"
         },
         "updated_at": "2026-01-30T20:54:25.590394"
+    },
+    {
+        "name": "Public Health Director",
+        "email": "director@broomecountypublichealth.gov",
+        "company": "Broome County Department of Health",
+        "source": "Cold Outreach",
+        "lead_score": 85,
+        "id": 18,
+        "created_at": "2026-02-02T10:09:33.101552",
+        "status": "new",
+        "follow_up": {
+            "attempts": 0,
+            "last_sent": null,
+            "next_run": null
+        },
+        "updated_at": "2026-02-02T10:11:56.557101",
+        "metadata": {}
     }
 ]
