@@ -485,7 +485,7 @@
     <div class="container">
       <header>
         <div class="logo">CHATTY.AI</div>
-        <button class="btn" onclick="fetchLeads()">Refresh Intelligence</button>
+        <button id="refresh-btn" class="btn" onclick="fetchLeads()" aria-label="Refresh lead intelligence dashboard">Refresh Intelligence</button>
       </header>
 
       <div class="stats-grid">
@@ -553,7 +553,7 @@
         <div class="command-grid">
           <div class="panel">
             <h3>Broadcast Prompt</h3>
-            <textarea id="prompt-input" class="prompt-textarea" placeholder="Ask Chatty to run a Narcoguard workflow, request a report, or instruct all agents..."></textarea>
+            <textarea id="prompt-input" class="prompt-textarea" placeholder="Ask Chatty to run a Narcoguard workflow, request a report, or instruct all agents..." aria-label="Broadcast prompt to agents"></textarea>
             <div class="prompt-row">
               <button class="btn" onclick="sendPrompt('all')">Send to All Agents</button>
               <button class="btn" style="background: transparent; color: var(--text); border: 1px solid var(--border);" onclick="sendPrompt(selectedAgent)">Send to Selected</button>
@@ -754,7 +754,7 @@
 
       <div id="modal-overlay" style="display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.8); backdrop-filter: blur(10px); z-index: 1000; justify-content: center; align-items: center;">
         <div style="background: var(--bg); border: 1px solid var(--primary); padding: 40px; border-radius: 32px; max-width: 800px; width: 90%; max-height: 80vh; overflow-y: auto; position: relative;">
-            <button onclick="closeModal()" style="position: absolute; top: 20px; right: 20px; background: none; border: none; color: var(--text-muted); font-size: 1.5rem; cursor: pointer;">&times;</button>
+            <button onclick="closeModal()" style="position: absolute; top: 20px; right: 20px; background: none; border: none; color: var(--text-muted); font-size: 1.5rem; cursor: pointer;" aria-label="Close modal">&times;</button>
             <h2 id="modal-title" style="margin-bottom: 20px; background: linear-gradient(to right, var(--primary), var(--secondary)); background-clip: text; -webkit-background-clip: text; -webkit-text-fill-color: transparent;">AI Conversion Strategy</h2>
             <div id="modal-content" style="white-space: pre-wrap; line-height: 1.6; color: var(--text);"></div>
         </div>
@@ -766,6 +766,11 @@
       let selectedAgent = null;
 
       async function fetchLeads() {
+        const btn = document.getElementById("refresh-btn");
+        const originalText = btn.innerHTML;
+        btn.innerHTML = "Refreshing...";
+        btn.disabled = true;
+
         try {
           const response = await fetch(`${apiBase}/api/leads`);
           const data = await response.json();
@@ -777,6 +782,9 @@
           setTimeout(() => (status.style.opacity = 0), 3000);
         } catch (error) {
           console.error("Failed to fetch leads:", error);
+        } finally {
+          btn.innerHTML = originalText;
+          btn.disabled = false;
         }
       }
 
@@ -849,7 +857,7 @@
                     </td>
                     <td style="font-size: 0.9rem;">${lead.source}</td>
                     <td>
-                        <div class="score-bar">
+                        <div class="score-bar" role="progressbar" aria-valuenow="${lead.lead_score}" aria-valuemin="0" aria-valuemax="100" aria-label="Lead score: ${lead.lead_score}%">
                             <div class="score-fill" style="width: ${lead.lead_score}%"></div>
                         </div>
                         <span style="font-size: 0.75rem; margin-top: 4px; display: block;">${lead.lead_score}%</span>
