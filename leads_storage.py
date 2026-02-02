@@ -2,11 +2,18 @@ import json
 import os
 from datetime import datetime
 from typing import List, Dict, Any
+from pathlib import Path
 
-LEADS_FILE = "/home/coden809/CHATTY/leads.json"
+BASE_DIR = Path(__file__).parent
+LEADS_FILE = BASE_DIR / "leads.json"
+
+# In-memory cache for performance optimization
+_leads_cache = None
+_last_mtime = 0
 
 def save_lead(lead_data: Dict[str, Any]):
     """Save a lead to the JSON storage (dedupe by email)."""
+    global _leads_cache, _last_mtime
     leads = get_all_leads()
     email = (lead_data.get("email") or "").strip().lower()
 
@@ -27,6 +34,10 @@ def save_lead(lead_data: Dict[str, Any]):
                 lead.setdefault("follow_up", {"attempts": 0, "last_sent": None, "next_run": None})
             with open(LEADS_FILE, "w") as f:
                 json.dump(leads, f, indent=4)
+
+            # Update cache after write
+            _leads_cache = leads
+            _last_mtime = os.path.getmtime(LEADS_FILE)
             return lead
 
     lead_id = len(leads) + 1
@@ -42,21 +53,35 @@ def save_lead(lead_data: Dict[str, Any]):
     with open(LEADS_FILE, "w") as f:
         json.dump(leads, f, indent=4)
 
+    # Update cache after write
+    _leads_cache = leads
+    _last_mtime = os.path.getmtime(LEADS_FILE)
+
     return lead_data
 
 def get_all_leads() -> List[Dict[str, Any]]:
-    """Get all leads from storage"""
+    """Get all leads from storage with in-memory caching and mtime validation."""
+    global _leads_cache, _last_mtime
+
     if not os.path.exists(LEADS_FILE):
         return []
     
     try:
+        # Performance optimization: only reload from disk if file has changed
+        current_mtime = os.path.getmtime(LEADS_FILE)
+        if _leads_cache is not None and current_mtime <= _last_mtime:
+            return _leads_cache
+
         with open(LEADS_FILE, "r") as f:
-            return json.load(f)
+            _leads_cache = json.load(f)
+            _last_mtime = current_mtime
+            return _leads_cache
     except Exception:
-        return []
+        return _leads_cache if _leads_cache is not None else []
 
 def update_lead_status(lead_id: int, status: str):
     """Update a lead's status"""
+    global _leads_cache, _last_mtime
     leads = get_all_leads()
     for lead in leads:
         if lead.get("id") == lead_id:
@@ -67,8 +92,13 @@ def update_lead_status(lead_id: int, status: str):
     with open(LEADS_FILE, "w") as f:
         json.dump(leads, f, indent=4)
 
+    # Update cache after write
+    _leads_cache = leads
+    _last_mtime = os.path.getmtime(LEADS_FILE)
+
 def update_lead_follow_up(lead_id: int, follow_up_payload: Dict[str, Any]):
     """Update a lead's follow-up metadata"""
+    global _leads_cache, _last_mtime
     leads = get_all_leads()
     for lead in leads:
         if lead.get("id") == lead_id:
@@ -77,6 +107,10 @@ def update_lead_follow_up(lead_id: int, follow_up_payload: Dict[str, Any]):
             break
     with open(LEADS_FILE, "w") as f:
         json.dump(leads, f, indent=4)
+
+    # Update cache after write
+    _leads_cache = leads
+    _last_mtime = os.path.getmtime(LEADS_FILE)
 
 
 def add_lead(name: str, email: str, source: str, metadata: Dict[str, Any] = None) -> Dict[str, Any]:
