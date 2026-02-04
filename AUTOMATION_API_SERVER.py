@@ -11,6 +11,7 @@ from pydantic import BaseModel
 from typing import Dict, List, Any, Optional
 import asyncio
 import logging
+import time
 from datetime import datetime
 import json
 import os
@@ -278,6 +279,10 @@ pipelines = {
 }
 
 autonomy_task_handle: Optional[asyncio.Task] = None
+
+# Performance Caches
+_weekly_brief_cache = None
+_weekly_brief_expiry = 0
 
 narcoguard_workflows = [
     {
@@ -1601,7 +1606,12 @@ async def get_kpi_anomalies():
 
 @app.get("/api/weekly/brief")
 async def weekly_brief():
-    """Get weekly summary brief"""
+    """Get weekly summary brief (cached for 10 minutes)"""
+    global _weekly_brief_cache, _weekly_brief_expiry
+    now = time.time()
+    if _weekly_brief_cache and now < _weekly_brief_expiry:
+        return _weekly_brief_cache
+
     completed = transparency_log[:15] # Fetch more logs for context
     events = collab_feed[:15]
     
@@ -1637,7 +1647,35 @@ async def weekly_brief():
         "events": events[:6],
         "summary": summary
     }
+    _weekly_brief_cache = body
+    _weekly_brief_expiry = now + 600
     return body
+
+@app.get("/api/dashboard/all")
+async def get_dashboard_all():
+    """Aggregated endpoint for the dashboard to reduce network requests and improve performance"""
+    leads_data = await get_leads()
+    return {
+        "leads": leads_data,
+        "workflows": narcoguard_workflows,
+        "agents": agents_registry,
+        "tasks": task_queue,
+        "collab": {"events": collab_feed},
+        "messages": {"messages": user_messages},
+        "autonomy": {
+            "state": autonomy_state,
+            "settings": autonomy_settings
+        },
+        "pipelines": list(pipelines.values()),
+        "campaigns": {"campaigns": campaigns},
+        "n8n": {"workflows": n8n_workflows},
+        "transparency": {"completed": transparency_log},
+        "briefs": {"briefs": content_briefs},
+        "grants": {"grants": grant_tracker},
+        "experiments": {"experiments": pricing_experiments},
+        "anomalies": {"anomalies": anomaly_log},
+        "weekly_brief": await weekly_brief()
+    }
 
 @app.get("/api/tasks")
 async def get_tasks():
