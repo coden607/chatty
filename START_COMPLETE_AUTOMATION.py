@@ -636,7 +636,7 @@ class ChattyCompleteAutomation:
                 Link: https://gofund.me/e1a0b3f2
                 """
                 
-                update_content = self.revenue_engine.generate_ai_content(system_prompt, user_prompt)
+                update_content = await self.revenue_engine.generate_ai_content(system_prompt, user_prompt)
                 
                 output_path = Path("generated_content") / "gofundme_update_today.md"
                 output_path.write_text(update_content, encoding="utf-8")

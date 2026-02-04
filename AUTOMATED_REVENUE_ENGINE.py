@@ -5,6 +5,7 @@ Fully automated revenue generation with real integrations
 """
 
 import asyncio
+import requests
 import json
 import logging
 import time
@@ -389,7 +390,7 @@ class AutomatedRevenueEngine:
         except Exception as e:
             logger.error(f"Stripe charge sync error: {e}")
 
-    def generate_ai_content(self, system_prompt: str, user_prompt: str, max_tokens: int = 2000) -> str:
+    async def generate_ai_content(self, system_prompt: str, user_prompt: str, max_tokens: int = 2000) -> str:
         """Generate content using verified LLMs (xAI -> OpenRouter -> Cohere)"""
         if self.offline_mode:
             import random
@@ -417,7 +418,6 @@ class AutomatedRevenueEngine:
                 logger.info(f"🔁 Trying {provider_label}")
                 log_transparency("llm_request", "attempt", {"provider": provider_label})
                 try:
-                    import requests
                     headers = {
                         "Authorization": f"Bearer {key}",
                         "Content-Type": "application/json"
@@ -431,7 +431,7 @@ class AutomatedRevenueEngine:
                         "stream": False,
                         "temperature": 0.7
                     }
-                    response = requests.post("https://api.x.ai/v1/chat/completions", headers=headers, json=payload, timeout=60)
+                    response = await asyncio.to_thread(requests.post, "https://api.x.ai/v1/chat/completions", headers=headers, json=payload, timeout=60)
                     response.raise_for_status()
                     data = response.json()
                     logger.info(f"✅ {provider_label} returned content")
@@ -464,7 +464,6 @@ class AutomatedRevenueEngine:
                 self.last_llm_provider = provider_label
                 logger.info(f"🔁 Trying {provider_label}")
                 try:
-                    import requests
                     headers = {
                         "Authorization": f"Bearer {key}",
                         "Content-Type": "application/json",
@@ -479,7 +478,7 @@ class AutomatedRevenueEngine:
                         ],
                         "max_tokens": max_tokens
                     }
-                    response = requests.post("https://openrouter.ai/api/v1/chat/completions", headers=headers, json=payload, timeout=30)
+                    response = await asyncio.to_thread(requests.post, "https://openrouter.ai/api/v1/chat/completions", headers=headers, json=payload, timeout=30)
                     response.raise_for_status()
                     result = response.json()['choices'][0]['message']['content']
                     self.reset_llm_failure()
@@ -502,7 +501,6 @@ class AutomatedRevenueEngine:
                 if key:
                     provider_label = f"OpenRouter Free ({model}) using Key #{i+1}"
                     try:
-                        import requests
                         headers = {"Authorization": f"Bearer {key}", "Content-Type": "application/json", "HTTP-Referer": "https://narcoguard.com"}
                         payload = {
                             "model": model,
@@ -512,7 +510,7 @@ class AutomatedRevenueEngine:
                             ],
                             "max_tokens": max_tokens
                         }
-                        response = requests.post("https://openrouter.ai/api/v1/chat/completions", headers=headers, json=payload, timeout=30)
+                        response = await asyncio.to_thread(requests.post, "https://openrouter.ai/api/v1/chat/completions", headers=headers, json=payload, timeout=30)
                         if response.status_code == 200:
                             result = response.json()['choices'][0]['message']['content']
                             logger.info(f"🎉 Success with FREE model: {model}")
@@ -531,7 +529,6 @@ class AutomatedRevenueEngine:
             self.last_llm_provider = provider_label
             logger.info(f"🔁 Trying {provider_label}")
             try:
-                import requests
                 headers = {
                     "Authorization": f"Bearer {openai_key}",
                     "Content-Type": "application/json"
@@ -543,7 +540,7 @@ class AutomatedRevenueEngine:
                         {"role": "user", "content": user_prompt}
                     ]
                 }
-                response = requests.post("https://api.openai.com/v1/chat/completions", headers=headers, json=payload, timeout=60)
+                response = await asyncio.to_thread(requests.post, "https://api.openai.com/v1/chat/completions", headers=headers, json=payload, timeout=60)
                 response.raise_for_status()
                 logger.info(f"✅ {provider_label} returned content")
                 return response.json()['choices'][0]['message']['content']
@@ -557,7 +554,6 @@ class AutomatedRevenueEngine:
             self.last_llm_provider = provider_label
             logger.info(f"🔁 Trying {provider_label}")
             try:
-                import requests
                 headers = {
                     "x-api-key": anthropic_key,
                     "anthropic-version": "2023-06-01",
@@ -569,7 +565,7 @@ class AutomatedRevenueEngine:
                     "messages": [{"role": "user", "content": user_prompt}],
                     "max_tokens": max_tokens
                 }
-                response = requests.post("https://api.anthropic.com/v1/messages", headers=headers, json=payload, timeout=60)
+                response = await asyncio.to_thread(requests.post, "https://api.anthropic.com/v1/messages", headers=headers, json=payload, timeout=60)
                 response.raise_for_status()
                 logger.info(f"✅ {provider_label} returned content")
                 return response.json()['content'][0]['text']
@@ -583,14 +579,13 @@ class AutomatedRevenueEngine:
             self.last_llm_provider = provider_label
             logger.info(f"🔁 Trying {provider_label}")
             try:
-                import requests
                 url = f"https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-pro:generateContent?key={google_key}"
                 payload = {
                     "contents": [{
                         "parts": [{"text": f"System: {system_prompt}\n\nUser: {user_prompt}"}]
                     }]
                 }
-                response = requests.post(url, json=payload, timeout=60)
+                response = await asyncio.to_thread(requests.post, url, json=payload, timeout=60)
                 response.raise_for_status()
                 data = response.json()
                 logger.info(f"✅ {provider_label} returned content")
@@ -605,7 +600,6 @@ class AutomatedRevenueEngine:
             self.last_llm_provider = provider_label
             logger.info(f"🔁 Trying {provider_label}")
             try:
-                import requests
                 headers = {"Authorization": f"Bearer {deepseek_key}", "Content-Type": "application/json"}
                 payload = {
                     "model": "deepseek-chat",
@@ -614,7 +608,7 @@ class AutomatedRevenueEngine:
                         {"role": "user", "content": user_prompt}
                     ]
                 }
-                response = requests.post("https://api.deepseek.com/chat/completions", headers=headers, json=payload, timeout=60)
+                response = await asyncio.to_thread(requests.post, "https://api.deepseek.com/chat/completions", headers=headers, json=payload, timeout=60)
                 response.raise_for_status()
                 logger.info(f"✅ {provider_label} returned content")
                 return response.json()['choices'][0]['message']['content']
@@ -627,7 +621,6 @@ class AutomatedRevenueEngine:
             provider_label = "Mistral Large"
             self.last_llm_provider = provider_label
             try:
-                import requests
                 headers = {"Authorization": f"Bearer {mistral_key}", "Content-Type": "application/json"}
                 payload = {
                     "model": "mistral-large-latest",
@@ -636,7 +629,7 @@ class AutomatedRevenueEngine:
                         {"role": "user", "content": user_prompt}
                     ]
                 }
-                response = requests.post("https://api.mistral.ai/v1/chat/completions", headers=headers, json=payload, timeout=60)
+                response = await asyncio.to_thread(requests.post, "https://api.mistral.ai/v1/chat/completions", headers=headers, json=payload, timeout=60)
                 response.raise_for_status()
                 logger.info(f"✅ {provider_label} returned content")
                 return response.json()['choices'][0]['message']['content']
@@ -650,7 +643,6 @@ class AutomatedRevenueEngine:
             self.last_llm_provider = provider_label
             logger.info(f"🔁 Trying {provider_label}")
             try:
-                import requests
                 headers = {
                     "Authorization": f"Bearer {cohere_key}",
                     "Content-Type": "application/json"
@@ -659,7 +651,7 @@ class AutomatedRevenueEngine:
                     "message": f"{system_prompt}\n\n{user_prompt}",
                     "model": "command-r"
                 }
-                response = requests.post("https://api.cohere.ai/v1/chat", headers=headers, json=payload, timeout=60)
+                response = await asyncio.to_thread(requests.post, "https://api.cohere.ai/v1/chat", headers=headers, json=payload, timeout=60)
                 response.raise_for_status()
                 data = response.json()
                 logger.info("✅ Cohere Command-R returned content")
@@ -670,7 +662,7 @@ class AutomatedRevenueEngine:
             finally:
                 self.last_llm_provider = "Cohere Command-R"
 
-        fallback = self._fallback_to_any_llm(system_prompt, user_prompt)
+        fallback = await self._fallback_to_any_llm(system_prompt, user_prompt)
         if fallback:
             logger.info("✅ Fallback LLM returned content")
             return fallback
@@ -680,21 +672,20 @@ class AutomatedRevenueEngine:
         self._enable_offline_mode("all_llm_failed")
         return self._offline_template(user_prompt)
 
-    def _fallback_to_any_llm(self, system_prompt: str, user_prompt: str) -> Any:
+    async def _fallback_to_any_llm(self, system_prompt: str, user_prompt: str) -> Any:
         """Attempt to hit any available LLM endpoint (fallback URL or HuggingFace)"""
         # 0. Local Ollama fallback
         ollama_base = os.getenv("OLLAMA_BASE_URL")
         ollama_model = os.getenv("OLLAMA_MODEL", "llama3")
         if ollama_base:
             try:
-                import requests
                 log_transparency("llm_request", "attempt", {"provider": f"Ollama ({ollama_model})"})
                 payload = {
                     "model": ollama_model,
                     "prompt": f"System: {system_prompt}\n\nUser: {user_prompt}",
                     "stream": False,
                 }
-                response = requests.post(f"{ollama_base.rstrip('/')}/api/generate", json=payload, timeout=120)
+                response = await asyncio.to_thread(requests.post, f"{ollama_base.rstrip('/')}/api/generate", json=payload, timeout=120)
                 response.raise_for_status()
                 data = response.json()
                 text = data.get("response") or ""
@@ -724,8 +715,7 @@ class AutomatedRevenueEngine:
                 ]
             }
             try:
-                import requests
-                response = requests.post(fallback_url, headers=headers, json=payload, timeout=60)
+                response = await asyncio.to_thread(requests.post, fallback_url, headers=headers, json=payload, timeout=60)
                 response.raise_for_status()
                 data = response.json()
                 text = data.get("choices", [{}])[0].get("message", {}).get("content")
@@ -750,8 +740,7 @@ class AutomatedRevenueEngine:
                 "Content-Type": "application/json"
             }
             try:
-                import requests
-                response = requests.post(hf_url, headers=headers, json=hf_payload, timeout=60)
+                response = await asyncio.to_thread(requests.post, hf_url, headers=headers, json=hf_payload, timeout=60)
                 response.raise_for_status()
                 data = response.json()
                 if isinstance(data, dict):
@@ -843,7 +832,7 @@ class AutomatedRevenueEngine:
                     links_context = "\n".join([f"- Use this link for {k}: {v}" for k,v in promo_links.items()])
 
                     # Generate Content with Fallback
-                    content = self.generate_ai_content(
+                    content = await self.generate_ai_content(
                         system_prompt="You are an expert content marketer for NarcoGuard, an AI-powered life-saving watch.",
                         user_prompt=f"""
                         Write a high-quality, SEO-optimized {content_type} about AI automation for harm reduction. 
@@ -857,7 +846,7 @@ class AutomatedRevenueEngine:
                     )
                     
                     # Generate Social Snippets
-                    social_content = self.generate_ai_content(
+                    social_content = await self.generate_ai_content(
                         system_prompt="You are a social media manager.",
                         user_prompt=f"""
                         Based on this content, write a viral Twitter thread and LinkedIn post:
@@ -921,7 +910,7 @@ class AutomatedRevenueEngine:
                     
                     logger.info(f"❄️ Cold Outreach: Targeting {target.get('name')} ({target.get('email')})")
                     
-                    email_draft = self.generate_ai_content(
+                    email_draft = await self.generate_ai_content(
                         system_prompt="You are a B2G (Business to Government) Sales Expert covering the Opioid Crisis.",
                         user_prompt=f"""
                         Write a highly personalized cold email to:
@@ -991,7 +980,7 @@ class AutomatedRevenueEngine:
                 try:
                     requested_amount = self._choose_request_amount(target)
                     grant_brief = self._build_grant_brief(target, requested_amount)
-                    proposal_content = self.generate_ai_content(
+                    proposal_content = await self.generate_ai_content(
                         system_prompt="You are a professional Grant Writer specializing in MedTech and Public Health.",
                         user_prompt=f"""
                         Write a comprehensive Grant Proposal using ONLY the verified grant brief below.
