@@ -26,7 +26,7 @@
             "last_sent": "2026-02-03T12:35:31.630719",
             "next_run": "2026-02-06T12:35:31.630719"
         },
-        "updated_at": "2026-02-03T19:30:41.191248"
+        "updated_at": "2026-02-03T19:44:48.631428"
     },
     {
         "name": "Director of Coalition",
@@ -56,7 +56,7 @@
             "last_sent": "2026-02-03T12:35:31.630719",
             "next_run": "2026-02-06T12:35:31.630719"
         },
-        "updated_at": "2026-02-03T19:30:41.192932"
+        "updated_at": "2026-02-03T19:44:48.637136"
     },
     {
         "name": "Dr. Sarah Mitchell",
@@ -151,7 +151,7 @@
             "last_sent": "2026-02-03T12:35:31.630719",
             "next_run": "2026-02-06T12:35:31.630719"
         },
-        "updated_at": "2026-02-03T19:30:41.174547"
+        "updated_at": "2026-02-03T19:44:48.623222"
     },
     {
         "name": "Director of Control",
@@ -180,7 +180,7 @@
             "last_sent": "2026-02-03T12:35:31.630719",
             "next_run": "2026-02-06T12:35:31.630719"
         },
-        "updated_at": "2026-02-03T19:30:41.187876"
+        "updated_at": "2026-02-03T19:44:48.626113"
     },
     {
         "name": "Director of Health",
@@ -209,7 +209,7 @@
             "last_sent": "2026-02-03T12:35:31.630719",
             "next_run": "2026-02-06T12:35:31.630719"
         },
-        "updated_at": "2026-02-03T19:30:41.189589"
+        "updated_at": "2026-02-03T19:44:48.628837"
     },
     {
         "name": "Dr. Mia Chen",
@@ -225,7 +225,8 @@
             "qualification_reasons": [
                 "org_email_domain",
                 "org_domain",
-                "decision_maker_role"
+                "decision_maker_role",
+                "strong_interest_match"
             ],
             "prospect_tier": "A",
             "icp_summary": "Public health agencies and overdose-response organizations with funding to pilot harm-reduction tech.",
@@ -241,7 +242,7 @@
             "last_sent": "2026-02-03T12:35:31.630719",
             "next_run": "2026-02-06T12:35:31.630719"
         },
-        "updated_at": "2026-02-03T19:21:38.492624"
+        "updated_at": "2026-02-03T19:41:44.717419"
     },
     {
         "name": "Councilwoman Lena Ortiz",
@@ -272,7 +273,7 @@
             "last_sent": "2026-02-03T12:35:31.630719",
             "next_run": "2026-02-06T12:35:31.630719"
         },
-        "updated_at": "2026-02-03T19:21:38.494831"
+        "updated_at": "2026-02-03T19:41:44.745526"
     },
     {
         "name": "Director Harvey Patel",
@@ -289,7 +290,8 @@
                 "org_email_domain",
                 "gov_domain",
                 "decision_maker_role",
-                "mission_fit_org"
+                "mission_fit_org",
+                "strong_interest_match"
             ],
             "prospect_tier": "A",
             "icp_summary": "Public health agencies and overdose-response organizations with funding to pilot harm-reduction tech.",
@@ -305,7 +307,7 @@
             "last_sent": "2026-02-03T12:35:31.630719",
             "next_run": "2026-02-06T12:35:31.630719"
         },
-        "updated_at": "2026-02-03T19:21:38.496935"
+        "updated_at": "2026-02-03T19:41:44.751270"
     },
     {
         "name": "Rural Outreach Lead Ana Kim",
@@ -337,7 +339,7 @@
             "last_sent": "2026-02-03T12:35:31.630719",
             "next_run": "2026-02-06T12:35:31.630719"
         },
-        "updated_at": "2026-02-03T19:21:38.499681"
+        "updated_at": "2026-02-03T19:41:44.762581"
     },
     {
         "name": "Sara Liu",
@@ -353,7 +355,8 @@
             "qualification_reasons": [
                 "org_email_domain",
                 "org_domain",
-                "decision_maker_role"
+                "decision_maker_role",
+                "strong_interest_match"
             ],
             "prospect_tier": "A",
             "icp_summary": "Public health agencies and overdose-response organizations with funding to pilot harm-reduction tech.",
@@ -369,7 +372,7 @@
             "last_sent": "2026-02-03T12:35:31.630719",
             "next_run": "2026-02-06T12:35:31.630719"
         },
-        "updated_at": "2026-02-03T19:21:38.501848"
+        "updated_at": "2026-02-03T19:41:44.877541"
     },
     {
         "name": "Dr. Priya Shah",
@@ -401,7 +404,7 @@
             "last_sent": "2026-02-03T12:35:31.630719",
             "next_run": "2026-02-06T12:35:31.630719"
         },
-        "updated_at": "2026-02-03T19:21:38.503961"
+        "updated_at": "2026-02-03T19:41:44.880405"
     },
     {
         "name": "Elliot Ruiz",
@@ -417,7 +420,8 @@
             "qualification_reasons": [
                 "org_email_domain",
                 "gov_domain",
-                "decision_maker_role"
+                "decision_maker_role",
+                "strong_interest_match"
             ],
             "prospect_tier": "A",
             "icp_summary": "Public health agencies and overdose-response organizations with funding to pilot harm-reduction tech.",
@@ -433,7 +437,7 @@
             "last_sent": "2026-02-03T12:35:31.630719",
             "next_run": "2026-02-06T12:35:31.630719"
         },
-        "updated_at": "2026-02-03T19:21:38.506695"
+        "updated_at": "2026-02-03T19:41:44.883326"
     },
     {
         "name": "Ash Patel",
@@ -465,7 +469,7 @@
             "last_sent": "2026-02-03T12:35:31.630719",
             "next_run": "2026-02-06T12:35:31.630719"
         },
-        "updated_at": "2026-02-03T19:21:38.508882"
+        "updated_at": "2026-02-03T19:41:44.890760"
     },
     {
         "name": "Elena Brooks",
@@ -497,7 +501,7 @@
             "last_sent": "2026-02-03T12:35:31.630719",
             "next_run": "2026-02-06T12:35:31.630719"
         },
-        "updated_at": "2026-02-03T19:21:38.511016"
+        "updated_at": "2026-02-03T19:41:44.894252"
     },
     {
         "name": "Marcus Lee",
@@ -528,6 +532,6 @@
             "last_sent": "2026-02-03T12:35:31.630719",
             "next_run": "2026-02-06T12:35:31.630719"
         },
-        "updated_at": "2026-02-03T19:21:38.513727"
+        "updated_at": "2026-02-03T19:41:44.896940"
     }
 ]
