@@ -1,22 +1,22 @@
 # AGENTS.md
 
-Project: CHATTY complete automation system (Python + FastAPI + async engines).
+Project: CHATTY complete automation system Python + FastAPI + async engines.
 
 ## Repo map (high-signal)
 - `START_COMPLETE_AUTOMATION.py`: primary entrypoint for the full automation loop.
 - `AUTOMATED_REVENUE_ENGINE.py`: revenue engine implementation.
 - `AUTOMATED_CUSTOMER_ACQUISITION.py`: acquisition engine implementation.
 - `SELF_IMPROVING_AGENTS.py`: AI agent orchestration.
-- `AUTOMATION_API_SERVER.py`: FastAPI control/monitoring API (run via Uvicorn).
+- `AUTOMATION_API_SERVER.py`: 'FastAPI control monitoring API (run via Uvicorn).'
 - `launch_chatty.sh`: one-click launcher for the full system.
-- `logs/`: runtime logs (notably `logs/complete_automation.log`).
+- `logs/`: 'runtime logs (notably `logs/complete_automation.log`).'
 - `chroma_db/`: local vector store data.
 - `generated_content/`: content outputs and artifacts.
 - `templates/`, `backend/`: supporting UI/API assets.
 
 ## Agent rules (project-specific)
 - Prefer `./python3` for running scripts to match the repo-bundled Python binary.
-- Avoid invoking live integrations (social, payment, email, ads) unless explicitly requested; mock or stub in tests.
+- 'Avoid invoking live integrations (social, payment, email, ads) unless explicitly requested; mock or stub in tests.'
 - Do not delete or alter `logs/`, `chroma_db/`, or `generated_content/` unless the user asks.
 - Keep logging format consistent with existing files (timestamped, emoji markers are expected).
 - Keep edits ASCII-only unless the target file already uses Unicode (many runtime logs do).
