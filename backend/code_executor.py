@@ -5,6 +5,7 @@ Provides sandboxed code execution for autonomous agents with comprehensive secur
 """
 
 import os
+import re
 import uuid
 import time
 import tempfile
