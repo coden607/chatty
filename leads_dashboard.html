@@ -485,7 +485,7 @@
     <div class="container">
       <header>
         <div class="logo">CHATTY.AI</div>
-        <button class="btn" onclick="fetchLeads()">Refresh Intelligence</button>
+        <button id="refresh-btn" class="btn" onclick="fetchLeads()">Refresh Intelligence</button>
       </header>
 
       <div class="stats-grid">
@@ -609,7 +609,7 @@
         <div class="command-grid" style="margin-top: 18px;">
           <div class="panel">
             <h3>Operator Messages</h3>
-            <textarea id="operator-message" class="message-input" placeholder="Leave a note for the system or request an update..."></textarea>
+            <textarea id="operator-message" aria-label="Operator message" class="message-input" placeholder="Leave a note for the system or request an update..."></textarea>
             <div class="prompt-row">
               <button class="btn" onclick="sendOperatorMessage()">Send Message</button>
             </div>
@@ -664,9 +664,9 @@
         <div class="command-grid" style="margin-top: 18px;">
           <div class="panel">
             <h3>n8n Workflow Builder</h3>
-            <input id="n8n-name" class="prompt-textarea" placeholder="Workflow name" />
-            <input id="n8n-description" class="prompt-textarea" placeholder="Workflow description" />
-            <input id="n8n-trigger" class="prompt-textarea" placeholder="Trigger (manual, webhook, schedule)" />
+            <input id="n8n-name" aria-label="n8n workflow name" class="prompt-textarea" placeholder="Workflow name" />
+            <input id="n8n-description" aria-label="n8n workflow description" class="prompt-textarea" placeholder="Workflow description" />
+            <input id="n8n-trigger" aria-label="n8n workflow trigger" class="prompt-textarea" placeholder="Trigger (manual, webhook, schedule)" />
             <div class="prompt-row">
               <button class="btn" onclick="createN8nWorkflow()">Create n8n Workflow</button>
             </div>
@@ -700,8 +700,8 @@
           </div>
           <div class="panel">
             <h3>Grant Tracker</h3>
-            <input id="grant-name" class="prompt-textarea" placeholder="Grant name" />
-            <input id="grant-deadline" class="prompt-textarea" placeholder="Deadline (YYYY-MM-DD)" />
+            <input id="grant-name" aria-label="Grant name" class="prompt-textarea" placeholder="Grant name" />
+            <input id="grant-deadline" aria-label="Grant deadline" class="prompt-textarea" placeholder="Deadline (YYYY-MM-DD)" />
             <div class="prompt-row">
               <button class="btn" onclick="addGrant()">Add Grant</button>
             </div>
@@ -711,8 +711,8 @@
           </div>
           <div class="panel">
             <h3>Pricing Experiments</h3>
-            <input id="experiment-name" class="prompt-textarea" placeholder="Experiment name" />
-            <input id="experiment-metric" class="prompt-textarea" placeholder="Metric (conversion, CAC)" />
+            <input id="experiment-name" aria-label="Pricing experiment name" class="prompt-textarea" placeholder="Experiment name" />
+            <input id="experiment-metric" aria-label="Pricing experiment metric" class="prompt-textarea" placeholder="Metric (conversion, CAC)" />
             <div class="prompt-row">
               <button class="btn" onclick="addPricingExperiment()">Add Experiment</button>
             </div>
@@ -725,7 +725,7 @@
         <div class="command-grid" style="margin-top: 18px;">
           <div class="panel">
             <h3>Generators</h3>
-            <input id="generator-title" class="prompt-textarea" placeholder="Title / Topic" />
+            <input id="generator-title" aria-label="Generator title or topic" class="prompt-textarea" placeholder="Title / Topic" />
             <div class="prompt-row">
               <button class="btn" onclick="generateProposal()">Proposal Draft</button>
               <button class="btn" onclick="generatePressPitch()">Press Pitch</button>
@@ -779,6 +779,11 @@
       }
 
       async function fetchLeads() {
+        const btn = document.getElementById("refresh-btn");
+        const originalText = btn.innerText;
+        btn.disabled = true;
+        btn.innerText = "Refreshing Intelligence...";
+
         try {
           const response = await fetch(`${apiBase}/api/leads`);
           const data = await response.json();
@@ -790,6 +795,9 @@
           setTimeout(() => (status.style.opacity = 0), 3000);
         } catch (error) {
           console.error("Failed to fetch leads:", error);
+        } finally {
+          btn.disabled = false;
+          btn.innerText = originalText;
         }
       }
 
@@ -883,7 +891,7 @@
                     </td>
                     <td style="font-size: 0.9rem;">${escapeHTML(lead.source)}</td>
                     <td>
-                        <div class="score-bar">
+                        <div class="score-bar" role="progressbar" aria-valuenow="${lead.lead_score}" aria-valuemin="0" aria-valuemax="100" aria-label="Lead score: ${lead.lead_score}%">
                             <div class="score-fill" style="width: ${lead.lead_score}%"></div>
                         </div>
                         <span style="font-size: 0.75rem; margin-top: 4px; display: block;">${lead.lead_score}%</span>
@@ -1598,6 +1606,13 @@
           });
         });
       }
+
+      // Close modal on Escape key
+      document.addEventListener('keydown', (e) => {
+        if (e.key === 'Escape') {
+          closeModal();
+        }
+      });
     </script>
   </body>
 </html>
