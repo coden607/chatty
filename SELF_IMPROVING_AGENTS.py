@@ -46,20 +46,35 @@ def _lazy_import():
 
     print("⏳ Loading AI Brains (LangChain)...")
     try:
+        # Critical components
         from langchain_anthropic import ChatAnthropic
         from langchain_openai import ChatOpenAI
+        
+        # Non-critical / Legacy components (don't fail if missing)
         try:
-            from langchain.agents import AgentExecutor
-        except ImportError:
-            from langchain.agents.agent import AgentExecutor
-        from langchain.agents import create_openai_functions_agent
-        from langchain.tools import Tool
-        from langchain.memory import ConversationBufferMemory
-        from langchain.prompts import ChatPromptTemplate, MessagesPlaceholder
+            try:
+                from langchain.agents import AgentExecutor
+            except ImportError:
+                from langchain.agents.agent import AgentExecutor
+            from langchain.agents import create_openai_functions_agent
+            from langchain.tools import Tool
+            from langchain.memory import ConversationBufferMemory
+            from langchain.prompts import ChatPromptTemplate, MessagesPlaceholder
+        except ImportError as e:
+            print(f"⚠️ Legacy LangChain components missing (harmless): {e}")
+            
         LANGCHAIN_AVAILABLE = True
+        print("✅ LangChain Core Loaded")
     except Exception as e:
         LANGCHAIN_AVAILABLE = False
-        print(f"⚠️ LangChain import failed: {e}. Agents will run in degraded mode.")
+        import traceback
+        error_msg = f"⚠️ Critical LangChain import failed: {e}"
+        print(error_msg)
+        try:
+             import logging
+             logging.getLogger(__name__).error(f"{error_msg}\n{traceback.format_exc()}")
+        except:
+             pass
         return
     
     try:
@@ -70,10 +85,19 @@ def _lazy_import():
     
     print("⏳ Loading Collaboration Framework (CrewAI)...")
     try:
+        import crewai
         from crewai import Agent, Task, Crew, Process
+        print(f"✅ CrewAI Loaded (Version: {getattr(crewai, '__version__', 'unknown')})")
     except Exception as e:
         LANGCHAIN_AVAILABLE = False
-        print(f"⚠️ CrewAI import failed: {e}. Agents will run in degraded mode.")
+        import traceback
+        error_msg = f"⚠️ CrewAI import failed: {e}"
+        print(error_msg)
+        try:
+             import logging
+             logging.getLogger(__name__).error(f"{error_msg}\n{traceback.format_exc()}")
+        except:
+             pass
         return
     print("✅ AI Agent Core Loaded")
 import logging
