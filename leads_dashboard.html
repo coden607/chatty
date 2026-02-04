@@ -553,7 +553,7 @@
         <div class="command-grid">
           <div class="panel">
             <h3>Broadcast Prompt</h3>
-            <textarea id="prompt-input" class="prompt-textarea" placeholder="Ask Chatty to run a Narcoguard workflow, request a report, or instruct all agents..."></textarea>
+            <textarea id="prompt-input" aria-label="Broadcast prompt to agents" class="prompt-textarea" placeholder="Ask Chatty to run a Narcoguard workflow, request a report, or instruct all agents..."></textarea>
             <div class="prompt-row">
               <button class="btn" onclick="sendPrompt('all')">Send to All Agents</button>
               <button class="btn" style="background: transparent; color: var(--text); border: 1px solid var(--border);" onclick="sendPrompt(selectedAgent)">Send to Selected</button>
@@ -580,9 +580,9 @@
         <div class="command-grid">
           <div class="panel">
             <h3>Queue New Task</h3>
-            <textarea id="task-input" class="message-input" placeholder="Describe the task you want agents to execute..."></textarea>
+            <textarea id="task-input" aria-label="New task description" class="message-input" placeholder="Describe the task you want agents to execute..."></textarea>
             <div class="prompt-row">
-              <input id="task-owner" style="flex: 1; min-width: 140px;" class="prompt-textarea" placeholder="Owner (optional)" />
+              <input id="task-owner" aria-label="Task owner" style="flex: 1; min-width: 140px;" class="prompt-textarea" placeholder="Owner (optional)" />
               <select id="task-priority" style="flex: 1; min-width: 140px;" class="prompt-textarea">
                 <option value="normal">Normal priority</option>
                 <option value="high">High priority</option>
@@ -631,8 +631,8 @@
               <button class="btn" style="background: transparent; color: var(--text); border: 1px solid var(--border);" onclick="stopAutonomy()">Stop Autonomy</button>
             </div>
             <div class="prompt-row">
-              <input id="autonomy-budget" class="prompt-textarea" placeholder="Daily budget (USD)" />
-              <input id="autonomy-channel" class="prompt-textarea" placeholder="Primary channel" />
+              <input id="autonomy-budget" aria-label="Daily autonomy budget in USD" class="prompt-textarea" placeholder="Daily budget (USD)" />
+              <input id="autonomy-channel" aria-label="Primary autonomy channel" class="prompt-textarea" placeholder="Primary channel" />
             </div>
             <div class="prompt-row">
               <button class="btn" onclick="saveAutonomySettings()">Save Settings</button>
@@ -649,9 +649,9 @@
           </div>
           <div class="panel">
             <h3>Campaign Planner</h3>
-            <input id="campaign-name" class="prompt-textarea" placeholder="Campaign name" />
-            <input id="campaign-channel" class="prompt-textarea" placeholder="Channel (email, social, partnerships)" />
-            <input id="campaign-goal" class="prompt-textarea" placeholder="Goal (leads, trials, partnerships)" />
+            <input id="campaign-name" aria-label="Campaign name" class="prompt-textarea" placeholder="Campaign name" />
+            <input id="campaign-channel" aria-label="Campaign channel" class="prompt-textarea" placeholder="Channel (email, social, partnerships)" />
+            <input id="campaign-goal" aria-label="Campaign goal" class="prompt-textarea" placeholder="Goal (leads, trials, partnerships)" />
             <div class="prompt-row">
               <button class="btn" onclick="addCampaign()">Plan Campaign</button>
             </div>
@@ -752,11 +752,14 @@
         </div>
       </div>
 
-      <div id="modal-overlay" style="display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.8); backdrop-filter: blur(10px); z-index: 1000; justify-content: center; align-items: center;">
+      <div id="modal-overlay" role="dialog" aria-modal="true" aria-labelledby="modal-title" style="display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.8); backdrop-filter: blur(10px); z-index: 1000; justify-content: center; align-items: center;">
         <div style="background: var(--bg); border: 1px solid var(--primary); padding: 40px; border-radius: 32px; max-width: 800px; width: 90%; max-height: 80vh; overflow-y: auto; position: relative;">
-            <button onclick="closeModal()" style="position: absolute; top: 20px; right: 20px; background: none; border: none; color: var(--text-muted); font-size: 1.5rem; cursor: pointer;">&times;</button>
+            <button onclick="closeModal()" aria-label="Close modal" style="position: absolute; top: 20px; right: 20px; background: none; border: none; color: var(--text-muted); font-size: 1.5rem; cursor: pointer;">&times;</button>
             <h2 id="modal-title" style="margin-bottom: 20px; background: linear-gradient(to right, var(--primary), var(--secondary)); background-clip: text; -webkit-background-clip: text; -webkit-text-fill-color: transparent;">AI Conversion Strategy</h2>
             <div id="modal-content" style="white-space: pre-wrap; line-height: 1.6; color: var(--text);"></div>
+            <div style="margin-top: 30px; display: flex; justify-content: flex-end;">
+              <button id="copy-strategy-btn" class="btn" style="background: transparent; color: var(--text-muted); border: 1px solid var(--border);" onclick="copyStrategy()">Copy Strategy</button>
+            </div>
         </div>
       </div>
     </div>
@@ -825,6 +828,27 @@
 
       function closeModal() {
         document.getElementById("modal-overlay").style.display = "none";
+      }
+
+      async function copyStrategy() {
+        const strategy = document.getElementById("modal-content").innerText;
+        const btn = document.getElementById("copy-strategy-btn");
+
+        try {
+          await navigator.clipboard.writeText(strategy);
+          const originalText = btn.innerText;
+          btn.innerText = "Copied!";
+          btn.style.color = "var(--success)";
+          btn.style.borderColor = "var(--success)";
+
+          setTimeout(() => {
+            btn.innerText = originalText;
+            btn.style.color = "var(--text-muted)";
+            btn.style.borderColor = "var(--border)";
+          }, 2000);
+        } catch (err) {
+          console.error("Failed to copy strategy:", err);
+        }
       }
 
       function updateDashboard(data) {
