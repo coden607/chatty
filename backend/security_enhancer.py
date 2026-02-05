@@ -409,10 +409,13 @@ class ZeroTrustSecurity:
 
                 # Clean up old events (keep last 24 hours)
                 cutoff_time = datetime.utcnow() - timedelta(hours=24)
-                self.security_events[:] = [
+                # Note: deque doesn't support slice assignment
+                remaining_events = [
                     event for event in self.security_events
                     if datetime.fromisoformat(event['timestamp']) > cutoff_time
                 ]
+                self.security_events.clear()
+                self.security_events.extend(remaining_events)
 
             except Exception as e:
                 logger.error(f"Security monitoring error: {str(e)}")
@@ -674,15 +677,29 @@ class DataEncryption:
 
     def _initialize_keys(self):
         """Initialize encryption keys"""
-        # Generate master key
-        salt = os.urandom(16)
+        # Use stable salt from environment or fallback to a stable default
+        # In production, ENCRYPTION_SALT must be set to a unique, random value
+        salt_env = os.environ.get('ENCRYPTION_SALT')
+        if not salt_env:
+            logger.warning("ENCRYPTION_SALT not set, using stable default. Persistent data may be at risk!")
+            salt = b'chatty_default_stable_salt_v1' # Stable fallback for development
+        else:
+            salt = salt_env.encode()
+
         kdf = PBKDF2HMAC(
             algorithm=hashes.SHA256(),
             length=32,
             salt=salt,
             iterations=100000,
         )
-        master_key = base64.urlsafe_b64encode(kdf.derive(os.environ.get('ENCRYPTION_PASSWORD', 'default').encode()))
+
+        # Retrieve password from environment; warn if using insecure default
+        password = os.environ.get('ENCRYPTION_PASSWORD')
+        if not password:
+            logger.warning("ENCRYPTION_PASSWORD not set, using insecure default!")
+            password = 'default_insecure_key'
+
+        master_key = base64.urlsafe_b64encode(kdf.derive(password.encode()))
         self.master_cipher = Fernet(master_key)
 
     def encrypt_data(self, data: Any, context: str = 'general') -> str:
@@ -738,11 +755,6 @@ class DataEncryption:
 
         # In a real implementation, you would need to re-encrypt existing data
         # with the new key while maintaining access to old keys for decryption
-
-# Global instances
-zero_trust_security = ZeroTrustSecurity()
-compliance_manager = ComplianceManager()
-data_encryption = DataEncryption()
 
 # Decorators
 def require_zero_trust(func):
@@ -855,3 +867,8 @@ class AnomalyDetector:
                 import numpy as np
                 self.baseline_metrics[metric_name]['mean'] = np.mean(values)
                 self.baseline_metrics[metric_name]['std'] = np.std(values)
+
+# Global instances (Moved to end to ensure all classes are defined)
+zero_trust_security = ZeroTrustSecurity()
+compliance_manager = ComplianceManager()
+data_encryption = DataEncryption()

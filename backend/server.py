@@ -68,7 +68,7 @@ app.config.update(
     JWT_SECRET_KEY=os.environ.get('JWT_SECRET_KEY', os.urandom(32).hex()),
     JWT_ACCESS_TOKEN_EXPIRES=timedelta(hours=1),
     JWT_REFRESH_TOKEN_EXPIRES=timedelta(days=30),
-    SQLALCHEMY_DATABASE_URI=os.environ.get('DATABASE_URL', 'postgresql://chatty:password@localhost:5432/chatty'),
+    SQLALCHEMY_DATABASE_URI=os.environ.get('DATABASE_URL', 'sqlite:///chatty.db'),
     SQLALCHEMY_TRACK_MODIFICATIONS=False,
     SQLALCHEMY_ENGINE_OPTIONS={
         'pool_pre_ping': True,
