@@ -1531,6 +1531,34 @@
         }
       }
 
+      async function fetchDashboardAll() {
+        try {
+          const response = await fetch(`${apiBase}/api/dashboard/all`);
+          const data = await response.json();
+
+          if (data.leads) updateDashboard(data.leads);
+          if (data.workflows) renderWorkflows(data.workflows.workflows || []);
+          if (data.agents) renderAgents(data.agents.agents || []);
+          if (data.tasks) renderTasks(data.tasks.tasks || []);
+          if (data.collab) renderCollabFeed(data.collab.events || []);
+          if (data.messages) renderOperatorMessages(data.messages.messages || []);
+          if (data.autonomy) renderAutonomyStatus(data.autonomy.state, data.autonomy.settings);
+          if (data.pipelines) renderPipelines(data.pipelines.pipelines || []);
+          if (data.campaigns) renderCampaigns(data.campaigns.campaigns || []);
+          if (data.n8n) renderN8nWorkflows(data.n8n.workflows || []);
+          if (data.transparency) renderTransparency(data.transparency.completed || []);
+          if (data.content) renderContentBriefs(data.content.briefs || []);
+          if (data.grants) renderGrants(data.grants.grants || []);
+          if (data.experiments) renderPricingExperiments(data.experiments.experiments || []);
+          if (data.anomalies) renderAnomalies(data.anomalies.anomalies || []);
+          if (data.brief) document.getElementById("weekly-brief").textContent = data.brief.summary || "No summary.";
+
+          console.log("Dashboard consolidated heartbeat successful");
+        } catch (error) {
+          console.error("Failed to fetch consolidated dashboard data:", error);
+        }
+      }
+
       function renderTransparency(items) {
         const list = document.getElementById("transparency-list");
         if (!items.length) {
@@ -1557,39 +1585,11 @@
       `;
       document.head.appendChild(style);
 
-      // Poll for updates
-      setInterval(fetchLeads, 30000); // Slower polling
-      setInterval(fetchWorkflows, 45000);
-      setInterval(fetchAgents, 60000);
-      setInterval(fetchTasks, 45000);
-      setInterval(fetchCollabFeed, 30000);
-      setInterval(fetchOperatorMessages, 60000);
-      setInterval(fetchAutonomyStatus, 45000);
-      setInterval(fetchPipelines, 60000);
-      setInterval(fetchCampaigns, 60000);
-      setInterval(fetchN8nWorkflows, 60000);
-      setInterval(fetchTransparency, 60000);
-      setInterval(fetchContentBriefs, 60000);
-      setInterval(fetchGrants, 90000);
-      setInterval(fetchPricingExperiments, 90000);
-      setInterval(fetchAnomalies, 90000);
-      setInterval(fetchWeeklyBrief, 120000);
-      fetchLeads();
-      fetchWorkflows();
-      fetchAgents();
-      fetchTasks();
-      fetchCollabFeed();
-      fetchOperatorMessages();
-      fetchAutonomyStatus();
-      fetchPipelines();
-      fetchCampaigns();
-      fetchN8nWorkflows();
-      fetchTransparency();
-      fetchContentBriefs();
-      fetchGrants();
-      fetchPricingExperiments();
-      fetchAnomalies();
-      fetchWeeklyBrief();
+      // Poll for updates via consolidated heartbeat
+      setInterval(fetchDashboardAll, 30000);
+
+      // Initial load
+      fetchDashboardAll();
 
       if ("serviceWorker" in navigator) {
         window.addEventListener("load", () => {
