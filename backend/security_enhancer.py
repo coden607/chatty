@@ -18,6 +18,7 @@ from functools import wraps
 from collections import defaultdict, deque
 import threading
 import ipaddress
+import statistics
 
 import bcrypt
 import cryptography
@@ -409,10 +410,13 @@ class ZeroTrustSecurity:
 
                 # Clean up old events (keep last 24 hours)
                 cutoff_time = datetime.utcnow() - timedelta(hours=24)
-                self.security_events[:] = [
+                filtered_events = [
                     event for event in self.security_events
                     if datetime.fromisoformat(event['timestamp']) > cutoff_time
                 ]
+                # deque does not support slice assignment; use clear and extend
+                self.security_events.clear()
+                self.security_events.extend(filtered_events)
 
             except Exception as e:
                 logger.error(f"Security monitoring error: {str(e)}")
@@ -739,6 +743,50 @@ class DataEncryption:
         # In a real implementation, you would need to re-encrypt existing data
         # with the new key while maintaining access to old keys for decryption
 
+class AnomalyDetector:
+    """Machine learning-based anomaly detection"""
+
+    def __init__(self):
+        self.baseline_metrics = {}
+        self.anomaly_threshold = 3.0  # Standard deviations
+
+    def detect_anomaly(self, metrics: Dict[str, Any]) -> Dict[str, Any]:
+        """Detect anomalies in metrics"""
+        anomalies = {}
+
+        for metric_name, value in metrics.items():
+            if metric_name in self.baseline_metrics:
+                baseline = self.baseline_metrics[metric_name]
+                mean = baseline.get('mean', value)
+                std = baseline.get('std', 1)
+
+                if std > 0:
+                    z_score = abs(value - mean) / std
+                    if z_score > self.anomaly_threshold:
+                        anomalies[metric_name] = {
+                            'value': value,
+                            'expected': mean,
+                            'z_score': z_score,
+                            'severity': 'high' if z_score > 5 else 'medium'
+                        }
+
+        return anomalies
+
+    def update_baseline(self, metrics: Dict[str, Any]):
+        """Update baseline metrics"""
+        for metric_name, value in metrics.items():
+            if metric_name not in self.baseline_metrics:
+                self.baseline_metrics[metric_name] = {'values': []}
+
+            self.baseline_metrics[metric_name]['values'].append(value)
+
+            # Keep only last 100 values
+            values = self.baseline_metrics[metric_name]['values'][-100:]
+
+            if len(values) >= 10:  # Need minimum samples
+                self.baseline_metrics[metric_name]['mean'] = statistics.mean(values)
+                self.baseline_metrics[metric_name]['std'] = statistics.stdev(values)
+
 # Global instances
 zero_trust_security = ZeroTrustSecurity()
 compliance_manager = ComplianceManager()
@@ -808,50 +856,3 @@ def encrypt_response(func):
 
             return encrypted_data, status_code
 
-        return result
-    return wrapper
-
-class AnomalyDetector:
-    """Machine learning-based anomaly detection"""
-
-    def __init__(self):
-        self.baseline_metrics = {}
-        self.anomaly_threshold = 3.0  # Standard deviations
-
-    def detect_anomaly(self, metrics: Dict[str, Any]) -> Dict[str, Any]:
-        """Detect anomalies in metrics"""
-        anomalies = {}
-
-        for metric_name, value in metrics.items():
-            if metric_name in self.baseline_metrics:
-                baseline = self.baseline_metrics[metric_name]
-                mean = baseline.get('mean', value)
-                std = baseline.get('std', 1)
-
-                if std > 0:
-                    z_score = abs(value - mean) / std
-                    if z_score > self.anomaly_threshold:
-                        anomalies[metric_name] = {
-                            'value': value,
-                            'expected': mean,
-                            'z_score': z_score,
-                            'severity': 'high' if z_score > 5 else 'medium'
-                        }
-
-        return anomalies
-
-    def update_baseline(self, metrics: Dict[str, Any]):
-        """Update baseline metrics"""
-        for metric_name, value in metrics.items():
-            if metric_name not in self.baseline_metrics:
-                self.baseline_metrics[metric_name] = {'values': []}
-
-            self.baseline_metrics[metric_name]['values'].append(value)
-
-            # Keep only last 100 values
-            values = self.baseline_metrics[metric_name]['values'][-100:]
-
-            if len(values) >= 10:  # Need minimum samples
-                import numpy as np
-                self.baseline_metrics[metric_name]['mean'] = np.mean(values)
-                self.baseline_metrics[metric_name]['std'] = np.std(values)
