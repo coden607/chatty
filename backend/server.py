@@ -359,12 +359,12 @@ def register():
             if session.query(User).filter_by(username=data['username']).first():
                 raise APIError("Username already taken", 409)
 
-            # Create user
+            # Create user (always default to 'user' role for security)
             user = User(
                 username=data['username'],
                 email=data['email'],
                 password_hash=bcrypt.hashpw(data['password'].encode(), bcrypt.gensalt()).decode(),
-                role=data.get('role', 'user')
+                role='user'
             )
             session.add(user)
 
@@ -1601,7 +1601,7 @@ def analyze_content():
 
 @app.route('/api/ai/collaborate', methods=['POST'])
 @jwt_required()
-def coordinate_agents():
+async def coordinate_agents():
     """Coordinate multi-agent collaboration"""
     try:
         user_id = get_jwt_identity()
