@@ -360,6 +360,19 @@
         color: var(--text);
         padding: 14px;
         resize: vertical;
+        transition: border-color 0.3s ease, box-shadow 0.3s ease;
+      }
+
+      input.prompt-textarea {
+        min-height: 50px;
+        height: 50px;
+        resize: none;
+      }
+
+      .prompt-textarea:focus, .message-input:focus, .btn:focus-visible {
+        outline: none;
+        border-color: var(--primary);
+        box-shadow: 0 0 0 2px rgba(0, 242, 254, 0.2);
       }
 
       .prompt-row {
@@ -425,6 +438,7 @@
         color: var(--text);
         padding: 14px;
         resize: vertical;
+        transition: border-color 0.3s ease, box-shadow 0.3s ease;
       }
 
       .pipeline-card {
@@ -508,6 +522,7 @@
           <h2>Generated Lead Intelligence</h2>
           <div
             id="status-msg"
+            aria-live="polite"
             style="font-size: 0.8rem; color: var(--success); opacity: 0"
           >
             Updated just now
@@ -546,7 +561,7 @@
       <div class="lead-section" style="margin-top: 32px;">
         <div class="section-header">
           <h2>Command Center: Prompt Chatty + Agents</h2>
-          <div id="prompt-status" style="font-size: 0.8rem; color: var(--success); opacity: 0;">
+          <div id="prompt-status" aria-live="polite" style="font-size: 0.8rem; color: var(--success); opacity: 0;">
             Prompt dispatched
           </div>
         </div>
@@ -732,6 +747,9 @@
               <button class="btn" onclick="generateVideoScript()">Video Script</button>
             </div>
             <div id="generator-output" class="generator-output">Generator output will appear here.</div>
+            <div class="prompt-row">
+              <button id="copy-gen-btn" class="btn" style="background: transparent; color: var(--text-muted); border: 1px solid var(--border);" onclick="copyToClipboard('generator-output', 'copy-gen-btn')">Copy Output</button>
+            </div>
           </div>
           <div class="panel">
             <h3>KPI Anomalies</h3>
@@ -747,6 +765,7 @@
             <div id="weekly-brief" class="generator-output">No brief yet.</div>
             <div class="prompt-row">
               <button class="btn" onclick="refreshWeeklyBrief()">Refresh Brief</button>
+              <button id="copy-brief-btn" class="btn" style="background: transparent; color: var(--text-muted); border: 1px solid var(--border);" onclick="copyToClipboard('weekly-brief', 'copy-brief-btn')">Copy Brief</button>
             </div>
           </div>
         </div>
@@ -758,7 +777,7 @@
             <h2 id="modal-title" style="margin-bottom: 20px; background: linear-gradient(to right, var(--primary), var(--secondary)); background-clip: text; -webkit-background-clip: text; -webkit-text-fill-color: transparent;">AI Conversion Strategy</h2>
             <div id="modal-content" style="white-space: pre-wrap; line-height: 1.6; color: var(--text);"></div>
             <div style="margin-top: 30px; display: flex; justify-content: flex-end;">
-              <button id="copy-strategy-btn" class="btn" style="background: transparent; color: var(--text-muted); border: 1px solid var(--border);" onclick="copyStrategy()">Copy Strategy</button>
+              <button id="copy-strategy-btn" class="btn" style="background: transparent; color: var(--text-muted); border: 1px solid var(--border);" onclick="copyToClipboard('modal-content', 'copy-strategy-btn')">Copy Strategy</button>
             </div>
         </div>
       </div>
@@ -860,24 +879,27 @@
         }
       });
 
-      async function copyStrategy() {
-        const strategy = document.getElementById("modal-content").innerText;
-        const btn = document.getElementById("copy-strategy-btn");
+      async function copyToClipboard(elementId, btnId) {
+        const el = document.getElementById(elementId);
+        const text = el.innerText || el.textContent;
+        const btn = document.getElementById(btnId);
 
         try {
-          await navigator.clipboard.writeText(strategy);
+          await navigator.clipboard.writeText(text);
           const originalText = btn.innerText;
           btn.innerText = "Copied!";
+          const originalColor = btn.style.color;
+          const originalBorder = btn.style.borderColor;
           btn.style.color = "var(--success)";
           btn.style.borderColor = "var(--success)";
 
           setTimeout(() => {
             btn.innerText = originalText;
-            btn.style.color = "var(--text-muted)";
-            btn.style.borderColor = "var(--border)";
+            btn.style.color = originalColor;
+            btn.style.borderColor = originalBorder;
           }, 2000);
         } catch (err) {
-          console.error("Failed to copy strategy:", err);
+          console.error("Failed to copy:", err);
         }
       }
 
@@ -913,7 +935,7 @@
                     </td>
                     <td style="font-size: 0.9rem;">${escapeHTML(lead.source)}</td>
                     <td>
-                        <div class="score-bar">
+                        <div class="score-bar" role="progressbar" aria-valuenow="${lead.lead_score}" aria-valuemin="0" aria-valuemax="100" aria-label="Lead score">
                             <div class="score-fill" style="width: ${lead.lead_score}%"></div>
                         </div>
                         <span style="font-size: 0.75rem; margin-top: 4px; display: block;">${lead.lead_score}%</span>
