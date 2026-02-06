@@ -11,6 +11,7 @@ from pydantic import BaseModel
 from typing import Dict, List, Any, Optional
 import asyncio
 import logging
+import time
 from datetime import datetime
 import json
 import os
@@ -1599,9 +1600,18 @@ async def get_kpi_anomalies():
     """Get KPI anomaly log"""
     return {"anomalies": anomaly_log[:10]}
 
+# Cache for expensive AI-generated weekly brief
+_weekly_brief_cache = None
+_weekly_brief_time = 0
+
 @app.get("/api/weekly/brief")
 async def weekly_brief():
-    """Get weekly summary brief"""
+    """Get weekly summary brief (cached for 10 minutes)"""
+    global _weekly_brief_cache, _weekly_brief_time
+    now = time.time()
+    if _weekly_brief_cache and (now - _weekly_brief_time < 600):
+        return _weekly_brief_cache
+
     completed = transparency_log[:15] # Fetch more logs for context
     events = collab_feed[:15]
     
@@ -1637,7 +1647,51 @@ async def weekly_brief():
         "events": events[:6],
         "summary": summary
     }
+    _weekly_brief_cache = body
+    _weekly_brief_time = now
     return body
+
+@app.get("/api/dashboard/all")
+async def get_dashboard_all():
+    """Batch endpoint to fetch all dashboard data in a single concurrent request"""
+    # Gather data from all relevant endpoints concurrently to minimize total latency
+    results = await asyncio.gather(
+        get_leads(),
+        get_narcoguard_workflows(),
+        get_agents(),
+        get_tasks(),
+        get_collab_feed(),
+        get_user_messages(),
+        get_autonomy_status(),
+        get_pipelines(),
+        get_campaigns(),
+        get_n8n_workflows(),
+        get_transparency_report(),
+        get_content_briefs(),
+        get_grants(),
+        get_pricing_experiments(),
+        get_kpi_anomalies(),
+        weekly_brief()
+    )
+
+    return {
+        "leads": results[0],
+        "workflows": results[1],
+        "agents": results[2],
+        "tasks": results[3],
+        "collab": results[4],
+        "messages": results[5],
+        "autonomy": results[6],
+        "pipelines": results[7],
+        "campaigns": results[8],
+        "n8n": results[9],
+        "transparency": results[10],
+        "briefs": results[11],
+        "grants": results[12],
+        "experiments": results[13],
+        "anomalies": results[14],
+        "weekly_brief": results[15]
+    }
 
 @app.get("/api/tasks")
 async def get_tasks():
