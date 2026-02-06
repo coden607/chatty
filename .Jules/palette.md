@@ -5,3 +5,7 @@
 ## 2026-02-05 - [Interactive Dashboard Polish]
 **Learning:** For multi-panel dashboards, a delegated 'Enter' key listener targeting the panel's primary button significantly reduces friction for power users. Additionally, providing 'Refreshing...' state on the primary refresh button prevents redundant clicks and confirms the system is active.
 **Action:** Implement delegated 'Enter' key handlers in complex command interfaces and always disable/label-swap async trigger buttons during network requests using a `finally` block for resilience.
+
+## 2026-02-06 - [Global Accessibility & Clipboard UX]
+**Learning:** For AI-heavy dashboards, "Copy to Clipboard" is a high-value utility that should be generalized. Accessibility is significantly improved by using `aria-live="polite"` on status messages to notify screen readers of async updates, and by utilizing proper `role="progressbar"` attributes for visual data bars. Visible focus states (`:focus-visible`) are essential for navigation clarity in dark-themed high-contrast interfaces.
+**Action:** Utilize a generalized `copyToClipboard` utility with visual feedback for all generated content. Always ensure status regions are marked as live regions and progress bars have appropriate ARIA roles and current values.
