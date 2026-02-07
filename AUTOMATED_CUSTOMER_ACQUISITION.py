@@ -988,8 +988,8 @@ Make it informative, engaging, and mission-focused."""
                 lead["updated_at"] = now.isoformat()
                 pruned += 1
         if pruned:
-            with open("/home/coden809/CHATTY/leads.json", "w") as f:
-                json.dump(leads, f, indent=4)
+            with open(LEADS_FILE, "w") as f:
+                json.dump(leads, f)
             log_outreach_event(Path("generated_content/investor/outreach_log.csv"), "system", "prune", "archived", f"{pruned} leads after {threshold} attempts")
         return pruned
 
@@ -1371,7 +1371,7 @@ Make it informative, engaging, and mission-focused."""
                 updated += 1
         if updated:
             with open(LEADS_FILE, "w") as f:
-                json.dump(leads, f, indent=4)
+                json.dump(leads, f)
         return updated
 
     def _build_icp_profile(self) -> Dict[str, Any]:
