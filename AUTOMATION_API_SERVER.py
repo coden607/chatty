@@ -1780,6 +1780,51 @@ async def get_metrics():
         }
     }
 
+@app.get("/api/dashboard/all")
+async def get_dashboard_all():
+    """Consolidated endpoint to fetch all dashboard data in a single request (Bolt ⚡)"""
+    results = await asyncio.gather(
+        get_status(),
+        get_revenue(),
+        get_leads(),
+        get_narcoguard_workflows(),
+        get_agents(),
+        get_autonomy_status(),
+        get_pipelines(),
+        get_campaigns(),
+        get_n8n_workflows(),
+        get_transparency_report(),
+        get_content_briefs(),
+        get_grants(),
+        get_pricing_experiments(),
+        get_kpi_anomalies(),
+        weekly_brief(),
+        get_tasks(),
+        get_collab_feed(),
+        get_user_messages()
+    )
+
+    return {
+        "status": results[0],
+        "revenue": results[1],
+        "leads": results[2],
+        "workflows": results[3],
+        "agents": results[4],
+        "autonomy": results[5],
+        "pipelines": results[6],
+        "campaigns": results[7],
+        "n8n": results[8],
+        "transparency": results[9],
+        "briefs": results[10],
+        "grants": results[11],
+        "experiments": results[12],
+        "anomalies": results[13],
+        "weekly_brief": results[14],
+        "tasks": results[15],
+        "collab": results[16],
+        "messages": results[17]
+    }
+
 if __name__ == "__main__":
     import uvicorn
     print("🚀 Starting CHATTY Automation API Server...")

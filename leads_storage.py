@@ -46,9 +46,13 @@ def save_lead(lead_data: Dict[str, Any]):
         target_lead = lead_data
 
     with open(LEADS_FILE, "w") as f:
-        json.dump(leads, f, indent=4)
+        json.dump(leads, f)
 
-    # Cache will be invalidated on next read by mtime check
+    # Immediately update cache to avoid redundant re-read on next call
+    global _leads_cache, _last_mtime
+    _leads_cache = leads
+    _last_mtime = os.path.getmtime(LEADS_FILE)
+
     return target_lead
 
 def get_all_leads() -> List[Dict[str, Any]]:
@@ -82,7 +86,11 @@ def update_lead_status(lead_id: int, status: str):
             break
     
     with open(LEADS_FILE, "w") as f:
-        json.dump(leads, f, indent=4)
+        json.dump(leads, f)
+
+    global _leads_cache, _last_mtime
+    _leads_cache = leads
+    _last_mtime = os.path.getmtime(LEADS_FILE)
 
 def update_lead_follow_up(lead_id: int, follow_up_payload: Dict[str, Any]):
     """Update a lead's follow-up metadata"""
@@ -93,7 +101,11 @@ def update_lead_follow_up(lead_id: int, follow_up_payload: Dict[str, Any]):
             lead["updated_at"] = datetime.now().isoformat()
             break
     with open(LEADS_FILE, "w") as f:
-        json.dump(leads, f, indent=4)
+        json.dump(leads, f)
+
+    global _leads_cache, _last_mtime
+    _leads_cache = leads
+    _last_mtime = os.path.getmtime(LEADS_FILE)
 
 
 def add_lead(name: str, email: str, source: str, metadata: Dict[str, Any] = None) -> Dict[str, Any]:
