@@ -5,3 +5,7 @@
 ## 2026-02-05 - [Interactive Dashboard Polish]
 **Learning:** For multi-panel dashboards, a delegated 'Enter' key listener targeting the panel's primary button significantly reduces friction for power users. Additionally, providing 'Refreshing...' state on the primary refresh button prevents redundant clicks and confirms the system is active.
 **Action:** Implement delegated 'Enter' key handlers in complex command interfaces and always disable/label-swap async trigger buttons during network requests using a `finally` block for resilience.
+
+## 2026-02-12 - [Dashboard Interaction Polish]
+**Learning:** Proper modal focus management (capturing focus on open and restoring on close) combined with high-visibility `:focus-visible` styles dramatically improves keyboard navigability in dense, data-heavy dashboards.
+**Action:** Always include focus-restore logic in modal handlers and use a theme-consistent glow for `:focus-visible` states to ensure the focus ring is unmistakable against dark backgrounds.
