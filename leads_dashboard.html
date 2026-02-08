@@ -240,6 +240,14 @@
         opacity: 0.9;
       }
 
+      .btn:focus-visible,
+      .prompt-textarea:focus,
+      .message-input:focus {
+        outline: none;
+        border-color: var(--primary);
+        box-shadow: 0 0 0 2px rgba(0, 242, 254, 0.2);
+      }
+
       .loading {
         text-align: center;
         padding: 40px;
@@ -583,14 +591,14 @@
             <textarea id="task-input" aria-label="New task description" class="message-input" placeholder="Describe the task you want agents to execute..."></textarea>
             <div class="prompt-row">
               <input id="task-owner" aria-label="Task owner" style="flex: 1; min-width: 140px;" class="prompt-textarea" placeholder="Owner (optional)" />
-              <select id="task-priority" style="flex: 1; min-width: 140px;" class="prompt-textarea">
+              <select id="task-priority" aria-label="Task priority" style="flex: 1; min-width: 140px;" class="prompt-textarea">
                 <option value="normal">Normal priority</option>
                 <option value="high">High priority</option>
                 <option value="urgent">Urgent priority</option>
               </select>
             </div>
             <div class="prompt-row">
-              <button class="btn" onclick="queueTask()">Queue Task</button>
+              <button class="btn" onclick="queueTask(this)">Queue Task</button>
             </div>
           </div>
           <div class="panel">
@@ -653,7 +661,7 @@
             <input id="campaign-channel" aria-label="Campaign channel" class="prompt-textarea" placeholder="Channel (email, social, partnerships)" />
             <input id="campaign-goal" aria-label="Campaign goal" class="prompt-textarea" placeholder="Goal (leads, trials, partnerships)" />
             <div class="prompt-row">
-              <button class="btn" onclick="addCampaign()">Plan Campaign</button>
+              <button class="btn" onclick="addCampaign(this)">Plan Campaign</button>
             </div>
             <div id="campaign-list" class="campaign-list">
               <div class="log-entry">No campaigns yet.</div>
@@ -727,9 +735,9 @@
             <h3>Generators</h3>
             <input id="generator-title" aria-label="Generator title or topic" class="prompt-textarea" placeholder="Title / Topic" />
             <div class="prompt-row">
-              <button class="btn" onclick="generateProposal()">Proposal Draft</button>
-              <button class="btn" onclick="generatePressPitch()">Press Pitch</button>
-              <button class="btn" onclick="generateVideoScript()">Video Script</button>
+              <button class="btn" onclick="generateProposal(this)">Proposal Draft</button>
+              <button class="btn" onclick="generatePressPitch(this)">Press Pitch</button>
+              <button class="btn" onclick="generateVideoScript(this)">Video Script</button>
             </div>
             <div id="generator-output" class="generator-output">Generator output will appear here.</div>
           </div>
@@ -767,6 +775,7 @@
     <script>
       const apiBase = "http://localhost:8080";
       let selectedAgent = null;
+      let lastFocusedElement = null;
 
       function escapeHTML(str) {
         if (!str) return '';
@@ -829,13 +838,22 @@
       }
 
       function showModal(name, strategy) {
+        lastFocusedElement = document.activeElement;
         document.getElementById("modal-title").innerText = `AI Conversion Strategy for ${name}`;
         document.getElementById("modal-content").innerText = strategy;
         document.getElementById("modal-overlay").style.display = "flex";
+
+        // Move focus to primary action in modal
+        setTimeout(() => {
+          document.getElementById("copy-strategy-btn").focus();
+        }, 100);
       }
 
       function closeModal() {
         document.getElementById("modal-overlay").style.display = "none";
+        if (lastFocusedElement) {
+          lastFocusedElement.focus();
+        }
       }
 
       // Close modal on Escape key
@@ -1094,7 +1112,7 @@
           .join("");
       }
 
-      async function queueTask() {
+      async function queueTask(btn) {
         const titleInput = document.getElementById("task-input");
         const ownerInput = document.getElementById("task-owner");
         const priorityInput = document.getElementById("task-priority");
@@ -1103,6 +1121,9 @@
           alert("Add a task description before queueing.");
           return;
         }
+        const originalText = btn.innerText;
+        btn.innerText = "Queueing...";
+        btn.disabled = true;
         try {
           await fetch(`${apiBase}/api/tasks`, {
             method: "POST",
@@ -1120,6 +1141,9 @@
         } catch (error) {
           console.error("Failed to queue task:", error);
           alert("Task queue failed.");
+        } finally {
+          btn.innerText = originalText;
+          btn.disabled = false;
         }
       }
 
@@ -1311,7 +1335,7 @@
           .join("");
       }
 
-      async function addCampaign() {
+      async function addCampaign(btn) {
         const name = document.getElementById("campaign-name").value.trim();
         const channel = document.getElementById("campaign-channel").value.trim();
         const goal = document.getElementById("campaign-goal").value.trim();
@@ -1319,16 +1343,24 @@
           alert("Fill in campaign name, channel, and goal.");
           return;
         }
-        await fetch(`${apiBase}/api/campaigns`, {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ name, channel, goal })
-        });
-        document.getElementById("campaign-name").value = "";
-        document.getElementById("campaign-channel").value = "";
-        document.getElementById("campaign-goal").value = "";
-        fetchCampaigns();
-        fetchCollabFeed();
+        const originalText = btn.innerText;
+        btn.innerText = "Planning...";
+        btn.disabled = true;
+        try {
+          await fetch(`${apiBase}/api/campaigns`, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ name, channel, goal })
+          });
+          document.getElementById("campaign-name").value = "";
+          document.getElementById("campaign-channel").value = "";
+          document.getElementById("campaign-goal").value = "";
+          fetchCampaigns();
+          fetchCollabFeed();
+        } finally {
+          btn.innerText = originalText;
+          btn.disabled = false;
+        }
       }
 
       async function fetchN8nWorkflows() {
@@ -1495,37 +1527,61 @@
         fetchPricingExperiments();
       }
 
-      async function generateProposal() {
+      async function generateProposal(btn) {
         const title = document.getElementById("generator-title").value.trim() || "Pilot Proposal";
-        const response = await fetch(`${apiBase}/api/proposals/draft`, {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ title })
-        });
-        const data = await response.json();
-        document.getElementById("generator-output").innerText = data.draft || "No draft returned.";
+        const originalText = btn.innerText;
+        btn.innerText = "Generating...";
+        btn.disabled = true;
+        try {
+          const response = await fetch(`${apiBase}/api/proposals/draft`, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ title })
+          });
+          const data = await response.json();
+          document.getElementById("generator-output").innerText = data.draft || "No draft returned.";
+        } finally {
+          btn.innerText = originalText;
+          btn.disabled = false;
+        }
       }
 
-      async function generatePressPitch() {
+      async function generatePressPitch(btn) {
         const angle = document.getElementById("generator-title").value.trim() || "Automation for harm reduction";
-        const response = await fetch(`${apiBase}/api/press/pitch`, {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ angle })
-        });
-        const data = await response.json();
-        document.getElementById("generator-output").innerText = data.draft || "No pitch returned.";
+        const originalText = btn.innerText;
+        btn.innerText = "Generating...";
+        btn.disabled = true;
+        try {
+          const response = await fetch(`${apiBase}/api/press/pitch`, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ angle })
+          });
+          const data = await response.json();
+          document.getElementById("generator-output").innerText = data.draft || "No pitch returned.";
+        } finally {
+          btn.innerText = originalText;
+          btn.disabled = false;
+        }
       }
 
-      async function generateVideoScript() {
+      async function generateVideoScript(btn) {
         const topic = document.getElementById("generator-title").value.trim() || "NarcoGuard demo";
-        const response = await fetch(`${apiBase}/api/video/script`, {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ topic, length_sec: 90 })
-        });
-        const data = await response.json();
-        document.getElementById("generator-output").innerText = data.draft || "No script returned.";
+        const originalText = btn.innerText;
+        btn.innerText = "Generating...";
+        btn.disabled = true;
+        try {
+          const response = await fetch(`${apiBase}/api/video/script`, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ topic, length_sec: 90 })
+          });
+          const data = await response.json();
+          document.getElementById("generator-output").innerText = data.draft || "No script returned.";
+        } finally {
+          btn.innerText = originalText;
+          btn.disabled = false;
+        }
       }
 
       async function fetchAnomalies() {
