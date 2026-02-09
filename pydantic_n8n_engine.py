@@ -562,11 +562,17 @@ class PydanticN8NEngine:
         """Built-in calculation task"""
         expression = kwargs.get('expression', '0')
         try:
-            # Simple calculation (could be enhanced with proper expression parser)
-            result = eval(expression)
+            # Secure calculation using restricted eval
+            # Only allow numbers, basic math operators (+, -, *, /), dots, parentheses, and whitespace
+            if not re.match(r"^[0-9+\-*/().\s]+$", str(expression)):
+                return {'error': "Invalid characters in expression", 'expression': expression}
+
+            # Execute eval with no built-ins to prevent arbitrary code execution
+            result = eval(str(expression), {"__builtins__": {}}, {})
             return {'result': result, 'expression': expression}
         except Exception as e:
-            return {'error': str(e), 'expression': expression}
+            logger.error(f"Calculation failed for expression '{expression}': {e}")
+            return {'error': "Calculation failed", 'expression': expression}
 
 class AIWorkflowOptimizer:
     """AI-driven workflow optimization engine"""
