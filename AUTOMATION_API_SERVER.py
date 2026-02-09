@@ -16,8 +16,15 @@ import json
 import os
 import re
 from pathlib import Path
-from leads_storage import get_all_leads, add_lead
+from leads_storage import get_all_leads, add_lead, LEADS_FILE
 from dotenv import load_dotenv
+import time
+
+# Move heavy import to top to avoid lazy-loading overhead in requests
+try:
+    from AUTOMATED_REVENUE_ENGINE import revenue_engine
+except ImportError:
+    revenue_engine = None
 
 load_dotenv(".env", override=False)
 _secrets_file = os.getenv("CHATTY_SECRETS_FILE")
@@ -1412,7 +1419,6 @@ async def pilot_calc(payload: PilotCalcRequest):
 async def draft_proposal(payload: DraftRequest):
     """Generate a proposal draft"""
     try:
-        from AUTOMATED_REVENUE_ENGINE import revenue_engine
         system_prompt = "You are a professional grant writer and business developer for NarcoGuard."
         user_prompt = f"""Write a comprehensive proposal draft for: {payload.title}
         
@@ -1437,7 +1443,6 @@ async def draft_proposal(payload: DraftRequest):
 async def investor_weekly(payload: DraftRequest):
     """Generate an investor weekly update draft"""
     try:
-        from AUTOMATED_REVENUE_ENGINE import revenue_engine
         system_prompt = "You are the founder of NarcoGuard writing a weekly update to investors."
         user_prompt = f"""Write a weekly investor update for: {payload.title}
         
@@ -1461,7 +1466,6 @@ async def investor_weekly(payload: DraftRequest):
 async def investor_narrative(payload: DraftRequest):
     """Generate a narrative refresh draft"""
     try:
-        from AUTOMATED_REVENUE_ENGINE import revenue_engine
         system_prompt = "You are a strategic communications expert for a MedTech startup."
         user_prompt = f"""Refine the core investor narrative for: {payload.title}
         
@@ -1499,7 +1503,6 @@ async def data_room_checklist():
 async def press_pitch(payload: PressPitchRequest):
     """Generate a press pitch"""
     try:
-        from AUTOMATED_REVENUE_ENGINE import revenue_engine
         system_prompt = "You are a PR specialist for NarcoGuard."
         user_prompt = f"""Write a compelling press pitch for: {payload.outlet or 'Tech Media'}
         
@@ -1523,7 +1526,6 @@ async def press_pitch(payload: PressPitchRequest):
 async def video_script(payload: VideoScriptRequest):
     """Generate a short video script"""
     try:
-        from AUTOMATED_REVENUE_ENGINE import revenue_engine
         system_prompt = "You are a video producer for social media content."
         user_prompt = f"""Write a video script ({payload.length_sec or 90} seconds) about: {payload.topic}
         
@@ -1543,7 +1545,6 @@ async def video_script(payload: VideoScriptRequest):
 async def partner_brief(payload: PartnerBriefRequest):
     """Generate a partner outreach brief"""
     try:
-        from AUTOMATED_REVENUE_ENGINE import revenue_engine
         system_prompt = "You are a partnership director for a health tech company."
         user_prompt = f"""Write a partnership proposal brief for: {payload.partner_type}
         
@@ -1599,15 +1600,25 @@ async def get_kpi_anomalies():
     """Get KPI anomaly log"""
     return {"anomalies": anomaly_log[:10]}
 
+# Weekly brief cache
+_weekly_brief_cache = {
+    "data": None,
+    "timestamp": 0
+}
+_WEEKLY_BRIEF_CACHE_TTL = 600 # 10 minutes
+
 @app.get("/api/weekly/brief")
 async def weekly_brief():
     """Get weekly summary brief"""
+    global _weekly_brief_cache
+    now = time.time()
+    if _weekly_brief_cache["data"] and (now - _weekly_brief_cache["timestamp"] < _WEEKLY_BRIEF_CACHE_TTL):
+        return _weekly_brief_cache["data"]
+
     completed = transparency_log[:15] # Fetch more logs for context
     events = collab_feed[:15]
     
     try:
-        from AUTOMATED_REVENUE_ENGINE import revenue_engine
-        
         # Prepare context for AI
         logs_text = "\n".join([f"- {acc.get('action')}: {acc.get('result')} ({acc.get('details')})" for acc in completed])
         events_text = "\n".join([f"- {evt.get('agent')}: {evt.get('event')} - {evt.get('detail')}" for evt in events])
@@ -1637,7 +1648,46 @@ async def weekly_brief():
         "events": events[:6],
         "summary": summary
     }
+    _weekly_brief_cache["data"] = body
+    _weekly_brief_cache["timestamp"] = now
     return body
+
+async def _safe_call(func, *args, **kwargs):
+    """Safe wrapper for aggregated calls to prevent total failure"""
+    try:
+        if asyncio.iscoroutinefunction(func):
+            return await func(*args, **kwargs)
+        else:
+            return func(*args, **kwargs)
+    except Exception as e:
+        logger.error(f"Error in dashboard aggregated call: {e}")
+        return {"error": str(e)}
+
+@app.get("/api/dashboard/all")
+async def get_dashboard_all():
+    """Consolidated endpoint for dashboard heartbeat (16-in-1)"""
+    tasks = {
+        "leads": _safe_call(get_leads),
+        "workflows": _safe_call(get_narcoguard_workflows),
+        "agents": _safe_call(get_agents),
+        "tasks": _safe_call(get_tasks),
+        "collab": _safe_call(get_collab_feed),
+        "messages": _safe_call(get_user_messages),
+        "autonomy": _safe_call(get_autonomy_status),
+        "pipelines": _safe_call(get_pipelines),
+        "campaigns": _safe_call(get_campaigns),
+        "n8n": _safe_call(get_n8n_workflows),
+        "transparency": _safe_call(get_transparency_report),
+        "content": _safe_call(get_content_briefs),
+        "grants": _safe_call(get_grants),
+        "experiments": _safe_call(get_pricing_experiments),
+        "kpi": _safe_call(get_kpi_anomalies),
+        "weekly": _safe_call(weekly_brief)
+    }
+
+    keys = list(tasks.keys())
+    results = await asyncio.gather(*tasks.values())
+    return dict(zip(keys, results))
 
 @app.get("/api/tasks")
 async def get_tasks():
