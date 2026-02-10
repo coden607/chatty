@@ -1,0 +1,22 @@
+{
+  "status": "success",
+  "videos_processed": 1,
+  "total_transcript_chars": 3443,
+  "total_code_changes": 0,
+  "cole_techniques_found": [],
+  "chatty_improvements": [],
+  "learning_efficiency": {
+    "avg_transcript_length": 3443.0,
+    "changes_per_video": 0.0,
+    "success_rate": 50.0
+  },
+  "processed_videos": [
+    {
+      "video_id": "JGwWNGJdvx8",
+      "url": "https://www.youtube.com/watch?v=JGwWNGJdvx8",
+      "transcript_length": 3443,
+      "relevance_score": 0.0,
+      "code_changes": 0
+    }
+  ]
+}

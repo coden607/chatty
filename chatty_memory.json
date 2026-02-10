@@ -1,0 +1,61 @@
+{
+  "memories": [
+    {
+      "id": "mem_2026-02-09T14:56:56.361990_f591d301",
+      "content": "Context: debugging\nUser: How do I fix the agent communication error?\nChatty: You need to update the communication protocol in the ENHANCED_MULTI_AGENT_SYSTEM.py file",
+      "timestamp": "2026-02-09T14:56:56.362276",
+      "importance": 0.65,
+      "tags": [
+        "error",
+        "solution",
+        "agent"
+      ],
+      "access_count": 1,
+      "last_accessed": "2026-02-09T14:56:56.387430",
+      "context": "debugging",
+      "source": "user_interaction"
+    },
+    {
+      "id": "mem_2026-02-09T14:56:56.367074_4d178af3",
+      "content": "Context: learning\nUser: Cole Medin mentioned Agent Zero fleet management\nChatty: I should integrate Agent Zero techniques into Chatty for better coordination",
+      "timestamp": "2026-02-09T14:56:56.369552",
+      "importance": 0.5,
+      "tags": [
+        "cole_medin",
+        "agent"
+      ],
+      "access_count": 0,
+      "last_accessed": null,
+      "context": "learning",
+      "source": "user_interaction"
+    },
+    {
+      "id": "mem_2026-02-09T14:56:56.375291_82036126",
+      "content": "Context: troubleshooting\nUser: The YouTube transcription is not working\nChatty: Use TranscriptAPI.com for reliable transcription service",
+      "timestamp": "2026-02-09T14:56:56.375460",
+      "importance": 0.5,
+      "tags": [],
+      "access_count": 0,
+      "last_accessed": null,
+      "context": "troubleshooting",
+      "source": "user_interaction"
+    }
+  ],
+  "stats": {
+    "total_memories": 3,
+    "memories_today": 3,
+    "avg_importance": 0.5499999999999999,
+    "last_cleanup": null,
+    "semantic_searches": 0,
+    "most_accessed_memory": "mem_2026...",
+    "most_important_memory": "mem_2026...",
+    "total_accesses": 1,
+    "unique_tags": 4
+  },
+  "config": {
+    "max_memories": 10000,
+    "importance_threshold": 0.3,
+    "retention_days": 90
+  },
+  "last_saved": "2026-02-09T14:56:56.400458"
+}
