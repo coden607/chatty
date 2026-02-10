@@ -12,7 +12,7 @@ import time
 import os
 from datetime import datetime, timedelta
 from pathlib import Path
-from typing import Dict, List, Any
+from typing import Dict, List, Any, Optional
 import random
 from dotenv import load_dotenv
 from transparency_log import log_transparency
@@ -56,6 +56,7 @@ class AutomatedRevenueEngine:
         self.total_revenue = 0.0
         self.transactions = []
         self.last_llm_provider = None
+        self._last_usage: Dict[str, Any] = {}
         self.seen_stripe_charges = set()
         self.last_stripe_charge_sync = 0.0
         self.stripe_charge_sync_seconds = 900
@@ -390,287 +391,523 @@ class AutomatedRevenueEngine:
         except Exception as e:
             logger.error(f"Stripe charge sync error: {e}")
 
+    def _build_prompt_with_continuation(self, system_prompt: str, user_prompt: str, partial_response: Optional[str] = None) -> tuple:
+        """Build system/user prompts, appending partial response for context handoff when rotating providers."""
+        if not partial_response:
+            return system_prompt, user_prompt
+        continuation_note = (
+            "\n\n[CONTEXT HANDOFF: Previous LLM hit token/rate limit. Partial response below. "
+            "Continue from here and complete the task.]\n\nPartial response:\n" + partial_response[:4000]
+        )
+        return system_prompt, user_prompt + continuation_note
+
+    def _should_rotate_for_token_limit(self, usage: Dict[str, Any], partial: Optional[str] = None) -> bool:
+        """Check if we should rotate to next LLM due to token limits or rate limit."""
+        threshold = int(os.getenv("CHATTY_LLM_TOKEN_LIMIT_THRESHOLD", "8000"))
+        total = usage.get("total_tokens") or usage.get("input_tokens", 0) + usage.get("output_tokens", 0)
+        return total >= threshold or (partial and len(partial) > 3000 and "length" in str(usage).lower())
+
     async def generate_ai_content(self, system_prompt: str, user_prompt: str, max_tokens: int = 2000) -> str:
-        """Generate content using verified LLMs (xAI -> OpenRouter -> Cohere)"""
+        """Generate content using LLM chain. Order: OpenRouter, xAI Grok, OpenAI, Groq, Google, Anthropic, Ollama, DeepSeek, Hugging Face. Rotates on token/rate limits."""
         if self.offline_mode:
             import random
-            if random.random() < 0.1: # 10% chance to attempt recovery
+            if random.random() < 0.1:
                 logger.info("📡 Offline recovery attempt: Trying a real LLM call...")
-                # Allow this call to proceed but keep offline_mode True for now
             else:
                 logger.debug("🧯 Offline mode active; using cached template.")
                 return self._offline_template(user_prompt)
         if self.llm_failure_count >= self.llm_failure_limit:
             self._enable_offline_mode("failure_limit_reached")
             return self._offline_template(user_prompt)
-        
-        # 1. Try xAI (Grok-3) - Primary Brain (4 Verified Keys)
-        xai_keys = [
-            os.getenv('XAI_API_KEY'), 
-            os.getenv('XAI_API_KEY_2'), 
-            os.getenv('XAI_API_KEY_3'), 
-            os.getenv('XAI_API_KEY_4')
-        ]
-        for i, key in enumerate(xai_keys):
-            if key:
-                provider_label = f"xAI Grok-3 #{i+1}"
-                self.last_llm_provider = provider_label
-                logger.info(f"🔁 Trying {provider_label}")
-                log_transparency("llm_request", "attempt", {"provider": provider_label})
-                try:
-                    headers = {
-                        "Authorization": f"Bearer {key}",
-                        "Content-Type": "application/json"
-                    }
-                    payload = {
-                        "messages": [
-                            {"role": "system", "content": system_prompt},
-                            {"role": "user", "content": user_prompt}
-                        ],
-                        "model": "grok-3",
-                        "stream": False,
-                        "temperature": 0.7
-                    }
-                    response = await asyncio.to_thread(requests.post, "https://api.x.ai/v1/chat/completions", headers=headers, json=payload, timeout=60)
-                    response.raise_for_status()
-                    data = response.json()
-                    logger.info(f"✅ {provider_label} returned content")
-                    return data['choices'][0]['message']['content']
-                except Exception as e:
-                    logger.warning(f"⚠️ xAI Key #{i+1} failed: {e}")
-                    self._record_llm_failure(e, provider_label)
-                    log_transparency(
-                        "llm_request",
-                        "failed",
-                        {"provider": provider_label, "error": str(e)},
-                    )
-                finally:
-                    self.last_llm_provider = f"xAI Grok-3 #{i+1}"
 
-        # 2. Try OpenRouter - Secondary Brain (5 Verified Keys)
-        or_keys = [
-            os.getenv('OPENROUTER_API_KEY'), 
-            os.getenv('OPENROUTER_API_KEY_2'), 
-            os.getenv('OPENROUTER_API_KEY_3'), 
-            os.getenv('OPENROUTER_API_KEY_4'),
-            os.getenv('OPENROUTER_API_KEY_5')
-        ]
-        
-        # Model rotation for OpenRouter
-        # 2. Try OpenRouter with Paid Models (Tier 2)
-        for i, key in enumerate(or_keys):
-            if key:
-                provider_label = f"OpenRouter #{i+1}"
-                self.last_llm_provider = provider_label
-                logger.info(f"🔁 Trying {provider_label}")
-                try:
-                    headers = {
-                        "Authorization": f"Bearer {key}",
-                        "Content-Type": "application/json",
-                        "HTTP-Referer": "https://narcoguard.com",
-                        "X-Title": "NarcoGuard AI",
-                    }
-                    payload = {
-                        "model": "openai/gpt-3.5-turbo", # Default paid model
-                        "messages": [
-                            {"role": "system", "content": system_prompt},
-                            {"role": "user", "content": user_prompt}
-                        ],
-                        "max_tokens": max_tokens
-                    }
-                    response = await asyncio.to_thread(requests.post, "https://openrouter.ai/api/v1/chat/completions", headers=headers, json=payload, timeout=30)
-                    response.raise_for_status()
-                    result = response.json()['choices'][0]['message']['content']
-                    self.reset_llm_failure()
-                    return result
-                except Exception as e:
-                    logger.warning(f"⚠️ {provider_label} failed (likely credits): {e}")
-                    self._record_llm_failure(e, provider_label)
+        use_free_only = os.getenv("CHATTY_USE_FREE_LLM_ONLY", "true").lower() == "true"
+        if use_free_only:
+            result = await self._generate_with_free_llms(system_prompt, user_prompt, max_tokens)
+            if result:
+                return result
+            logger.warning("🚨 All free LLMs failed - falling back to template")
+            return self._offline_template(user_prompt)
 
-        # 3. CRITICAL FALLBACK: OpenRouter FREE Models (Works with 0 credits)
-        free_models = [
-            "google/gemini-2.0-flash-exp:free",
-            "google/gemma-2-9b-it:free",
-            "mistralai/mistral-7b-instruct:free",
-            "open-orchestra/free"
-        ]
-        
-        logger.info("📡 Attempting OpenRouter FREE models...")
-        for model in free_models:
-            for i, key in enumerate(or_keys):
-                if key:
-                    provider_label = f"OpenRouter Free ({model}) using Key #{i+1}"
-                    try:
-                        headers = {"Authorization": f"Bearer {key}", "Content-Type": "application/json", "HTTP-Referer": "https://narcoguard.com"}
-                        payload = {
-                            "model": model,
-                            "messages": [
-                                {"role": "system", "content": system_prompt},
-                                {"role": "user", "content": user_prompt}
-                            ],
-                            "max_tokens": max_tokens
-                        }
-                        response = await asyncio.to_thread(requests.post, "https://openrouter.ai/api/v1/chat/completions", headers=headers, json=payload, timeout=30)
-                        if response.status_code == 200:
-                            result = response.json()['choices'][0]['message']['content']
-                            logger.info(f"🎉 Success with FREE model: {model}")
-                            self.reset_llm_failure()
-                            self.last_llm_provider = f"OpenRouter Free: {model}"
-                            return result
-                    except Exception as e:
-                        logger.warning(f"⚠️ {provider_label} failed: {e}")
-                        self._record_llm_failure(e, provider_label)
-                        continue # Keep trying other free models/keys
-        
-        # 4. Try OpenAI - Industry Standard
-        openai_key = os.getenv('OPENAI_API_KEY')
-        if openai_key:
-            provider_label = "OpenAI GPT-4o"
-            self.last_llm_provider = provider_label
-            logger.info(f"🔁 Trying {provider_label}")
-            try:
-                headers = {
-                    "Authorization": f"Bearer {openai_key}",
-                    "Content-Type": "application/json"
-                }
-                payload = {
-                    "model": "gpt-4o",
-                    "messages": [
-                        {"role": "system", "content": system_prompt},
-                        {"role": "user", "content": user_prompt}
-                    ]
-                }
-                response = await asyncio.to_thread(requests.post, "https://api.openai.com/v1/chat/completions", headers=headers, json=payload, timeout=60)
-                response.raise_for_status()
-                logger.info(f"✅ {provider_label} returned content")
-                return response.json()['choices'][0]['message']['content']
-            except Exception as e:
-                self._record_llm_failure(e, provider_label)
+        partial_response: Optional[str] = None
+        sys_prompt, usr_prompt = self._build_prompt_with_continuation(system_prompt, user_prompt, partial_response)
 
-        # 4. Try Anthropic - Complex Reasoning
-        anthropic_key = os.getenv('ANTHROPIC_API_KEY')
-        if anthropic_key:
-            provider_label = "Anthropic Claude 3.5 Sonnet"
-            self.last_llm_provider = provider_label
-            logger.info(f"🔁 Trying {provider_label}")
-            try:
-                headers = {
-                    "x-api-key": anthropic_key,
-                    "anthropic-version": "2023-06-01",
-                    "Content-Type": "application/json"
-                }
-                payload = {
-                    "model": "claude-3-5-sonnet-20240620",
-                    "system": system_prompt,
-                    "messages": [{"role": "user", "content": user_prompt}],
-                    "max_tokens": max_tokens
-                }
-                response = await asyncio.to_thread(requests.post, "https://api.anthropic.com/v1/messages", headers=headers, json=payload, timeout=60)
-                response.raise_for_status()
-                logger.info(f"✅ {provider_label} returned content")
-                return response.json()['content'][0]['text']
-            except Exception as e:
-                self._record_llm_failure(e, provider_label)
+        # Provider order (per .env): OpenRouter, xAI Grok, OpenAI, Groq, Google, Anthropic, Ollama, DeepSeek, Hugging Face
+        # LangChain/CrewAI use OpenAI/Anthropic - those are prioritized in this order
+        result = await self._try_openrouter(sys_prompt, usr_prompt, max_tokens, partial_response)
+        if result and not self._should_rotate_for_token_limit(getattr(self, "_last_usage", {}), result):
+            return result
+        if result:
+            partial_response = result
+            sys_prompt, usr_prompt = self._build_prompt_with_continuation(system_prompt, user_prompt, partial_response)
+            logger.info("🔄 Token/rate limit - rotating to next LLM with context handoff")
 
-        # 5. Try Google Gemini - High Performance
-        google_key = os.getenv('GOOGLE_API_KEY')
-        if google_key:
-            provider_label = "Google Gemini 1.5 Pro"
-            self.last_llm_provider = provider_label
-            logger.info(f"🔁 Trying {provider_label}")
-            try:
-                url = f"https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-pro:generateContent?key={google_key}"
-                payload = {
-                    "contents": [{
-                        "parts": [{"text": f"System: {system_prompt}\n\nUser: {user_prompt}"}]
-                    }]
-                }
-                response = await asyncio.to_thread(requests.post, url, json=payload, timeout=60)
-                response.raise_for_status()
-                data = response.json()
-                logger.info(f"✅ {provider_label} returned content")
-                return data['candidates'][0]['content']['parts'][0]['text']
-            except Exception as e:
-                self._record_llm_failure(e, provider_label)
+        result = await self._try_xai_grok(sys_prompt, usr_prompt, max_tokens, partial_response)
+        if result and not self._should_rotate_for_token_limit(getattr(self, "_last_usage", {}), result):
+            return result
+        if result:
+            partial_response = result
+            sys_prompt, usr_prompt = self._build_prompt_with_continuation(system_prompt, user_prompt, partial_response)
+            logger.info("🔄 Token/rate limit - rotating to next LLM with context handoff")
 
-        # 6. Try DeepSeek - Coding Specialist
-        deepseek_key = os.getenv('DEEPSEEK_API_KEY')
-        if deepseek_key:
-            provider_label = "DeepSeek V3"
-            self.last_llm_provider = provider_label
-            logger.info(f"🔁 Trying {provider_label}")
-            try:
-                headers = {"Authorization": f"Bearer {deepseek_key}", "Content-Type": "application/json"}
-                payload = {
-                    "model": "deepseek-chat",
-                    "messages": [
-                        {"role": "system", "content": system_prompt},
-                        {"role": "user", "content": user_prompt}
-                    ]
-                }
-                response = await asyncio.to_thread(requests.post, "https://api.deepseek.com/chat/completions", headers=headers, json=payload, timeout=60)
-                response.raise_for_status()
-                logger.info(f"✅ {provider_label} returned content")
-                return response.json()['choices'][0]['message']['content']
-            except Exception as e:
-                self._record_llm_failure(e, provider_label)
+        result = await self._try_openai(sys_prompt, usr_prompt, max_tokens, partial_response)
+        if result and not self._should_rotate_for_token_limit(getattr(self, "_last_usage", {}), result):
+            return result
+        if result:
+            partial_response = result
+            sys_prompt, usr_prompt = self._build_prompt_with_continuation(system_prompt, user_prompt, partial_response)
+            logger.info("🔄 Token/rate limit - rotating to next LLM with context handoff")
 
-        # 7. Try Mistral - Efficient Fallback
-        mistral_key = os.getenv('MISTRAL_API_KEY')
-        if mistral_key:
-            provider_label = "Mistral Large"
-            self.last_llm_provider = provider_label
-            try:
-                headers = {"Authorization": f"Bearer {mistral_key}", "Content-Type": "application/json"}
-                payload = {
-                    "model": "mistral-large-latest",
-                    "messages": [
-                        {"role": "system", "content": system_prompt},
-                        {"role": "user", "content": user_prompt}
-                    ]
-                }
-                response = await asyncio.to_thread(requests.post, "https://api.mistral.ai/v1/chat/completions", headers=headers, json=payload, timeout=60)
-                response.raise_for_status()
-                logger.info(f"✅ {provider_label} returned content")
-                return response.json()['choices'][0]['message']['content']
-            except Exception as e:
-                self._record_llm_failure(e, provider_label)
+        result = await self._try_groq(sys_prompt, usr_prompt, max_tokens, partial_response)
+        if result and not self._should_rotate_for_token_limit(getattr(self, "_last_usage", {}), result):
+            return result
+        if result:
+            partial_response = result
+            sys_prompt, usr_prompt = self._build_prompt_with_continuation(system_prompt, user_prompt, partial_response)
+            logger.info("🔄 Token/rate limit - rotating to next LLM with context handoff")
 
-        # 8. Try Cohere - Third Tier Fallback
-        cohere_key = os.getenv('COHERE_API_KEY')
-        if cohere_key:
-            provider_label = "Cohere Command-R"
-            self.last_llm_provider = provider_label
-            logger.info(f"🔁 Trying {provider_label}")
-            try:
-                headers = {
-                    "Authorization": f"Bearer {cohere_key}",
-                    "Content-Type": "application/json"
-                }
-                payload = {
-                    "message": f"{system_prompt}\n\n{user_prompt}",
-                    "model": "command-r"
-                }
-                response = await asyncio.to_thread(requests.post, "https://api.cohere.ai/v1/chat", headers=headers, json=payload, timeout=60)
-                response.raise_for_status()
-                data = response.json()
-                logger.info("✅ Cohere Command-R returned content")
-                return data['text']
-            except Exception as e:
-                logger.error(f"❌ Cohere failed: {e}")
-                self._record_llm_failure(e, provider_label)
-            finally:
-                self.last_llm_provider = "Cohere Command-R"
+        result = await self._try_google(sys_prompt, usr_prompt, max_tokens, partial_response)
+        if result and not self._should_rotate_for_token_limit(getattr(self, "_last_usage", {}), result):
+            return result
+        if result:
+            partial_response = result
+            sys_prompt, usr_prompt = self._build_prompt_with_continuation(system_prompt, user_prompt, partial_response)
+            logger.info("🔄 Token/rate limit - rotating to next LLM with context handoff")
 
-        fallback = await self._fallback_to_any_llm(system_prompt, user_prompt)
+        result = await self._try_anthropic(sys_prompt, usr_prompt, max_tokens, partial_response)
+        if result and not self._should_rotate_for_token_limit(getattr(self, "_last_usage", {}), result):
+            return result
+        if result:
+            partial_response = result
+            sys_prompt, usr_prompt = self._build_prompt_with_continuation(system_prompt, user_prompt, partial_response)
+            logger.info("🔄 Token/rate limit - rotating to next LLM with context handoff")
+
+        result = await self._try_ollama(sys_prompt, usr_prompt, max_tokens, partial_response)
+        if result and not self._should_rotate_for_token_limit(getattr(self, "_last_usage", {}), result):
+            return result
+        if result:
+            partial_response = result
+            sys_prompt, usr_prompt = self._build_prompt_with_continuation(system_prompt, user_prompt, partial_response)
+            logger.info("🔄 Token/rate limit - rotating to next LLM with context handoff")
+
+        result = await self._try_deepseek(sys_prompt, usr_prompt, max_tokens, partial_response)
+        if result and not self._should_rotate_for_token_limit(getattr(self, "_last_usage", {}), result):
+            return result
+        if result:
+            partial_response = result
+            sys_prompt, usr_prompt = self._build_prompt_with_continuation(system_prompt, user_prompt, partial_response)
+            logger.info("🔄 Token/rate limit - rotating to next LLM with context handoff")
+
+        result = await self._try_huggingface(sys_prompt, usr_prompt, max_tokens, partial_response)
+        if result:
+            return result
+
+        result = await self._try_mistral(sys_prompt, usr_prompt, max_tokens, partial_response)
+        if result:
+            return result
+
+        result = await self._try_cohere(sys_prompt, usr_prompt, max_tokens, partial_response)
+        if result:
+            return result
+
+        fallback = await self._fallback_to_any_llm(sys_prompt, usr_prompt)
         if fallback:
             logger.info("✅ Fallback LLM returned content")
             return fallback
 
-        # 5. LAST RESORT: Hardcoded Template Fallback (to keep automation running)
         logger.warning("🚨 ALL AI SYSTEMS FAILED - Using Hardcoded Template Fallback")
         self._enable_offline_mode("all_llm_failed")
         return self._offline_template(user_prompt)
+
+    async def _try_openrouter(self, sys: str, usr: str, max_tokens: int, _partial: Optional[str]) -> Optional[str]:
+        or_keys = [os.getenv(k) for k in ("OPENROUTER_API_KEY", "OPENROUTER_API_KEY_2", "OPENROUTER_API_KEY_3", "OPENROUTER_API_KEY_4", "OPENROUTER_API_KEY_5")]
+        for i, key in enumerate(or_keys):
+            if not key:
+                continue
+            try:
+                self.last_llm_provider = f"OpenRouter #{i+1}"
+                logger.info(f"🔁 Trying {self.last_llm_provider}")
+                headers = {"Authorization": f"Bearer {key}", "Content-Type": "application/json", "HTTP-Referer": "https://narcoguard.com", "X-Title": "NarcoGuard AI"}
+                payload = {"model": "openai/gpt-3.5-turbo", "messages": [{"role": "system", "content": sys}, {"role": "user", "content": usr}], "max_tokens": max_tokens}
+                response = await asyncio.to_thread(requests.post, "https://openrouter.ai/api/v1/chat/completions", headers=headers, json=payload, timeout=30)
+                if response.status_code == 429:
+                    raise Exception("Rate limit - rotating")
+                response.raise_for_status()
+                data = response.json()
+                self._last_usage = data.get("usage", {})
+                self.reset_llm_failure()
+                return data["choices"][0]["message"]["content"]
+            except Exception as e:
+                logger.warning(f"⚠️ OpenRouter #{i+1} failed: {e}")
+                self._record_llm_failure(e, f"OpenRouter #{i+1}")
+        free_models = ["google/gemini-2.0-flash-exp:free", "google/gemma-2-9b-it:free", "mistralai/mistral-7b-instruct:free", "open-orchestra/free"]
+        for model in free_models:
+            for key in or_keys:
+                if not key:
+                    continue
+                try:
+                    headers = {"Authorization": f"Bearer {key}", "Content-Type": "application/json", "HTTP-Referer": "https://narcoguard.com"}
+                    payload = {"model": model, "messages": [{"role": "system", "content": sys}, {"role": "user", "content": usr}], "max_tokens": max_tokens}
+                    response = await asyncio.to_thread(requests.post, "https://openrouter.ai/api/v1/chat/completions", headers=headers, json=payload, timeout=30)
+                    if response.status_code == 200:
+                        data = response.json()
+                        self._last_usage = data.get("usage", {})
+                        self.last_llm_provider = f"OpenRouter Free: {model}"
+                        self.reset_llm_failure()
+                        return data["choices"][0]["message"]["content"]
+                except Exception:
+                    continue
+        return None
+
+    async def _try_xai_grok(self, sys: str, usr: str, max_tokens: int, _partial: Optional[str]) -> Optional[str]:
+        xai_keys = [os.getenv(k) for k in ("XAI_API_KEY", "XAI_API_KEY_2", "XAI_API_KEY_3", "XAI_API_KEY_4")]
+        for i, key in enumerate(xai_keys):
+            if not key:
+                continue
+            try:
+                self.last_llm_provider = f"xAI Grok-3 #{i+1}"
+                logger.info(f"🔁 Trying {self.last_llm_provider}")
+                headers = {"Authorization": f"Bearer {key}", "Content-Type": "application/json"}
+                payload = {"messages": [{"role": "system", "content": sys}, {"role": "user", "content": usr}], "model": "grok-3", "stream": False, "temperature": 0.7}
+                response = await asyncio.to_thread(requests.post, "https://api.x.ai/v1/chat/completions", headers=headers, json=payload, timeout=60)
+                if response.status_code == 429:
+                    raise Exception("Rate limit - rotating")
+                response.raise_for_status()
+                data = response.json()
+                self._last_usage = data.get("usage", {})
+                self.reset_llm_failure()
+                return data["choices"][0]["message"]["content"]
+            except Exception as e:
+                logger.warning(f"⚠️ xAI #{i+1} failed: {e}")
+                self._record_llm_failure(e, f"xAI Grok-3 #{i+1}")
+        return None
+
+    async def _try_openai(self, sys: str, usr: str, max_tokens: int, _partial: Optional[str]) -> Optional[str]:
+        key = os.getenv("OPENAI_API_KEY")
+        if not key:
+            return None
+        try:
+            self.last_llm_provider = "OpenAI GPT-4o"
+            logger.info(f"🔁 Trying {self.last_llm_provider}")
+            headers = {"Authorization": f"Bearer {key}", "Content-Type": "application/json"}
+            payload = {"model": "gpt-4o", "messages": [{"role": "system", "content": sys}, {"role": "user", "content": usr}], "max_tokens": max_tokens}
+            response = await asyncio.to_thread(requests.post, "https://api.openai.com/v1/chat/completions", headers=headers, json=payload, timeout=60)
+            if response.status_code == 429:
+                raise Exception("Rate limit - rotating")
+            response.raise_for_status()
+            data = response.json()
+            self._last_usage = data.get("usage", {})
+            self.reset_llm_failure()
+            return data["choices"][0]["message"]["content"]
+        except Exception as e:
+            self._record_llm_failure(e, "OpenAI")
+        return None
+
+    async def _try_groq(self, sys: str, usr: str, max_tokens: int, _partial: Optional[str]) -> Optional[str]:
+        key = os.getenv("GROQ_API_KEY")
+        if not key:
+            return None
+        try:
+            self.last_llm_provider = "Groq Llama 3.1"
+            logger.info(f"🔁 Trying {self.last_llm_provider}")
+            headers = {"Authorization": f"Bearer {key}", "Content-Type": "application/json"}
+            payload = {"model": "llama-3.1-8b-instant", "messages": [{"role": "system", "content": sys}, {"role": "user", "content": usr}], "max_tokens": max_tokens}
+            response = await asyncio.to_thread(requests.post, "https://api.groq.com/openai/v1/chat/completions", headers=headers, json=payload, timeout=60)
+            if response.status_code == 429:
+                raise Exception("Rate limit - rotating")
+            response.raise_for_status()
+            data = response.json()
+            self._last_usage = data.get("usage", {})
+            self.reset_llm_failure()
+            return data["choices"][0]["message"]["content"]
+        except Exception as e:
+            self._record_llm_failure(e, "Groq")
+        return None
+
+    async def _try_google(self, sys: str, usr: str, max_tokens: int, _partial: Optional[str]) -> Optional[str]:
+        key = os.getenv("GOOGLE_API_KEY")
+        if not key:
+            return None
+        try:
+            self.last_llm_provider = "Google Gemini 1.5 Pro"
+            logger.info(f"🔁 Trying {self.last_llm_provider}")
+            url = f"https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-pro:generateContent?key={key}"
+            payload = {"contents": [{"parts": [{"text": f"System: {sys}\n\nUser: {usr}"}]}]}
+            response = await asyncio.to_thread(requests.post, url, json=payload, timeout=60)
+            response.raise_for_status()
+            data = response.json()
+            self._last_usage = {}
+            self.reset_llm_failure()
+            return data["candidates"][0]["content"]["parts"][0]["text"]
+        except Exception as e:
+            self._record_llm_failure(e, "Google Gemini")
+        return None
+
+    async def _try_anthropic(self, sys: str, usr: str, max_tokens: int, _partial: Optional[str]) -> Optional[str]:
+        key = os.getenv("ANTHROPIC_API_KEY")
+        if not key:
+            return None
+        try:
+            self.last_llm_provider = "Anthropic Claude 3.5 Sonnet"
+            logger.info(f"🔁 Trying {self.last_llm_provider}")
+            headers = {"x-api-key": key, "anthropic-version": "2023-06-01", "Content-Type": "application/json"}
+            payload = {"model": "claude-3-5-sonnet-20240620", "system": sys, "messages": [{"role": "user", "content": usr}], "max_tokens": max_tokens}
+            response = await asyncio.to_thread(requests.post, "https://api.anthropic.com/v1/messages", headers=headers, json=payload, timeout=60)
+            if response.status_code == 429:
+                raise Exception("Rate limit - rotating")
+            response.raise_for_status()
+            data = response.json()
+            self._last_usage = data.get("usage", {})
+            self.reset_llm_failure()
+            return data["content"][0]["text"]
+        except Exception as e:
+            self._record_llm_failure(e, "Anthropic")
+        return None
+
+    async def _try_ollama(self, sys: str, usr: str, max_tokens: int, _partial: Optional[str]) -> Optional[str]:
+        base = os.getenv("OLLAMA_BASE_URL", "http://localhost:11434")
+        model = os.getenv("OLLAMA_MODEL", "llama3")
+        try:
+            self.last_llm_provider = f"Ollama ({model})"
+            logger.info(f"🔁 Trying {self.last_llm_provider}")
+            payload = {"model": model, "prompt": f"System: {sys}\n\nUser: {usr}", "stream": False}
+            response = await asyncio.to_thread(requests.post, f"{base.rstrip('/')}/api/generate", json=payload, timeout=120)
+            response.raise_for_status()
+            data = response.json()
+            text = data.get("response") or ""
+            if text:
+                self._last_usage = {}
+                self.reset_llm_failure()
+                return text
+        except Exception as e:
+            self._record_llm_failure(e, f"Ollama ({model})")
+        return None
+
+    async def _try_deepseek(self, sys: str, usr: str, max_tokens: int, _partial: Optional[str]) -> Optional[str]:
+        key = os.getenv("DEEPSEEK_API_KEY")
+        if not key:
+            return None
+        try:
+            self.last_llm_provider = "DeepSeek V3"
+            logger.info(f"🔁 Trying {self.last_llm_provider}")
+            headers = {"Authorization": f"Bearer {key}", "Content-Type": "application/json"}
+            payload = {"model": "deepseek-chat", "messages": [{"role": "system", "content": sys}, {"role": "user", "content": usr}], "max_tokens": max_tokens}
+            response = await asyncio.to_thread(requests.post, "https://api.deepseek.com/chat/completions", headers=headers, json=payload, timeout=60)
+            if response.status_code == 429:
+                raise Exception("Rate limit - rotating")
+            response.raise_for_status()
+            data = response.json()
+            self._last_usage = data.get("usage", {})
+            self.reset_llm_failure()
+            return data["choices"][0]["message"]["content"]
+        except Exception as e:
+            self._record_llm_failure(e, "DeepSeek")
+        return None
+
+    async def _try_huggingface(self, sys: str, usr: str, max_tokens: int, _partial: Optional[str]) -> Optional[str]:
+        key = os.getenv("HUGGINGFACE_TOKEN")
+        if not key:
+            return None
+        try:
+            self.last_llm_provider = "Hugging Face"
+            logger.info(f"🔁 Trying {self.last_llm_provider}")
+            model = os.getenv("HUGGINGFACE_MODEL", "meta-llama/Llama-2-7b-chat-hf")
+            url = f"https://api-inference.huggingface.co/models/{model}"
+            full_prompt = f"System: {sys}\n\nUser: {usr}"
+            payload = {"inputs": full_prompt, "parameters": {"max_new_tokens": min(max_tokens, 512)}}
+            headers = {"Authorization": f"Bearer {key}", "Content-Type": "application/json"}
+            response = await asyncio.to_thread(requests.post, url, headers=headers, json=payload, timeout=60)
+            response.raise_for_status()
+            data = response.json()
+            text = None
+            if isinstance(data, dict):
+                if "generated_text" in data:
+                    text = data["generated_text"]
+                    if isinstance(text, str) and text.startswith(full_prompt):
+                        text = text[len(full_prompt):].strip()
+                elif "choices" in data and data["choices"]:
+                    choice = data["choices"][0]
+                    text = choice.get("text") or (choice.get("message", {}) or {}).get("content")
+            elif isinstance(data, list) and data:
+                first = data[0]
+                if isinstance(first, dict):
+                    text = first.get("generated_text") or first.get("text")
+                    if isinstance(text, str) and text.startswith(full_prompt):
+                        text = text[len(full_prompt):].strip()
+            if text:
+                self._last_usage = {}
+                self.reset_llm_failure()
+                return str(text)
+        except Exception as e:
+            self._record_llm_failure(e, "Hugging Face")
+        return None
+
+    async def _try_mistral(self, sys: str, usr: str, max_tokens: int, _partial: Optional[str]) -> Optional[str]:
+        key = os.getenv("MISTRAL_API_KEY")
+        if not key:
+            return None
+        try:
+            self.last_llm_provider = "Mistral Large"
+            headers = {"Authorization": f"Bearer {key}", "Content-Type": "application/json"}
+            payload = {"model": "mistral-large-latest", "messages": [{"role": "system", "content": sys}, {"role": "user", "content": usr}], "max_tokens": max_tokens}
+            response = await asyncio.to_thread(requests.post, "https://api.mistral.ai/v1/chat/completions", headers=headers, json=payload, timeout=60)
+            response.raise_for_status()
+            data = response.json()
+            self._last_usage = data.get("usage", {})
+            self.reset_llm_failure()
+            return data["choices"][0]["message"]["content"]
+        except Exception as e:
+            self._record_llm_failure(e, "Mistral")
+        return None
+
+    async def _try_cohere(self, sys: str, usr: str, max_tokens: int, _partial: Optional[str]) -> Optional[str]:
+        key = os.getenv("COHERE_API_KEY")
+        if not key:
+            return None
+        try:
+            self.last_llm_provider = "Cohere Command-R"
+            headers = {"Authorization": f"Bearer {key}", "Content-Type": "application/json"}
+            payload = {"message": f"{sys}\n\n{usr}", "model": "command-r"}
+            response = await asyncio.to_thread(requests.post, "https://api.cohere.ai/v1/chat", headers=headers, json=payload, timeout=60)
+            response.raise_for_status()
+            data = response.json()
+            self._last_usage = {}
+            self.reset_llm_failure()
+            return data.get("text", "")
+        except Exception as e:
+            self._record_llm_failure(e, "Cohere")
+        return None
+
+    async def _generate_with_free_llms(self, system_prompt: str, user_prompt: str, max_tokens: int) -> Optional[str]:
+        """Use only completely free LLM providers (Ollama, OpenRouter free, Google Gemini, Groq, Hugging Face)."""
+        # 1. Ollama (local, 100% free, no API key)
+        ollama_base = os.getenv("OLLAMA_BASE_URL", "http://localhost:11434")
+        ollama_model = os.getenv("OLLAMA_MODEL", "llama3")
+        try:
+            log_transparency("llm_request", "attempt", {"provider": f"Ollama ({ollama_model})"})
+            payload = {
+                "model": ollama_model,
+                "prompt": f"System: {system_prompt}\n\nUser: {user_prompt}",
+                "stream": False,
+            }
+            response = await asyncio.to_thread(
+                requests.post, f"{ollama_base.rstrip('/')}/api/generate", json=payload, timeout=120
+            )
+            response.raise_for_status()
+            data = response.json()
+            text = data.get("response") or ""
+            if text:
+                self.last_llm_provider = f"Ollama ({ollama_model})"
+                self.reset_llm_failure()
+                return text
+        except Exception as e:
+            logger.debug(f"Ollama not available: {e}")
+
+        # 2. OpenRouter FREE models (free tier, $1 credit)
+        or_keys = [os.getenv(k) for k in ("OPENROUTER_API_KEY", "OPENROUTER_API_KEY_2", "OPENROUTER_API_KEY_3")]
+        free_models = [
+            "google/gemini-2.0-flash-exp:free",
+            "google/gemma-2-9b-it:free",
+            "mistralai/mistral-7b-instruct:free",
+            "open-orchestra/free",
+        ]
+        for model in free_models:
+            for key in or_keys:
+                if key:
+                    try:
+                        headers = {"Authorization": f"Bearer {key}", "Content-Type": "application/json"}
+                        payload = {
+                            "model": model,
+                            "messages": [
+                                {"role": "system", "content": system_prompt},
+                                {"role": "user", "content": user_prompt},
+                            ],
+                            "max_tokens": max_tokens,
+                        }
+                        response = await asyncio.to_thread(
+                            requests.post, "https://openrouter.ai/api/v1/chat/completions",
+                            headers=headers, json=payload, timeout=30
+                        )
+                        if response.status_code == 200:
+                            result = response.json()["choices"][0]["message"]["content"]
+                            self.last_llm_provider = f"OpenRouter Free: {model}"
+                            self.reset_llm_failure()
+                            return result
+                    except Exception:
+                        continue
+
+        # 3. Google Gemini (generous free tier)
+        google_key = os.getenv("GOOGLE_API_KEY")
+        if google_key:
+            try:
+                url = f"https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key={google_key}"
+                payload = {
+                    "contents": [{"parts": [{"text": f"System: {system_prompt}\n\nUser: {user_prompt}"}]}]
+                }
+                response = await asyncio.to_thread(requests.post, url, json=payload, timeout=60)
+                response.raise_for_status()
+                data = response.json()
+                self.last_llm_provider = "Google Gemini 1.5 Flash (free)"
+                self.reset_llm_failure()
+                return data["candidates"][0]["content"]["parts"][0]["text"]
+            except Exception as e:
+                logger.debug(f"Google Gemini failed: {e}")
+
+        # 4. Groq (very fast, generous free tier)
+        groq_key = os.getenv("GROQ_API_KEY")
+        if groq_key:
+            try:
+                headers = {"Authorization": f"Bearer {groq_key}", "Content-Type": "application/json"}
+                payload = {
+                    "model": "llama-3.1-8b-instant",
+                    "messages": [
+                        {"role": "system", "content": system_prompt},
+                        {"role": "user", "content": user_prompt},
+                    ],
+                    "max_tokens": max_tokens,
+                }
+                response = await asyncio.to_thread(
+                    requests.post, "https://api.groq.com/openai/v1/chat/completions",
+                    headers=headers, json=payload, timeout=60
+                )
+                response.raise_for_status()
+                data = response.json()
+                self.last_llm_provider = "Groq Llama 3.1 (free)"
+                self.reset_llm_failure()
+                return data["choices"][0]["message"]["content"]
+            except Exception as e:
+                logger.debug(f"Groq failed: {e}")
+
+        # 5. Hugging Face (free tier inference)
+        hf_token = os.getenv("HUGGINGFACE_TOKEN")
+        if hf_token:
+            try:
+                model = os.getenv("HUGGINGFACE_MODEL", "meta-llama/Llama-2-7b-chat-hf")
+                url = f"https://api-inference.huggingface.co/models/{model}"
+                full_prompt = f"System: {system_prompt}\n\nUser: {user_prompt}"
+                payload = {"inputs": full_prompt, "parameters": {"max_new_tokens": min(max_tokens, 512)}}
+                headers = {"Authorization": f"Bearer {hf_token}", "Content-Type": "application/json"}
+                response = await asyncio.to_thread(requests.post, url, headers=headers, json=payload, timeout=60)
+                response.raise_for_status()
+                data = response.json()
+                text = None
+                if isinstance(data, list) and data:
+                    first = data[0]
+                    if isinstance(first, dict):
+                        text = first.get("generated_text") or first.get("text")
+                        if isinstance(text, str) and text.startswith(full_prompt):
+                            text = text[len(full_prompt):].strip()
+                elif isinstance(data, dict) and data.get("generated_text"):
+                    text = data["generated_text"]
+                    if isinstance(text, str) and text.startswith(full_prompt):
+                        text = text[len(full_prompt):].strip()
+                if text:
+                    self.last_llm_provider = "Hugging Face (free)"
+                    self.reset_llm_failure()
+                    return str(text)
+            except Exception as e:
+                logger.debug(f"Hugging Face failed: {e}")
+
+        return None
 
     async def _fallback_to_any_llm(self, system_prompt: str, user_prompt: str) -> Any:
         """Attempt to hit any available LLM endpoint (fallback URL or HuggingFace)"""

@@ -58,3 +58,4 @@ langchain-openai>=0.0.5
 crewai>=0.1.0
 pydantic-ai>=0.0.1
 chromadb>=0.4.22
+pydantic>=2.12.0

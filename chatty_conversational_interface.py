@@ -533,7 +533,12 @@ class ChattyConversationalInterface:
         except Exception as e:
             return AgentResponse(
                 agent_name=agent_name,
-                                         conversation: ConversationContext) -> AgentResponse:
+                response=f"Error with agent {agent_name}: {str(e)}",
+                confidence=0.0
+            )
+    
+    async def _handle_chatty_agent_request(self, agent, agent_name: str, task_description: str, 
+                                        conversation: ConversationContext) -> AgentResponse:
         """Handle request to Chatty core agents"""
         try:
             # Route to appropriate Chatty agent method
@@ -611,3 +616,51 @@ class ChattyConversationalInterface:
         # This would integrate with the actual viral growth engine
         return AgentResponse(
             agent_name='Viral Growth Engine',
+            response="Viral growth engine is ready to help your content go viral. Please specify what type of content you'd like to optimize for maximum reach.",
+            confidence=0.8,
+            follow_up_questions=['Would you like to analyze viral content patterns?', 'Should I optimize your content for engagement?', 'Need help with growth hacking strategies?']
+        )
+    
+    async def _handle_bmad_request(self, agent, task_description: str, 
+                                 conversation: ConversationContext) -> AgentResponse:
+        """Handle BMAD agent request"""
+        # This would integrate with the actual BMAD agent
+        return AgentResponse(
+            agent_name='Enhanced BMAD Agent',
+            response="BMAD agent is ready to analyze your code for bugs, security issues, and performance optimizations. Please specify what code you'd like me to analyze.",
+            confidence=0.8,
+            follow_up_questions=['Would you like to scan for bugs?', 'Should I check for security vulnerabilities?', 'Need help optimizing performance?']
+        )
+    
+    async def _handle_n8n_request(self, agent, task_description: str, 
+                                conversation: ConversationContext) -> AgentResponse:
+        """Handle n8n engine request"""
+        # This would integrate with the actual n8n engine
+        return AgentResponse(
+            agent_name='Pydantic AI n8n Engine',
+            response="n8n engine is ready to manage and optimize your workflows. Please specify what workflow you'd like to automate or improve.",
+            confidence=0.8,
+            follow_up_questions=['Would you like to create a new workflow?', 'Should I optimize existing workflows?', 'Need help with workflow automation?']
+        )
+    
+    async def _handle_youtube_request(self, agent, task_description: str, 
+                                    conversation: ConversationContext) -> AgentResponse:
+        """Handle YouTube learning system request"""
+        # This would integrate with the actual YouTube learning system
+        return AgentResponse(
+            agent_name='YouTube Learning System',
+            response="YouTube learning system is ready to extract insights from videos. Please provide a YouTube URL or specify what video content you'd like to analyze.",
+            confidence=0.8,
+            follow_up_questions=['Would you like to analyze a video?', 'Should I extract key insights?', 'Need help with video-based learning?']
+        )
+    
+    async def _handle_scraper_request(self, agent, task_description: str, 
+                                     conversation: ConversationContext) -> AgentResponse:
+        """Handle website scraper request"""
+        # This would integrate with the actual website scraper
+        return AgentResponse(
+            agent_name='Advanced Website Scraper',
+            response="Website scraper is ready to extract content and insights from websites. Please provide a URL or specify what website you'd like to analyze.",
+            confidence=0.8,
+            follow_up_questions=['Would you like to scrape a website?', 'Should I extract specific content?', 'Need help with semantic analysis?']
+        )

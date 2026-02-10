@@ -249,7 +249,14 @@ class AutoAPIKeySetup:
                 print(f"   ℹ️  {config['note']}")
             
             print(f"   URL: {config['url']}")
-            print(f"   Free tier: {'Yes' + (f' ({config.get(\"free_credit\", \"\")})' if config.get('free_credit') else '') if config.get('free_tier') else 'No'}")
+            # Handle free tier display with proper string formatting
+            if config.get('free_tier'):
+                free_tier_text = "Yes"
+                if config.get('free_credit'):
+                    free_tier_text += f" ({config.get('free_credit', '')})"
+            else:
+                free_tier_text = "No"
+            print(f"   Free tier: {free_tier_text}")
             print(f"\n   Instructions:")
             for line in config['instructions'].split('\n'):
                 print(f"   {line}")

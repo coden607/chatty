@@ -1,0 +1,22 @@
+{
+  "learning_sessions": [
+    {
+      "video_url": "https://www.youtube.com/watch?v=JGwWNGJdvx8",
+      "context": "demo",
+      "start_time": "2026-02-09T14:58:40.186970",
+      "memories_created": [
+        "mem_2026-02-09T14:58:42.951922_48934be0"
+      ],
+      "techniques_learned": [],
+      "success": false
+    }
+  ],
+  "stats": {
+    "total_learnings": 1,
+    "memories_created": 1,
+    "cole_techniques_learned": 0,
+    "youtube_videos_processed": 1,
+    "last_learning_session": "2026-02-09T14:58:42.954342"
+  },
+  "last_updated": "2026-02-09T14:58:42.955125"
+}
