@@ -1,0 +1,17 @@
+{
+  "learning_session": {
+    "start_time": "2026-02-09T15:21:02.585556",
+    "duration_hours": 0.011545514444444443,
+    "status": "active"
+  },
+  "statistics": {
+    "videos_processed": 3,
+    "successful_learnings": 1,
+    "cole_techniques_found": [],
+    "total_insights": 0,
+    "start_time": "2026-02-09T15:21:02.585556",
+    "last_learning": "2026-02-09T15:21:34.117587"
+  },
+  "cole_techniques_mastered": [],
+  "last_updated": "2026-02-09T15:21:44.149472"
+}
