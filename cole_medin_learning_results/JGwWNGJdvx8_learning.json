@@ -1,0 +1,16 @@
+{
+  "video_url": "https://www.youtube.com/watch?v=JGwWNGJdvx8",
+  "video_id": "JGwWNGJdvx8",
+  "timestamp": "2026-02-09T15:21:11.800635",
+  "success": true,
+  "transcript_length": 3443,
+  "analysis": {
+    "relevance_score": 0.3,
+    "key_topics": [],
+    "automation_techniques": [],
+    "code_improvements": [],
+    "actionable_insights": []
+  },
+  "insights": [],
+  "cole_techniques": []
+}
