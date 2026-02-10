@@ -170,18 +170,15 @@ Make it informative, engaging, and mission-focused."""
 
     async def publish_to_blog(self, content):
         """Publish to WordPress/Ghost blog"""
-        # TODO: Implement WordPress API integration
-        logger.info("📰 Published to blog")
+        logger.info("📰 Blog publish skipped: WordPress API not configured")
 
     async def publish_to_medium(self, content):
         """Publish to Medium"""
-        # TODO: Implement Medium API integration
-        logger.info("📰 Published to Medium")
+        logger.info("📰 Medium publish skipped: Medium API not configured")
 
     async def publish_to_linkedin(self, content):
         """Publish to LinkedIn"""
-        # TODO: Implement LinkedIn API integration
-        logger.info("📰 Published to LinkedIn")
+        logger.info("📰 LinkedIn publish skipped: LinkedIn API not configured")
 
     # ============================================================================
     # CHANNEL 2: AUTOMATED SEO
@@ -322,7 +319,7 @@ Make it informative, engaging, and mission-focused."""
             try:
                 data = json.loads(content_json)
                 return data
-            except:
+            except Exception:
                 return {
                     'twitter': content_json[:280],
                     'linkedin': content_json,
@@ -1552,160 +1549,36 @@ Make it informative, engaging, and mission-focused."""
         return added
 
     async def _automate_social_prospect_discovery(self) -> int:
-        """Automatically discover prospects from social media and professional networks."""
-        logger.info("🔍 Automating social prospect discovery")
+        """Discover prospects from social media and professional networks.
 
-        # Use AI to generate search queries for relevant professionals
-        try:
-            from AUTOMATED_REVENUE_ENGINE import revenue_engine
-            search_queries = await revenue_engine.generate_ai_content(
-                system_prompt="You are a professional network researcher.",
-                user_prompt="""
-                Generate 10 specific LinkedIn search queries to find public health directors,
-                harm reduction specialists, and opioid crisis program managers in the US.
-                Focus on decision-makers who could adopt NarcoGuard technology.
-                Format as a JSON array of strings.
-                """
-            )
-
-            # Parse the search queries and simulate discovery
-            # In a real implementation, this would use LinkedIn API or scraping
-            discovered_prospects = []
-
-            # Simulate finding prospects based on the content theme
-            # Real implementation would use actual APIs
-            mock_discovered = [
-                {
-                    "name": "Dr. Sarah Mitchell",
-                    "email": "s.mitchell@publichealth.org",
-                    "role": "Director of Harm Reduction",
-                    "company": "National Harm Reduction Alliance",
-                    "source": "Automated Social Discovery",
-                    "lead_score": 95,
-                    "metadata": {
-                        "discovered_via": "LinkedIn search simulation",
-                        "interest": "opioid crisis technology",
-                        "real_data": True
-                    }
-                },
-                {
-                    "name": "Marcus Johnson",
-                    "email": "marcus.johnson@statehealth.gov",
-                    "role": "Program Manager",
-                    "company": "State Opioid Response Program",
-                    "source": "Automated Social Discovery",
-                    "lead_score": 92,
-                    "metadata": {
-                        "discovered_via": "LinkedIn search simulation",
-                        "interest": "overdose prevention technology",
-                        "real_data": True
-                    }
-                }
-            ]
-
-            added = 0
-            for prospect in mock_discovered:
-                # Check if already exists
-                existing_leads = get_all_leads()
-                if not any(lead.get("email") == prospect.get("email") for lead in existing_leads):
-                    if self._validate_prospect_data(prospect):
-                        saved = self._store_lead(prospect)
-                        if saved:
-                            added += 1
-
-            return added
-
-        except Exception as e:
-            logger.error(f"Social prospect discovery error: {e}")
-            return 0
+        No LinkedIn/social API is configured. Returns 0 until a real API is wired in.
+        """
+        logger.info("🔍 Social prospect discovery skipped: no LinkedIn API configured")
+        return 0
 
     async def _search_public_health_organizations(self, topic: str) -> List[Dict[str, Any]]:
-        """Search for public health organizations relevant to the topic."""
-        # Simulate searching public health directories
-        # Real implementation would use APIs or web scraping
-        organizations = [
-            "American Public Health Association",
-            "Centers for Disease Control",
-            "National Institutes of Health",
-            "Substance Abuse and Mental Health Services Administration",
-            "Harm Reduction Coalition"
-        ]
+        """Search for public health organizations relevant to the topic.
 
-        prospects = []
-        for org in organizations:
-            # Generate realistic contact based on organization
-            prospect = {
-                "name": f"Director of {org.split()[-1]}",
-                "email": f"director@{org.lower().replace(' ', '')}.org",
-                "role": "Program Director",
-                "company": org,
-                "source": "Automated Organization Search",
-                "lead_score": 88,
-                "metadata": {
-                    "topic_relevance": topic,
-                    "search_method": "public_health_directory",
-                    "real_data": True
-                }
-            }
-            prospects.append(prospect)
-
-        return prospects
+        No live directory API is configured. Import real prospects via CSV instead.
+        """
+        logger.warning("Public health org search skipped: no directory API configured. Use CSV import for real leads.")
+        return []
 
     async def _search_academic_institutions(self, topic: str) -> List[Dict[str, Any]]:
-        """Search academic institutions researching relevant topics."""
-        universities = [
-            "Johns Hopkins Bloomberg School of Public Health",
-            "Harvard T.H. Chan School of Public Health",
-            "University of Michigan School of Public Health",
-            "Columbia University Mailman School of Public Health"
-        ]
+        """Search academic institutions researching relevant topics.
 
-        prospects = []
-        for uni in universities:
-            prospect = {
-                "name": f"Professor of Public Health",
-                "email": f"publichealth@{uni.lower().replace(' ', '').replace('.', '')}.edu",
-                "role": "Research Professor",
-                "company": uni,
-                "source": "Automated Academic Search",
-                "lead_score": 85,
-                "metadata": {
-                    "topic_relevance": topic,
-                    "search_method": "academic_directory",
-                    "real_data": True
-                }
-            }
-            prospects.append(prospect)
-
-        return prospects
+        No live directory API is configured. Import real prospects via CSV instead.
+        """
+        logger.warning("Academic institution search skipped: no directory API configured. Use CSV import for real leads.")
+        return []
 
     async def _search_nonprofit_organizations(self, topic: str) -> List[Dict[str, Any]]:
-        """Search nonprofit organizations working on relevant causes."""
-        nonprofits = [
-            "Partnership to End Addiction",
-            "Faces & Voices of Recovery",
-            "National Alliance on Mental Illness",
-            "Mental Health America"
-        ]
+        """Search nonprofit organizations working on relevant causes.
 
-        prospects = []
-        for org in nonprofits:
-            prospect = {
-                "name": f"Executive Director",
-                "email": f"executive@{org.lower().replace(' ', '').replace('&', 'and')}.org",
-                "role": "Executive Director",
-                "company": org,
-                "source": "Automated Nonprofit Search",
-                "lead_score": 87,
-                "metadata": {
-                    "topic_relevance": topic,
-                    "search_method": "nonprofit_directory",
-                    "real_data": True
-                }
-            }
-            prospects.append(prospect)
-
-        return prospects
+        No live directory API is configured. Import real prospects via CSV instead.
+        """
+        logger.warning("Nonprofit org search skipped: no directory API configured. Use CSV import for real leads.")
+        return []
 
     def _validate_prospect_data(self, prospect: Dict[str, Any]) -> bool:
         """Validate that prospect data is realistic and useful."""

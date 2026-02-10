@@ -1,5 +1,7 @@
 #!/usr/bin/env python3
 """
+DEPRECATED — use FIXED_YOUTUBE_LEARNER.py and COLE_MEDIN_CHANNEL_LEARNER.py instead.
+
 YouTube Learning Integration
 Learned from YouTube videos and Cole Medin techniques
 """

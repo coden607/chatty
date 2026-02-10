@@ -168,39 +168,20 @@ class ColeMedinChannelLearner:
             logger.info(f"   Techniques: {', '.join(stats['cole_techniques_found'][:5])}")
     
     async def _save_video_result(self, video_url: str, result: Dict[str, Any]):
-        """Save individual video learning result"""
+        """Save individual video learning result via the shared learner's persistence"""
         try:
-            # Create learning results directory
-            results_dir = Path("cole_medin_learning_results")
-            results_dir.mkdir(exist_ok=True)
-            
-            # Extract video ID for filename
-            video_id = result.get('video_id', 'unknown')
-            
-            # Save result
-            result_file = results_dir / f"{video_id}_learning.json"
-            
-            # Prepare result for saving
-            save_data = {
-                "video_url": video_url,
-                "video_id": video_id,
-                "timestamp": result.get('timestamp'),
-                "success": result.get('success'),
-                "transcript_length": result.get('transcript_length', 0),
-                "analysis": result.get('analysis', {}),
-                "insights": result.get('insights', []),
-                "cole_techniques": self._extract_cole_techniques(result)
-            }
-            
-            result_file.write_text(json.dumps(save_data, indent=2, ensure_ascii=False))
-            
+            # Enrich with Cole-specific metadata
+            result["cole_techniques"] = self._extract_cole_techniques(result)
+            # Persist through the canonical learner storage
+            self.learner._save_learning(result)
         except Exception as e:
             logger.error(f"❌ Failed to save video result: {e}")
     
     async def _save_learning_results(self):
         """Save overall learning results"""
         try:
-            results_file = Path("cole_medin_channel_learning.json")
+            results_file = Path("generated_content") / "cole_medin_channel_learning.json"
+            results_file.parent.mkdir(parents=True, exist_ok=True)
             
             # Update duration
             start_time = datetime.fromisoformat(self.learning_stats["start_time"])

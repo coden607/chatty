@@ -48,7 +48,7 @@ class ViralGrowthEngine:
         try:
             if self.offline_mode:
                 raise RuntimeError("offline_mode_enabled")
-            thread_content = self.revenue_engine.generate_ai_content(system_prompt, user_prompt)
+            thread_content = await self.revenue_engine.generate_ai_content(system_prompt, user_prompt)
             if not thread_content:
                 raise RuntimeError("empty_ai_response")
         except Exception as e:
@@ -79,7 +79,7 @@ class ViralGrowthEngine:
         try:
             if self.offline_mode:
                 raise RuntimeError("offline_mode_enabled")
-            plan = self.revenue_engine.generate_ai_content(system_prompt, user_prompt)
+            plan = await self.revenue_engine.generate_ai_content(system_prompt, user_prompt)
             if not plan:
                 raise RuntimeError("empty_ai_response")
         except Exception as e:

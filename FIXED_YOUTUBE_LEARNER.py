@@ -38,12 +38,16 @@ logger = logging.getLogger(__name__)
 
 class FixedYouTubeLearner:
     """Fixed YouTube learner with OpenRouter support"""
-    
-    def __init__(self):
+
+    def __init__(self, revenue_engine=None):
         self.learning_database = {}
+        self.revenue_engine = revenue_engine
         self.openrouter_key = os.getenv('OPENROUTER_API_KEY')
         self.openai_key = os.getenv('OPENAI_API_KEY')
-        
+        self.learnings_path = Path("generated_content") / "youtube_learnings.json"
+        self.learnings_path.parent.mkdir(parents=True, exist_ok=True)
+        self.is_running = False
+
         logger.info("🎥 Fixed YouTube Learner initialized")
         logger.info(f"🔑 OpenRouter: {'Available' if self.openrouter_key else 'Not set'}")
         logger.info(f"🔑 OpenAI: {'Available' if self.openai_key else 'Not set'}")
@@ -82,7 +86,8 @@ class FixedYouTubeLearner:
                 "insights": insights,
                 "timestamp": datetime.now().isoformat()
             }
-            
+
+            self._save_learning(result)
             logger.info(f"✅ Learning complete: {len(insights)} insights")
             return result
             
@@ -134,13 +139,36 @@ class FixedYouTubeLearner:
             return None
     
     async def _analyze_with_ai(self, transcript: str, metadata: Dict[str, Any]) -> Dict[str, Any]:
-        """Analyze transcript with AI"""
-        # Try OpenRouter first (has quota), then OpenAI
+        """Analyze transcript with AI — delegates to revenue engine when available"""
+        if self.revenue_engine:
+            return await self._analyze_with_revenue_engine(transcript, metadata)
         if self.openrouter_key:
             return await self._analyze_with_openrouter(transcript, metadata)
         elif self.openai_key:
             return await self._analyze_with_openai(transcript, metadata)
         else:
+            return self._basic_analysis(transcript)
+
+    async def _analyze_with_revenue_engine(self, transcript: str, metadata: Dict[str, Any]) -> Dict[str, Any]:
+        """Analyze using the shared revenue engine LLM rotation"""
+        try:
+            system_prompt = "You are an expert AI automation analyst. Return ONLY valid JSON."
+            user_prompt = (
+                f"Analyze this YouTube video transcript for automation insights.\n\n"
+                f"Title: {metadata.get('title', '')}\n\n"
+                f"Transcript (first 3000 chars):\n{transcript[:3000]}\n\n"
+                "Return JSON with exactly these keys:\n"
+                '{"relevance_score": <0-1>, "key_topics": [...], '
+                '"automation_techniques": [...], "code_improvements": [...], '
+                '"actionable_insights": [...]}'
+            )
+            raw = await self.revenue_engine.generate_ai_content(system_prompt, user_prompt, max_tokens=500)
+            parsed = self._parse_json_response(raw)
+            if parsed:
+                return parsed
+            return self._basic_analysis(transcript)
+        except Exception as e:
+            logger.error(f"Revenue engine analysis failed: {e}")
             return self._basic_analysis(transcript)
     
     async def _analyze_with_openrouter(self, transcript: str, metadata: Dict[str, Any]) -> Dict[str, Any]:
@@ -176,33 +204,13 @@ class FixedYouTubeLearner:
             )
             
             analysis_text = response.choices[0].message.content
-            
-            # Debug: Show what we got
             logger.info(f"🔍 OpenRouter raw response: {analysis_text[:200]}...")
-            
-            # Parse JSON response
-            try:
-                analysis = json.loads(analysis_text)
-                logger.info(f"✅ OpenRouter analysis completed")
-                return analysis
-            except json.JSONDecodeError:
-                logger.warning(f"⚠️ Failed to parse OpenRouter response: {analysis_text}")
-                
-                # Try to extract JSON from response
-                if '{' in analysis_text and '}' in analysis_text:
-                    start = analysis_text.find('{')
-                    end = analysis_text.rfind('}') + 1
-                    json_str = analysis_text[start:end]
-                    logger.info(f"🔧 Extracted JSON: {json_str}")
-                    
-                    try:
-                        analysis = json.loads(json_str)
-                        logger.info(f"✅ Extracted OpenRouter analysis completed")
-                        return analysis
-                    except json.JSONDecodeError as e2:
-                        logger.warning(f"⚠️ Extract JSON also failed: {e2}")
-                
-                return self._basic_analysis(transcript)
+
+            parsed = self._parse_json_response(analysis_text)
+            if parsed:
+                logger.info("✅ OpenRouter analysis completed")
+                return parsed
+            return self._basic_analysis(transcript)
                 
         except Exception as e:
             logger.error(f"❌ OpenRouter analysis failed: {e}")
@@ -238,15 +246,12 @@ class FixedYouTubeLearner:
             )
             
             analysis_text = response.choices[0].message.content
-            
-            # Parse JSON response
-            try:
-                analysis = json.loads(analysis_text)
-                logger.info(f"✅ OpenAI analysis completed")
-                return analysis
-            except json.JSONDecodeError:
-                logger.warning("⚠️ Failed to parse OpenAI response")
-                return self._basic_analysis(transcript)
+
+            parsed = self._parse_json_response(analysis_text)
+            if parsed:
+                logger.info("✅ OpenAI analysis completed")
+                return parsed
+            return self._basic_analysis(transcript)
                 
         except Exception as e:
             logger.error(f"❌ OpenAI analysis failed: {e}")
@@ -290,6 +295,64 @@ class FixedYouTubeLearner:
             "actionable_insights": [f"Consider {topic} for Chatty" for topic in found_topics]
         }
     
+    def _parse_json_response(self, text: str) -> Optional[Dict[str, Any]]:
+        """Extract JSON from an LLM response that may contain markdown fences."""
+        if not text:
+            return None
+        # Strip markdown code fences
+        cleaned = re.sub(r"```(?:json)?\s*", "", text).strip().rstrip("`")
+        try:
+            return json.loads(cleaned)
+        except json.JSONDecodeError:
+            pass
+        # Fallback: find first { ... } block
+        start = text.find("{")
+        end = text.rfind("}")
+        if start != -1 and end != -1 and end > start:
+            try:
+                return json.loads(text[start : end + 1])
+            except json.JSONDecodeError:
+                pass
+        logger.warning(f"Could not parse JSON from LLM response: {text[:120]}...")
+        return None
+
+    def _save_learning(self, result: Dict[str, Any]):
+        """Persist a learning result to generated_content/youtube_learnings.json"""
+        try:
+            existing: List[Dict[str, Any]] = []
+            if self.learnings_path.exists():
+                try:
+                    existing = json.loads(self.learnings_path.read_text(encoding="utf-8"))
+                except (json.JSONDecodeError, ValueError):
+                    existing = []
+            # Avoid duplicates by video_id
+            video_id = result.get("video_id")
+            existing = [e for e in existing if e.get("video_id") != video_id]
+            existing.append(result)
+            self.learnings_path.write_text(json.dumps(existing, indent=2, ensure_ascii=False), encoding="utf-8")
+        except Exception as e:
+            logger.error(f"Failed to save learning: {e}")
+
+    async def start_continuous_learning(self, video_urls: Optional[List[str]] = None, interval_minutes: int = 60):
+        """Process a list of video URLs on a repeating schedule."""
+        self.is_running = True
+        urls = video_urls or []
+        if not urls:
+            logger.warning("No video URLs provided for continuous learning")
+            return
+        logger.info(f"🎥 Starting continuous learning: {len(urls)} videos, interval {interval_minutes}m")
+        while self.is_running:
+            for url in urls:
+                if not self.is_running:
+                    break
+                await self.transcribe_and_learn(url)
+                await asyncio.sleep(5)
+            if self.is_running:
+                await asyncio.sleep(interval_minutes * 60)
+
+    async def stop(self):
+        self.is_running = False
+
     async def _extract_insights(self, analysis: Dict[str, Any]) -> List[Dict[str, Any]]:
         """Extract actionable insights"""
         insights = []
