@@ -559,12 +559,16 @@ class PydanticN8NEngine:
         return {'current_time': datetime.now().strftime(format_str)}
     
     async def _calculate_task(self, **kwargs) -> Dict[str, Any]:
-        """Built-in calculation task"""
-        expression = kwargs.get('expression', '0')
+        """Built-in calculation task with security validation"""
+        expression = str(kwargs.get('expression', '0'))
         try:
-            # Simple calculation (could be enhanced with proper expression parser)
-            result = eval(expression)
-            return {'result': result, 'expression': expression}
+            # Security check: only allow basic mathematical expressions
+            if not re.match(r'^[0-9+\-*/().\s]+$', expression):
+                return {'error': 'Invalid characters in expression', 'expression': expression}
+
+            # Simple calculation with empty globals and no builtins to prevent RCE
+            result = eval(expression, {"__builtins__": {}}, {})
+            return {'result': float(result), 'expression': expression}
         except Exception as e:
             return {'error': str(e), 'expression': expression}
 
