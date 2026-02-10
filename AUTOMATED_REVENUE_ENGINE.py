@@ -10,6 +10,7 @@ import json
 import logging
 import time
 import os
+import traceback
 from datetime import datetime, timedelta
 from pathlib import Path
 from typing import Dict, List, Any, Optional
@@ -1003,7 +1004,7 @@ class AutomatedRevenueEngine:
         if self.llm_failure_count >= self.llm_failure_limit:
             self._enable_offline_mode("failure_limit_reached")
         
-    def reset_llm_failures(self):
+    def reset_llm_failure(self):
         """Manually reset failures if keys are refreshed"""
         self.llm_failure_count = 0
         self.offline_mode = False
@@ -1131,7 +1132,8 @@ class AutomatedRevenueEngine:
                     try:
                         from leads_storage import get_all_leads 
                         leads = get_all_leads()
-                    except:
+                    except Exception as e:
+                        logger.error(f"Failed to load leads: {e}")
                         leads = []
                     
                     # Filter for cold leads (status: new or unqualified but with high enough score to try)

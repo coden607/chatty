@@ -24,11 +24,14 @@ _secrets_file = os.getenv("CHATTY_SECRETS_FILE")
 if _secrets_file:
     load_dotenv(os.path.expanduser(_secrets_file), override=False)
 
+_log_dir = Path(__file__).resolve().parent / "logs"
+_log_dir.mkdir(parents=True, exist_ok=True)
+
 logging.basicConfig(
     level=logging.DEBUG,
     format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
     handlers=[
-        logging.FileHandler('/home/coden809/CHATTY/logs/complete_automation.log'),
+        logging.FileHandler(str(_log_dir / "complete_automation.log")),
         logging.StreamHandler()
     ]
 )
@@ -44,6 +47,8 @@ class ChattyCompleteAutomation:
         self.ai_agents = None
         self.twitter_automation = None
         self.viral_growth = None
+        self.youtube_learner = None
+        self.openclaw_system = None
         self.is_running = False
         self.start_time = None
         self.offline_mode = os.getenv("CHATTY_OFFLINE_MODE", "false").lower() == "true"
@@ -86,12 +91,17 @@ class ChattyCompleteAutomation:
                 get_absolute_system_status
             )
 
+            from COLE_MEDIN_CHANNEL_LEARNER import ColeMedinChannelLearner
+            from openclaw_integration import AutonomousLearningSystem
+
             self.revenue_engine = revenue_engine
             self.acquisition_engine = acquisition_engine
             self.ai_agents = SelfImprovingAgentSystem()
             self.investor_workflows = InvestorWorkflows()
             self.twitter_automation = twitter_automation
             self.viral_growth = ViralGrowthEngine(self.revenue_engine)
+            self.youtube_learner = ColeMedinChannelLearner()
+            self.openclaw_system = AutonomousLearningSystem(revenue_engine=self.revenue_engine)
             self.absolute_enhancements = None
             self.absolute_ops = start_absolute_operations
             self.absolute_status = get_absolute_system_status
@@ -201,6 +211,10 @@ class ChattyCompleteAutomation:
         self._register_task("auto_lead_converter", self.auto_lead_conversion_task)
         self._register_task("gofundme_updater", self.run_gofundme_automation)
         self._register_task("viral_growth_engine", self.viral_growth.start)
+        if self.youtube_learner:
+            self._register_task("youtube_learning", self.youtube_learner.start_continuous_learning)
+        if self.openclaw_system:
+            self._register_task("openclaw_system", self.openclaw_system.start_autonomous_system)
         
         logger.info("="*80)
         logger.info("✅ COMPLETE AUTOMATION SYSTEM RUNNING")

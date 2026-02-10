@@ -1,5 +1,7 @@
 #!/usr/bin/env python3
 """
+DEPRECATED — use FIXED_YOUTUBE_LEARNER.py and COLE_MEDIN_CHANNEL_LEARNER.py instead.
+
 YouTube Learning System
 AI-powered video analysis and learning with transcript extraction and knowledge integration
 """

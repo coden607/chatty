@@ -73,16 +73,16 @@ def _lazy_import():
         try:
              import logging
              logging.getLogger(__name__).error(f"{error_msg}\n{traceback.format_exc()}")
-        except:
+        except Exception:
              pass
         return
-    
+
     try:
         from langchain_google_genai import ChatGoogleGenerativeAI
         GOOGLE_GENAI_AVAILABLE = True
     except ImportError:
         GOOGLE_GENAI_AVAILABLE = False
-    
+
     print("⏳ Loading Collaboration Framework (CrewAI)...")
     try:
         import crewai
@@ -96,7 +96,7 @@ def _lazy_import():
         try:
              import logging
              logging.getLogger(__name__).error(f"{error_msg}\n{traceback.format_exc()}")
-        except:
+        except Exception:
              pass
         return
     print("✅ AI Agent Core Loaded")
