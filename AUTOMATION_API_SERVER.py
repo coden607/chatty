@@ -212,6 +212,10 @@ okr_state = {
 okr_history: List[Dict[str, Any]] = []
 
 content_briefs: List[Dict[str, Any]] = []
+# Weekly brief cache (10 min)
+_weekly_brief_cache = None
+_weekly_brief_time = None
+
 grant_tracker: List[Dict[str, Any]] = []
 pricing_experiments: List[Dict[str, Any]] = []
 crm_notes: List[Dict[str, Any]] = []
@@ -1601,7 +1605,13 @@ async def get_kpi_anomalies():
 
 @app.get("/api/weekly/brief")
 async def weekly_brief():
-    """Get weekly summary brief"""
+    """Get weekly summary brief (with 10-minute caching)"""
+    global _weekly_brief_cache, _weekly_brief_time
+
+    now = datetime.now()
+    if _weekly_brief_cache and _weekly_brief_time and (now - _weekly_brief_time).total_seconds() < 600:
+        return _weekly_brief_cache
+
     completed = transparency_log[:15] # Fetch more logs for context
     events = collab_feed[:15]
     
@@ -1637,6 +1647,9 @@ async def weekly_brief():
         "events": events[:6],
         "summary": summary
     }
+
+    _weekly_brief_cache = body
+    _weekly_brief_time = now
     return body
 
 @app.get("/api/tasks")
@@ -1778,6 +1791,63 @@ async def get_metrics():
             "tasks_per_hour": 0,
             "success_rate": 100.0
         }
+    }
+
+async def _safe_call(func, *args, **kwargs):
+    """Helper to safely call a function (async or sync) and return its result or error info"""
+    try:
+        if asyncio.iscoroutinefunction(func):
+            return await func(*args, **kwargs)
+        else:
+            return func(*args, **kwargs)
+    except Exception as e:
+        logger.error(f"Error in batch call for {func.__name__}: {e}")
+        return {"error": str(e)}
+
+@app.get("/api/dashboard/all")
+async def get_dashboard_all():
+    """
+    ⚡ BOLT OPTIMIZATION: Aggregated dashboard endpoint
+    Reduces 16+ sequential API calls into a single batch request,
+    significantly improving dashboard load time and reducing network overhead.
+    """
+    results = await asyncio.gather(
+        _safe_call(get_leads),
+        _safe_call(get_narcoguard_workflows),
+        _safe_call(get_agents),
+        _safe_call(get_tasks),
+        _safe_call(get_collab_feed),
+        _safe_call(get_user_messages),
+        _safe_call(get_autonomy_status),
+        _safe_call(get_pipelines),
+        _safe_call(get_campaigns),
+        _safe_call(get_n8n_workflows),
+        _safe_call(get_transparency_report),
+        _safe_call(get_content_briefs),
+        _safe_call(get_grants),
+        _safe_call(get_pricing_experiments),
+        _safe_call(get_kpi_anomalies),
+        _safe_call(weekly_brief)
+    )
+
+    return {
+        "leads": results[0],
+        "workflows": results[1],
+        "agents": results[2],
+        "tasks": results[3],
+        "collab": results[4],
+        "messages": results[5],
+        "autonomy": results[6],
+        "pipelines": results[7],
+        "campaigns": results[8],
+        "n8n": results[9],
+        "transparency": results[10],
+        "briefs": results[11],
+        "grants": results[12],
+        "experiments": results[13],
+        "anomalies": results[14],
+        "weekly_brief": results[15],
+        "timestamp": datetime.now().isoformat()
     }
 
 if __name__ == "__main__":
