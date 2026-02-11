@@ -10,6 +10,7 @@ from fastapi.responses import FileResponse
 from pydantic import BaseModel
 from typing import Dict, List, Any, Optional
 import asyncio
+import inspect
 import logging
 from datetime import datetime
 import json
@@ -1599,17 +1600,33 @@ async def get_kpi_anomalies():
     """Get KPI anomaly log"""
     return {"anomalies": anomaly_log[:10]}
 
+_weekly_brief_cache = None
+_weekly_brief_time = None
+
+async def _safe_call(coro):
+    """Wrapper to catch exceptions in batch calls"""
+    try:
+        return await coro
+    except Exception as e:
+        logger.error(f"Batch call error: {e}")
+        return {"error": str(e)}
+
 @app.get("/api/weekly/brief")
 async def weekly_brief():
-    """Get weekly summary brief"""
+    """Get weekly summary brief (with 60s cache)"""
+    global _weekly_brief_cache, _weekly_brief_time
+    now = datetime.now()
+    if _weekly_brief_cache and _weekly_brief_time and (now - _weekly_brief_time).total_seconds() < 60:
+        return _weekly_brief_cache
+
     completed = transparency_log[:15] # Fetch more logs for context
     events = collab_feed[:15]
     
     try:
         from AUTOMATED_REVENUE_ENGINE import revenue_engine
         
-        # Prepare context for AI
-        logs_text = "\n".join([f"- {acc.get('action')}: {acc.get('result')} ({acc.get('details')})" for acc in completed])
+        # Prepare context for AI - using correct keys for transparency_log and collab_feed
+        logs_text = "\n".join([f"- {acc.get('category')}: {acc.get('name')} - {acc.get('detail')}" for acc in completed])
         events_text = "\n".join([f"- {evt.get('agent')}: {evt.get('event')} - {evt.get('detail')}" for evt in events])
         
         system_prompt = "You are the Chief of Staff for a fully autonomous company."
@@ -1623,9 +1640,15 @@ async def weekly_brief():
         
         Focus on progress, autonomy, and key wins. If logs are empty, state that the system is initializing."""
         
-        summary = await revenue_engine.generate_ai_content(system_prompt, user_prompt)
+        # Ensure it's awaitable before awaiting, to avoid "object str can't be used in 'await' expression"
+        coro = revenue_engine.generate_ai_content(system_prompt, user_prompt)
+        if inspect.isawaitable(coro):
+            summary = await coro
+        else:
+            summary = coro
+
         # Keep it brief if AI rambles
-        if len(summary) > 200:
+        if isinstance(summary, str) and len(summary) > 200:
             summary = summary[:197] + "..."
             
     except Exception as e:
@@ -1637,7 +1660,37 @@ async def weekly_brief():
         "events": events[:6],
         "summary": summary
     }
+    _weekly_brief_cache = body
+    _weekly_brief_time = now
     return body
+
+@app.get("/api/dashboard/all")
+async def get_dashboard_all():
+    """Aggregated endpoint for dashboard to reduce network overhead and latency"""
+    res = await asyncio.gather(
+        _safe_call(get_leads()),
+        _safe_call(get_narcoguard_workflows()),
+        _safe_call(get_agents()),
+        _safe_call(get_tasks()),
+        _safe_call(get_collab_feed()),
+        _safe_call(get_user_messages()),
+        _safe_call(get_autonomy_status()),
+        _safe_call(get_pipelines()),
+        _safe_call(get_campaigns()),
+        _safe_call(get_n8n_workflows()),
+        _safe_call(get_transparency_report()),
+        _safe_call(get_content_briefs()),
+        _safe_call(get_grants()),
+        _safe_call(get_pricing_experiments()),
+        _safe_call(get_kpi_anomalies()),
+        _safe_call(weekly_brief())
+    )
+    return {
+        "leads": res[0], "workflows": res[1], "agents": res[2], "tasks": res[3],
+        "collab": res[4], "messages": res[5], "autonomy": res[6], "pipelines": res[7],
+        "campaigns": res[8], "n8n": res[9], "transparency": res[10], "briefs": res[11],
+        "grants": res[12], "experiments": res[13], "anomalies": res[14], "weekly_brief": res[15]
+    }
 
 @app.get("/api/tasks")
 async def get_tasks():
