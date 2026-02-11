@@ -248,11 +248,11 @@ class PydanticN8NEngine:
         
         # Execute tasks based on dependencies
         completed_tasks = set()
-        pending_tasks = set(workflow.tasks)
+        pending_tasks = list(workflow.tasks)
         
         while pending_tasks:
             # Find tasks ready to execute
-            ready_tasks = self._get_ready_tasks(pending_tasks, completed_tasks, execution.dependencies)
+            ready_tasks = self._get_ready_tasks(pending_tasks, completed_tasks, workflow.dependencies)
             
             if not ready_tasks:
                 # Check for circular dependencies
@@ -377,7 +377,10 @@ class PydanticN8NEngine:
             
             # Execute function
             function = self.task_registry[function_name]
-            result = await asyncio.to_thread(function, **function_args)
+            if asyncio.iscoroutinefunction(function):
+                result = await function(**function_args)
+            else:
+                result = await asyncio.to_thread(function, **function_args)
             
             return {'result': result}
             
@@ -560,10 +563,13 @@ class PydanticN8NEngine:
     
     async def _calculate_task(self, **kwargs) -> Dict[str, Any]:
         """Built-in calculation task"""
-        expression = kwargs.get('expression', '0')
+        expression = str(kwargs.get('expression', '0'))
+        # Security: Whitelist allowed characters for mathematical expressions
+        if not re.match(r'^[0-9+\-*/().\s]+$', expression):
+            return {'error': 'Invalid expression: only numbers and basic operators allowed', 'expression': expression}
         try:
-            # Simple calculation (could be enhanced with proper expression parser)
-            result = eval(expression)
+            # Security: Use restricted eval with no built-ins
+            result = eval(expression, {"__builtins__": {}}, {})
             return {'result': result, 'expression': expression}
         except Exception as e:
             return {'error': str(e), 'expression': expression}
