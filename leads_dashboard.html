@@ -485,7 +485,7 @@
     <div class="container">
       <header>
         <div class="logo">CHATTY.AI</div>
-        <button class="btn" onclick="fetchLeads()">Refresh Intelligence</button>
+        <button class="btn" onclick="fetchLeads(this)">Refresh Intelligence</button>
       </header>
 
       <div class="stats-grid">
@@ -536,7 +536,7 @@
       <div class="lead-section" style="margin-top: 32px;">
         <div class="section-header">
           <h2>NarcoGuard Transparent Workflows</h2>
-          <button class="btn" onclick="refreshWorkflows()">Refresh Workflows</button>
+          <button class="btn" onclick="refreshWorkflows(this)">Refresh Workflows</button>
         </div>
         <div id="workflow-grid" class="workflow-grid">
           <div class="loading">Syncing workflow telemetry...</div>
@@ -575,7 +575,7 @@
       <div class="lead-section" style="margin-top: 32px;">
         <div class="section-header">
           <h2>Autonomy Control + Collaboration</h2>
-          <button class="btn" onclick="refreshAutonomy()">Sync Autonomy</button>
+          <button class="btn" onclick="refreshAutonomy(this)">Sync Autonomy</button>
         </div>
         <div class="command-grid">
           <div class="panel">
@@ -644,7 +644,7 @@
               <div class="pipeline-card">Loading pipelines...</div>
             </div>
             <div class="prompt-row">
-              <button class="btn" onclick="refreshPipelines()">Advance Pipelines</button>
+              <button class="btn" onclick="refreshPipelines(this)">Advance Pipelines</button>
             </div>
           </div>
           <div class="panel">
@@ -695,7 +695,7 @@
               <div class="log-entry">No briefs yet.</div>
             </div>
             <div class="prompt-row">
-              <button class="btn" onclick="refreshContentBriefs()">Refresh Briefs</button>
+              <button class="btn" onclick="refreshContentBriefs(this)">Refresh Briefs</button>
             </div>
           </div>
           <div class="panel">
@@ -727,11 +727,14 @@
             <h3>Generators</h3>
             <input id="generator-title" aria-label="Generator title or topic" class="prompt-textarea" placeholder="Title / Topic" />
             <div class="prompt-row">
-              <button class="btn" onclick="generateProposal()">Proposal Draft</button>
-              <button class="btn" onclick="generatePressPitch()">Press Pitch</button>
-              <button class="btn" onclick="generateVideoScript()">Video Script</button>
+              <button class="btn" onclick="generateProposal(this)">Proposal Draft</button>
+              <button class="btn" onclick="generatePressPitch(this)">Press Pitch</button>
+              <button class="btn" onclick="generateVideoScript(this)">Video Script</button>
             </div>
-            <div id="generator-output" class="generator-output">Generator output will appear here.</div>
+            <div id="generator-output" class="generator-output" aria-live="polite">Generator output will appear here.</div>
+            <div class="prompt-row" style="justify-content: flex-end;">
+              <button id="copy-generator-btn" class="btn" style="background: transparent; color: var(--text-muted); border: 1px solid var(--border); padding: 6px 12px; font-size: 0.75rem;" onclick="copyToClipboard('generator-output', 'copy-generator-btn')">Copy Output</button>
+            </div>
           </div>
           <div class="panel">
             <h3>KPI Anomalies</h3>
@@ -739,14 +742,15 @@
               <div class="log-entry">No anomalies detected.</div>
             </div>
             <div class="prompt-row">
-              <button class="btn" onclick="refreshAnomalies()">Refresh</button>
+              <button class="btn" onclick="refreshAnomalies(this)">Refresh</button>
             </div>
           </div>
           <div class="panel">
             <h3>Weekly Brief</h3>
-            <div id="weekly-brief" class="generator-output">No brief yet.</div>
+            <div id="weekly-brief" class="generator-output" aria-live="polite">No brief yet.</div>
             <div class="prompt-row">
-              <button class="btn" onclick="refreshWeeklyBrief()">Refresh Brief</button>
+              <button class="btn" onclick="refreshWeeklyBrief(this)">Refresh Brief</button>
+              <button id="copy-brief-btn" class="btn" style="background: transparent; color: var(--text-muted); border: 1px solid var(--border); padding: 6px 12px; font-size: 0.75rem;" onclick="copyToClipboard('weekly-brief', 'copy-brief-btn')">Copy Brief</button>
             </div>
           </div>
         </div>
@@ -778,11 +782,12 @@
           .replace(/'/g, '&#039;');
       }
 
-      async function fetchLeads() {
-        const btn = document.querySelector('header .btn');
-        const originalText = btn.innerText;
-        btn.innerText = "Refreshing...";
-        btn.disabled = true;
+      async function fetchLeads(btn) {
+        const originalText = btn ? btn.innerText : null;
+        if (btn) {
+          btn.innerText = "Refreshing...";
+          btn.disabled = true;
+        }
 
         try {
           const response = await fetch(`${apiBase}/api/leads`);
@@ -796,8 +801,10 @@
         } catch (error) {
           console.error("Failed to fetch leads:", error);
         } finally {
-          btn.innerText = originalText;
-          btn.disabled = false;
+          if (btn) {
+            btn.innerText = originalText;
+            btn.disabled = false;
+          }
         }
       }
 
@@ -860,25 +867,31 @@
         }
       });
 
-      async function copyStrategy() {
-        const strategy = document.getElementById("modal-content").innerText;
-        const btn = document.getElementById("copy-strategy-btn");
+      async function copyToClipboard(elementId, buttonId) {
+        const content = document.getElementById(elementId).innerText || document.getElementById(elementId).textContent;
+        const btn = document.getElementById(buttonId);
 
         try {
-          await navigator.clipboard.writeText(strategy);
+          await navigator.clipboard.writeText(content);
           const originalText = btn.innerText;
           btn.innerText = "Copied!";
+          const originalColor = btn.style.color;
+          const originalBorder = btn.style.borderColor;
           btn.style.color = "var(--success)";
           btn.style.borderColor = "var(--success)";
 
           setTimeout(() => {
             btn.innerText = originalText;
-            btn.style.color = "var(--text-muted)";
-            btn.style.borderColor = "var(--border)";
+            btn.style.color = originalColor;
+            btn.style.borderColor = originalBorder;
           }, 2000);
         } catch (err) {
-          console.error("Failed to copy strategy:", err);
+          console.error("Failed to copy:", err);
         }
+      }
+
+      function copyStrategy() {
+        copyToClipboard("modal-content", "copy-strategy-btn");
       }
 
       function updateDashboard(data) {
@@ -913,7 +926,7 @@
                     </td>
                     <td style="font-size: 0.9rem;">${escapeHTML(lead.source)}</td>
                     <td>
-                        <div class="score-bar">
+                        <div class="score-bar" role="progressbar" aria-valuenow="${lead.lead_score}" aria-valuemin="0" aria-valuemax="100" aria-label="Lead score: ${lead.lead_score}%">
                             <div class="score-fill" style="width: ${lead.lead_score}%"></div>
                         </div>
                         <span style="font-size: 0.75rem; margin-top: 4px; display: block;">${lead.lead_score}%</span>
@@ -921,7 +934,7 @@
                     <td><span class="badge ${badgeClass}">${escapeHTML(lead.status)}</span></td>
                     <td style="color: var(--text-muted); font-size: 0.8rem;">${date}</td>
                     <td>
-                        <button id="btn-${lead.id}" class="btn" style="padding: 8px 16px; font-size: 0.8rem;" onclick="focusAgent(${lead.id}, this)">Focus Agent</button>
+                        <button id="btn-${lead.id}" class="btn" aria-label="Focus Agent for ${escapeHTML(lead.name)}" style="padding: 8px 16px; font-size: 0.8rem;" onclick="focusAgent(${lead.id}, this)">Focus Agent</button>
                     </td>
                 `;
           body.appendChild(row);
@@ -974,12 +987,22 @@
         });
       }
 
-      async function refreshWorkflows() {
+      async function refreshWorkflows(btn) {
+        const originalText = btn ? btn.innerText : null;
+        if (btn) {
+          btn.innerText = "Refreshing...";
+          btn.disabled = true;
+        }
         try {
           await fetch(`${apiBase}/api/narcoguard/workflows/refresh`, { method: "POST" });
-          fetchWorkflows();
+          await fetchWorkflows();
         } catch (error) {
           console.error("Failed to refresh workflows:", error);
+        } finally {
+          if (btn) {
+            btn.innerText = originalText;
+            btn.disabled = false;
+          }
         }
       }
 
@@ -1197,20 +1220,36 @@
         }
       }
 
-      function refreshAutonomy() {
-        fetchTasks();
-        fetchCollabFeed();
-        fetchOperatorMessages();
-        fetchAutonomyStatus();
-        fetchPipelines();
-        fetchCampaigns();
-        fetchN8nWorkflows();
-        fetchTransparency();
-        fetchContentBriefs();
-        fetchGrants();
-        fetchPricingExperiments();
-        fetchAnomalies();
-        fetchWeeklyBrief();
+      async function refreshAutonomy(btn) {
+        const originalText = btn ? btn.innerText : null;
+        if (btn) {
+          btn.innerText = "Syncing...";
+          btn.disabled = true;
+        }
+        try {
+          await Promise.all([
+            fetchTasks(),
+            fetchCollabFeed(),
+            fetchOperatorMessages(),
+            fetchAutonomyStatus(),
+            fetchPipelines(),
+            fetchCampaigns(),
+            fetchN8nWorkflows(),
+            fetchTransparency(),
+            fetchContentBriefs(),
+            fetchGrants(),
+            fetchPricingExperiments(),
+            fetchAnomalies(),
+            fetchWeeklyBrief()
+          ]);
+        } catch (error) {
+          console.error("Failed to sync autonomy:", error);
+        } finally {
+          if (btn) {
+            btn.innerText = originalText;
+            btn.disabled = false;
+          }
+        }
       }
 
       async function fetchAutonomyStatus() {
@@ -1280,10 +1319,22 @@
           .join("");
       }
 
-      async function refreshPipelines() {
-        await fetch(`${apiBase}/api/pipelines/refresh`, { method: "POST" });
-        fetchPipelines();
-        fetchCollabFeed();
+      async function refreshPipelines(btn) {
+        const originalText = btn ? btn.innerText : null;
+        if (btn) {
+          btn.innerText = "Refreshing...";
+          btn.disabled = true;
+        }
+        try {
+          await fetch(`${apiBase}/api/pipelines/refresh`, { method: "POST" });
+          await fetchPipelines();
+          await fetchCollabFeed();
+        } finally {
+          if (btn) {
+            btn.innerText = originalText;
+            btn.disabled = false;
+          }
+        }
       }
 
       async function fetchCampaigns() {
@@ -1412,9 +1463,21 @@
           .join("");
       }
 
-      async function refreshContentBriefs() {
-        await fetch(`${apiBase}/api/content/briefs/refresh`, { method: "POST" });
-        fetchContentBriefs();
+      async function refreshContentBriefs(btn) {
+        const originalText = btn ? btn.innerText : null;
+        if (btn) {
+          btn.innerText = "Refreshing...";
+          btn.disabled = true;
+        }
+        try {
+          await fetch(`${apiBase}/api/content/briefs/refresh`, { method: "POST" });
+          await fetchContentBriefs();
+        } finally {
+          if (btn) {
+            btn.innerText = originalText;
+            btn.disabled = false;
+          }
+        }
       }
 
       async function fetchGrants() {
@@ -1495,37 +1558,40 @@
         fetchPricingExperiments();
       }
 
-      async function generateProposal() {
+      async function _generateAI(btn, endpoint, payload) {
+        const originalText = btn.innerText;
+        btn.innerText = "Generating...";
+        btn.disabled = true;
+        try {
+          const response = await fetch(`${apiBase}${endpoint}`, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify(payload)
+          });
+          const data = await response.json();
+          document.getElementById("generator-output").innerText = data.draft || data.summary || "No content returned.";
+        } catch (error) {
+          console.error("Generation failed:", error);
+          document.getElementById("generator-output").innerText = "Error generating content.";
+        } finally {
+          btn.innerText = originalText;
+          btn.disabled = false;
+        }
+      }
+
+      async function generateProposal(btn) {
         const title = document.getElementById("generator-title").value.trim() || "Pilot Proposal";
-        const response = await fetch(`${apiBase}/api/proposals/draft`, {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ title })
-        });
-        const data = await response.json();
-        document.getElementById("generator-output").innerText = data.draft || "No draft returned.";
+        await _generateAI(btn, "/api/proposals/draft", { title });
       }
 
-      async function generatePressPitch() {
+      async function generatePressPitch(btn) {
         const angle = document.getElementById("generator-title").value.trim() || "Automation for harm reduction";
-        const response = await fetch(`${apiBase}/api/press/pitch`, {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ angle })
-        });
-        const data = await response.json();
-        document.getElementById("generator-output").innerText = data.draft || "No pitch returned.";
+        await _generateAI(btn, "/api/press/pitch", { angle });
       }
 
-      async function generateVideoScript() {
+      async function generateVideoScript(btn) {
         const topic = document.getElementById("generator-title").value.trim() || "NarcoGuard demo";
-        const response = await fetch(`${apiBase}/api/video/script`, {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ topic, length_sec: 90 })
-        });
-        const data = await response.json();
-        document.getElementById("generator-output").innerText = data.draft || "No script returned.";
+        await _generateAI(btn, "/api/video/script", { topic, length_sec: 90 });
       }
 
       async function fetchAnomalies() {
@@ -1535,6 +1601,22 @@
           renderAnomalies(data.anomalies || []);
         } catch (error) {
           console.error("Failed to fetch anomalies:", error);
+        }
+      }
+
+      async function refreshAnomalies(btn) {
+        const originalText = btn ? btn.innerText : null;
+        if (btn) {
+          btn.innerText = "Refreshing...";
+          btn.disabled = true;
+        }
+        try {
+          await fetchAnomalies();
+        } finally {
+          if (btn) {
+            btn.innerText = originalText;
+            btn.disabled = false;
+          }
         }
       }
 
@@ -1558,6 +1640,22 @@
           document.getElementById("weekly-brief").textContent = data.summary || "No summary.";
         } catch (error) {
           console.error("Failed to fetch weekly brief:", error);
+        }
+      }
+
+      async function refreshWeeklyBrief(btn) {
+        const originalText = btn ? btn.innerText : null;
+        if (btn) {
+          btn.innerText = "Refreshing...";
+          btn.disabled = true;
+        }
+        try {
+          await fetchWeeklyBrief();
+        } finally {
+          if (btn) {
+            btn.innerText = originalText;
+            btn.disabled = false;
+          }
         }
       }
 
