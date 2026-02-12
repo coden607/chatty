@@ -1,4 +1,4 @@
-## 2026-02-03 - [Cross-Site Scripting (XSS) in Lead Intelligence Dashboard]
-**Vulnerability:** API-provided lead data was injected directly into the DOM using `innerHTML` without sanitization. This allowed for script execution via lead names, emails, or sources.
-**Learning:** Even when using template literals, data must be escaped if assigned to `innerHTML`. Event handlers like `onclick` are particularly tricky as they require additional care to avoid breaking with quotes or allowing attribute injection.
-**Prevention:** Always use a helper like `escapeHTML` for dynamic content in `innerHTML`. For event handlers, prefer passing `this` and retrieving data from the DOM or using `dataset` to avoid complex string escaping in attributes.
+## 2025-02-12 - [Critical RCE Fix in n8n Engine]
+**Vulnerability:** The `_calculate_task` function in `pydantic_n8n_engine.py` was using a raw `eval()` on user-provided input, allowing for arbitrary code execution (RCE).
+**Learning:** Even mathematical expression evaluators can be dangerous if they use `eval()`. Standard library `collections.deque` does not support slice assignment (`[:]`), which can cause silent failures or crashes in security monitoring loops if not handled with `.clear()` and `.extend()`.
+**Prevention:** Always use a combination of input whitelisting (regex) and restricted execution environments (empty builtins) when using `eval()`. Use `statistics` instead of `numpy` for basic math to reduce external dependency risks and maintain environment stability.

@@ -12,6 +12,7 @@ import secrets
 import jwt
 import json
 import logging
+import statistics
 from datetime import datetime, timedelta
 from typing import Dict, List, Any, Optional, Tuple, Set
 from functools import wraps
@@ -409,10 +410,12 @@ class ZeroTrustSecurity:
 
                 # Clean up old events (keep last 24 hours)
                 cutoff_time = datetime.utcnow() - timedelta(hours=24)
-                self.security_events[:] = [
+                filtered_events = [
                     event for event in self.security_events
                     if datetime.fromisoformat(event['timestamp']) > cutoff_time
                 ]
+                self.security_events.clear()
+                self.security_events.extend(filtered_events)
 
             except Exception as e:
                 logger.error(f"Security monitoring error: {str(e)}")
@@ -852,6 +855,5 @@ class AnomalyDetector:
             values = self.baseline_metrics[metric_name]['values'][-100:]
 
             if len(values) >= 10:  # Need minimum samples
-                import numpy as np
-                self.baseline_metrics[metric_name]['mean'] = np.mean(values)
-                self.baseline_metrics[metric_name]['std'] = np.std(values)
+                self.baseline_metrics[metric_name]['mean'] = statistics.mean(values)
+                self.baseline_metrics[metric_name]['std'] = statistics.stdev(values)

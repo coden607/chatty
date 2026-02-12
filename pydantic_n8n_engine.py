@@ -560,12 +560,18 @@ class PydanticN8NEngine:
     
     async def _calculate_task(self, **kwargs) -> Dict[str, Any]:
         """Built-in calculation task"""
-        expression = kwargs.get('expression', '0')
+        expression = str(kwargs.get('expression', '0'))
         try:
-            # Simple calculation (could be enhanced with proper expression parser)
-            result = eval(expression)
+            # Secure validation for mathematical expressions
+            if not re.match(r'^[0-9+\-*/().\s]+$', expression):
+                logger.warning(f"🛡️ Sentinel: Blocked potentially dangerous calculation expression: {expression}")
+                return {'error': 'Invalid expression: only mathematical characters are allowed', 'expression': expression}
+
+            # Simple calculation with empty builtins to prevent RCE
+            result = eval(expression, {"__builtins__": {}})
             return {'result': result, 'expression': expression}
         except Exception as e:
+            logger.error(f"Calculation failed: {str(e)}")
             return {'error': str(e), 'expression': expression}
 
 class AIWorkflowOptimizer:
