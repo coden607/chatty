@@ -1601,7 +1601,7 @@ def analyze_content():
 
 @app.route('/api/ai/collaborate', methods=['POST'])
 @jwt_required()
-def coordinate_agents():
+async def coordinate_agents():
     """Coordinate multi-agent collaboration"""
     try:
         user_id = get_jwt_identity()
