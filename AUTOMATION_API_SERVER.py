@@ -11,6 +11,7 @@ from pydantic import BaseModel
 from typing import Dict, List, Any, Optional
 import asyncio
 import logging
+import time
 from datetime import datetime
 import json
 import os
@@ -19,14 +20,24 @@ from pathlib import Path
 from leads_storage import get_all_leads, add_lead
 from dotenv import load_dotenv
 
+logging.basicConfig(level=logging.INFO)
+logger = logging.getLogger(__name__)
+
+# Heavy imports moved to module level to avoid initialization overhead during request handling
+try:
+    from AUTOMATED_REVENUE_ENGINE import revenue_engine
+    from AUTOMATED_CUSTOMER_ACQUISITION import acquisition_engine
+    from START_COMPLETE_AUTOMATION import ChattyCompleteAutomation
+except ImportError as e:
+    logger.warning(f"Could not perform early import of automation engines: {e}")
+    revenue_engine = None
+    acquisition_engine = None
+    ChattyCompleteAutomation = None
+
 load_dotenv(".env", override=False)
 _secrets_file = os.getenv("CHATTY_SECRETS_FILE")
 if _secrets_file:
     load_dotenv(os.path.expanduser(_secrets_file), override=False)
-
-
-logging.basicConfig(level=logging.INFO)
-logger = logging.getLogger(__name__)
 
 app = FastAPI(
     title="CHATTY Automation API",
@@ -278,6 +289,12 @@ pipelines = {
 }
 
 autonomy_task_handle: Optional[asyncio.Task] = None
+
+# In-memory cache for expensive AI-generated weekly brief
+_weekly_brief_cache = {
+    "data": None,
+    "timestamp": 0
+}
 
 narcoguard_workflows = [
     {
@@ -612,7 +629,8 @@ def _sync_system_status_from_instance() -> None:
 
 async def _launch_automation_system() -> None:
     global automation_instance, automation_task
-    from START_COMPLETE_AUTOMATION import ChattyCompleteAutomation
+    if ChattyCompleteAutomation is None:
+        raise RuntimeError("ChattyCompleteAutomation not available")
 
     automation_instance = ChattyCompleteAutomation()
     ok = await automation_instance.initialize()
@@ -926,7 +944,8 @@ async def capture_lead(payload: LeadCaptureRequest):
 async def convert_lead(lead_id: int):
     """Trigger AI conversion agent for a specific lead"""
     try:
-        from AUTOMATED_CUSTOMER_ACQUISITION import acquisition_engine
+        if acquisition_engine is None:
+             raise HTTPException(status_code=503, detail="Acquisition engine not available")
         result = await acquisition_engine.convert_lead(lead_id)
         if "error" in result:
             raise HTTPException(status_code=400, detail=result["error"])
@@ -1412,7 +1431,8 @@ async def pilot_calc(payload: PilotCalcRequest):
 async def draft_proposal(payload: DraftRequest):
     """Generate a proposal draft"""
     try:
-        from AUTOMATED_REVENUE_ENGINE import revenue_engine
+        if revenue_engine is None:
+            return {"draft": "Error: Revenue engine not available"}
         system_prompt = "You are a professional grant writer and business developer for NarcoGuard."
         user_prompt = f"""Write a comprehensive proposal draft for: {payload.title}
         
@@ -1437,7 +1457,8 @@ async def draft_proposal(payload: DraftRequest):
 async def investor_weekly(payload: DraftRequest):
     """Generate an investor weekly update draft"""
     try:
-        from AUTOMATED_REVENUE_ENGINE import revenue_engine
+        if revenue_engine is None:
+            return {"draft": "Error: Revenue engine not available"}
         system_prompt = "You are the founder of NarcoGuard writing a weekly update to investors."
         user_prompt = f"""Write a weekly investor update for: {payload.title}
         
@@ -1461,7 +1482,8 @@ async def investor_weekly(payload: DraftRequest):
 async def investor_narrative(payload: DraftRequest):
     """Generate a narrative refresh draft"""
     try:
-        from AUTOMATED_REVENUE_ENGINE import revenue_engine
+        if revenue_engine is None:
+            return {"draft": "Error: Revenue engine not available"}
         system_prompt = "You are a strategic communications expert for a MedTech startup."
         user_prompt = f"""Refine the core investor narrative for: {payload.title}
         
@@ -1499,7 +1521,8 @@ async def data_room_checklist():
 async def press_pitch(payload: PressPitchRequest):
     """Generate a press pitch"""
     try:
-        from AUTOMATED_REVENUE_ENGINE import revenue_engine
+        if revenue_engine is None:
+            return {"draft": "Error: Revenue engine not available"}
         system_prompt = "You are a PR specialist for NarcoGuard."
         user_prompt = f"""Write a compelling press pitch for: {payload.outlet or 'Tech Media'}
         
@@ -1523,7 +1546,8 @@ async def press_pitch(payload: PressPitchRequest):
 async def video_script(payload: VideoScriptRequest):
     """Generate a short video script"""
     try:
-        from AUTOMATED_REVENUE_ENGINE import revenue_engine
+        if revenue_engine is None:
+            return {"draft": "Error: Revenue engine not available"}
         system_prompt = "You are a video producer for social media content."
         user_prompt = f"""Write a video script ({payload.length_sec or 90} seconds) about: {payload.topic}
         
@@ -1543,7 +1567,8 @@ async def video_script(payload: VideoScriptRequest):
 async def partner_brief(payload: PartnerBriefRequest):
     """Generate a partner outreach brief"""
     try:
-        from AUTOMATED_REVENUE_ENGINE import revenue_engine
+        if revenue_engine is None:
+            return {"draft": "Error: Revenue engine not available"}
         system_prompt = "You are a partnership director for a health tech company."
         user_prompt = f"""Write a partnership proposal brief for: {payload.partner_type}
         
@@ -1601,12 +1626,20 @@ async def get_kpi_anomalies():
 
 @app.get("/api/weekly/brief")
 async def weekly_brief():
-    """Get weekly summary brief"""
+    """Get weekly summary brief (with 60-second in-memory cache)"""
+    global _weekly_brief_cache
+    now = time.time()
+
+    # Return cached version if still fresh (under 60 seconds)
+    if _weekly_brief_cache["data"] and (now - _weekly_brief_cache["timestamp"]) < 60:
+        return _weekly_brief_cache["data"]
+
     completed = transparency_log[:15] # Fetch more logs for context
     events = collab_feed[:15]
     
     try:
-        from AUTOMATED_REVENUE_ENGINE import revenue_engine
+        if revenue_engine is None:
+             raise RuntimeError("Revenue engine not available")
         
         # Prepare context for AI
         logs_text = "\n".join([f"- {acc.get('action')}: {acc.get('result')} ({acc.get('details')})" for acc in completed])
@@ -1623,6 +1656,7 @@ async def weekly_brief():
         
         Focus on progress, autonomy, and key wins. If logs are empty, state that the system is initializing."""
         
+        # Call AI Content generation (expensive/slow)
         summary = await revenue_engine.generate_ai_content(system_prompt, user_prompt)
         # Keep it brief if AI rambles
         if len(summary) > 200:
@@ -1637,6 +1671,11 @@ async def weekly_brief():
         "events": events[:6],
         "summary": summary
     }
+
+    # Update cache
+    _weekly_brief_cache["data"] = body
+    _weekly_brief_cache["timestamp"] = now
+
     return body
 
 @app.get("/api/tasks")
@@ -1779,6 +1818,38 @@ async def get_metrics():
             "success_rate": 100.0
         }
     }
+
+@app.get("/api/dashboard/all")
+async def get_dashboard_all():
+    """
+    Consolidated dashboard endpoint.
+    Fetches all required dashboard data concurrently to minimize network roundtrips.
+    """
+    # Define the keys and their corresponding async functions
+    dashboard_map = {
+        "status": get_status(),
+        "leads": get_leads(),
+        "workflows": get_narcoguard_workflows(),
+        "agents": get_agents(),
+        "tasks": get_tasks(),
+        "collab": get_collab_feed(),
+        "messages": get_user_messages(),
+        "autonomy": get_autonomy_status(),
+        "pipelines": get_pipelines(),
+        "campaigns": get_campaigns(),
+        "n8n": get_n8n_workflows(),
+        "transparency": get_transparency_report(),
+        "briefs": get_content_briefs(),
+        "grants": get_grants(),
+        "experiments": get_pricing_experiments(),
+        "anomalies": get_kpi_anomalies(),
+        "weekly": weekly_brief()
+    }
+
+    keys = list(dashboard_map.keys())
+    values = await asyncio.gather(*dashboard_map.values())
+
+    return dict(zip(keys, values))
 
 if __name__ == "__main__":
     import uvicorn
