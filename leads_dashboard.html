@@ -582,8 +582,8 @@
             <h3>Queue New Task</h3>
             <textarea id="task-input" aria-label="New task description" class="message-input" placeholder="Describe the task you want agents to execute..."></textarea>
             <div class="prompt-row">
-              <input id="task-owner" aria-label="Task owner" style="flex: 1; min-width: 140px;" class="prompt-textarea" placeholder="Owner (optional)" />
-              <select id="task-priority" style="flex: 1; min-width: 140px;" class="prompt-textarea">
+              <input id="task-owner" aria-label="New task owner" style="flex: 1; min-width: 140px;" class="prompt-textarea" placeholder="Owner (optional)" />
+              <select id="task-priority" aria-label="Task priority" style="flex: 1; min-width: 140px;" class="prompt-textarea">
                 <option value="normal">Normal priority</option>
                 <option value="high">High priority</option>
                 <option value="urgent">Urgent priority</option>
@@ -727,11 +727,14 @@
             <h3>Generators</h3>
             <input id="generator-title" aria-label="Generator title or topic" class="prompt-textarea" placeholder="Title / Topic" />
             <div class="prompt-row">
-              <button class="btn" onclick="generateProposal()">Proposal Draft</button>
-              <button class="btn" onclick="generatePressPitch()">Press Pitch</button>
-              <button class="btn" onclick="generateVideoScript()">Video Script</button>
+              <button class="btn" onclick="_generateAI(this, '/api/proposals/draft', { title: document.getElementById('generator-title').value.trim() || 'Pilot Proposal' }, 'generator-output', 'draft')">Proposal Draft</button>
+              <button class="btn" onclick="_generateAI(this, '/api/press/pitch', { angle: document.getElementById('generator-title').value.trim() || 'Automation for harm reduction' }, 'generator-output', 'draft')">Press Pitch</button>
+              <button class="btn" onclick="_generateAI(this, '/api/video/script', { topic: document.getElementById('generator-title').value.trim() || 'NarcoGuard demo', length_sec: 90 }, 'generator-output', 'draft')">Video Script</button>
             </div>
             <div id="generator-output" class="generator-output">Generator output will appear here.</div>
+            <div class="prompt-row" style="justify-content: flex-end; margin-top: 10px;">
+              <button class="btn" style="background: transparent; color: var(--text-muted); border: 1px solid var(--border); padding: 6px 12px; font-size: 0.75rem;" onclick="copyToClipboard('generator-output', this)">Copy Output</button>
+            </div>
           </div>
           <div class="panel">
             <h3>KPI Anomalies</h3>
@@ -745,8 +748,11 @@
           <div class="panel">
             <h3>Weekly Brief</h3>
             <div id="weekly-brief" class="generator-output">No brief yet.</div>
+            <div class="prompt-row" style="justify-content: flex-end; margin-top: 10px;">
+                <button class="btn" style="background: transparent; color: var(--text-muted); border: 1px solid var(--border); padding: 6px 12px; font-size: 0.75rem;" onclick="copyToClipboard('weekly-brief', this)">Copy Brief</button>
+            </div>
             <div class="prompt-row">
-              <button class="btn" onclick="refreshWeeklyBrief()">Refresh Brief</button>
+              <button class="btn" onclick="refreshWeeklyBrief(this)">Refresh Brief</button>
             </div>
           </div>
         </div>
@@ -758,7 +764,7 @@
             <h2 id="modal-title" style="margin-bottom: 20px; background: linear-gradient(to right, var(--primary), var(--secondary)); background-clip: text; -webkit-background-clip: text; -webkit-text-fill-color: transparent;">AI Conversion Strategy</h2>
             <div id="modal-content" style="white-space: pre-wrap; line-height: 1.6; color: var(--text);"></div>
             <div style="margin-top: 30px; display: flex; justify-content: flex-end;">
-              <button id="copy-strategy-btn" class="btn" style="background: transparent; color: var(--text-muted); border: 1px solid var(--border);" onclick="copyStrategy()">Copy Strategy</button>
+              <button id="copy-strategy-btn" class="btn" style="background: transparent; color: var(--text-muted); border: 1px solid var(--border);" onclick="copyToClipboard('modal-content', this)">Copy Strategy</button>
             </div>
         </div>
       </div>
@@ -860,25 +866,20 @@
         }
       });
 
-      async function copyStrategy() {
-        const strategy = document.getElementById("modal-content").innerText;
-        const btn = document.getElementById("copy-strategy-btn");
-
+      async function copyToClipboard(elementId, btn) {
+        const text = document.getElementById(elementId).innerText;
         try {
-          await navigator.clipboard.writeText(strategy);
+          await navigator.clipboard.writeText(text);
           const originalText = btn.innerText;
           btn.innerText = "Copied!";
           btn.style.color = "var(--success)";
           btn.style.borderColor = "var(--success)";
-
           setTimeout(() => {
             btn.innerText = originalText;
-            btn.style.color = "var(--text-muted)";
-            btn.style.borderColor = "var(--border)";
+            btn.style.color = "";
+            btn.style.borderColor = "";
           }, 2000);
-        } catch (err) {
-          console.error("Failed to copy strategy:", err);
-        }
+        } catch (err) { console.error("Copy failed:", err); }
       }
 
       function updateDashboard(data) {
@@ -913,7 +914,7 @@
                     </td>
                     <td style="font-size: 0.9rem;">${escapeHTML(lead.source)}</td>
                     <td>
-                        <div class="score-bar">
+                        <div class="score-bar" role="progressbar" aria-valuenow="${lead.lead_score}" aria-valuemin="0" aria-valuemax="100" aria-label="Lead score for ${escapeHTML(lead.name)}">
                             <div class="score-fill" style="width: ${lead.lead_score}%"></div>
                         </div>
                         <span style="font-size: 0.75rem; margin-top: 4px; display: block;">${lead.lead_score}%</span>
@@ -1495,37 +1496,22 @@
         fetchPricingExperiments();
       }
 
-      async function generateProposal() {
-        const title = document.getElementById("generator-title").value.trim() || "Pilot Proposal";
-        const response = await fetch(`${apiBase}/api/proposals/draft`, {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ title })
-        });
-        const data = await response.json();
-        document.getElementById("generator-output").innerText = data.draft || "No draft returned.";
-      }
-
-      async function generatePressPitch() {
-        const angle = document.getElementById("generator-title").value.trim() || "Automation for harm reduction";
-        const response = await fetch(`${apiBase}/api/press/pitch`, {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ angle })
-        });
-        const data = await response.json();
-        document.getElementById("generator-output").innerText = data.draft || "No pitch returned.";
-      }
-
-      async function generateVideoScript() {
-        const topic = document.getElementById("generator-title").value.trim() || "NarcoGuard demo";
-        const response = await fetch(`${apiBase}/api/video/script`, {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ topic, length_sec: 90 })
-        });
-        const data = await response.json();
-        document.getElementById("generator-output").innerText = data.draft || "No script returned.";
+      async function _generateAI(btn, endpoint, payload, outputId, outputKey) {
+        const originalText = btn.innerText;
+        btn.innerText = "Generating...";
+        btn.disabled = true;
+        try {
+          const response = await fetch(`${apiBase}${endpoint}`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(payload)
+          });
+          const data = await response.json();
+          document.getElementById(outputId).innerText = data[outputKey] || "No output.";
+        } catch (err) {
+          console.error("Generation failed:", err);
+          document.getElementById(outputId).innerText = "Failed to generate content. Please try again.";
+        } finally { btn.innerText = originalText; btn.disabled = false; }
       }
 
       async function fetchAnomalies() {
@@ -1554,11 +1540,16 @@
         try {
           const response = await fetch(`${apiBase}/api/weekly/brief`);
           const data = await response.json();
-          // Using textContent for safety, though it was already using innerText
           document.getElementById("weekly-brief").textContent = data.summary || "No summary.";
-        } catch (error) {
-          console.error("Failed to fetch weekly brief:", error);
-        }
+        } catch (error) { console.error("Weekly brief failed:", error); }
+      }
+
+      async function refreshWeeklyBrief(btn) {
+        const originalText = btn.innerText;
+        btn.innerText = "Refreshing...";
+        btn.disabled = true;
+        try { await fetchWeeklyBrief(); }
+        finally { btn.innerText = originalText; btn.disabled = false; }
       }
 
       function renderTransparency(items) {
