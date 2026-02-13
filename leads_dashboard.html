@@ -732,6 +732,9 @@
               <button class="btn" onclick="generateVideoScript()">Video Script</button>
             </div>
             <div id="generator-output" class="generator-output">Generator output will appear here.</div>
+            <div style="margin-top: 10px; display: flex; justify-content: flex-end;">
+              <button class="btn" style="background: transparent; color: var(--text-muted); border: 1px solid var(--border); font-size: 0.8rem;" onclick="copyToClipboard('generator-output', this)">Copy Output</button>
+            </div>
           </div>
           <div class="panel">
             <h3>KPI Anomalies</h3>
@@ -860,25 +863,23 @@
         }
       });
 
-      async function copyStrategy() {
-        const strategy = document.getElementById("modal-content").innerText;
-        const btn = document.getElementById("copy-strategy-btn");
-
+      async function copyToClipboard(elementId, btn) {
+        const content = document.getElementById(elementId).innerText || document.getElementById(elementId).textContent;
         try {
-          await navigator.clipboard.writeText(strategy);
+          await navigator.clipboard.writeText(content);
           const originalText = btn.innerText;
           btn.innerText = "Copied!";
-          btn.style.color = "var(--success)";
-          btn.style.borderColor = "var(--success)";
-
+          btn.style.color = btn.style.borderColor = "var(--success)";
           setTimeout(() => {
             btn.innerText = originalText;
             btn.style.color = "var(--text-muted)";
             btn.style.borderColor = "var(--border)";
           }, 2000);
-        } catch (err) {
-          console.error("Failed to copy strategy:", err);
-        }
+        } catch (err) { console.error("Failed to copy:", err); }
+      }
+
+      async function copyStrategy() {
+        await copyToClipboard("modal-content", document.getElementById("copy-strategy-btn"));
       }
 
       function updateDashboard(data) {
