@@ -11,6 +11,7 @@ from pydantic import BaseModel
 from typing import Dict, List, Any, Optional
 import asyncio
 import logging
+import time
 from datetime import datetime
 import json
 import os
@@ -227,6 +228,12 @@ fail_safe_state = {
     "active": False,
     "error_count": 0,
     "threshold": 5
+}
+
+# Cache for expensive AI-generated weekly brief
+_brief_cache = {
+    "data": None,
+    "timestamp": 0
 }
 
 autonomy_state = {
@@ -473,6 +480,16 @@ def _slugify(value: str) -> str:
     value = value.strip().lower()
     value = re.sub(r"[^a-z0-9]+", "-", value)
     return value.strip("-") or "workflow"
+
+async def _safe_call(func, *args, **kwargs):
+    """Execution helper to prevent single-agent failure from crashing batch response"""
+    try:
+        if asyncio.iscoroutinefunction(func):
+            return await func(*args, **kwargs)
+        return func(*args, **kwargs)
+    except Exception as e:
+        logger.error(f"Batch call error in {func.__name__ if hasattr(func, '__name__') else 'unknown'}: {e}")
+        return {"error": str(e)}
 
 def _read_viral_outputs(limit: int = 10, include_content: bool = False) -> List[Dict[str, Any]]:
     outputs: List[Dict[str, Any]] = []
@@ -1601,7 +1618,11 @@ async def get_kpi_anomalies():
 
 @app.get("/api/weekly/brief")
 async def weekly_brief():
-    """Get weekly summary brief"""
+    """Get weekly summary brief (Bolt optimization: 60s cache)"""
+    now = time.time()
+    if _brief_cache["data"] and (now - _brief_cache["timestamp"] < 60):
+        return _brief_cache["data"]
+
     completed = transparency_log[:15] # Fetch more logs for context
     events = collab_feed[:15]
     
@@ -1637,6 +1658,10 @@ async def weekly_brief():
         "events": events[:6],
         "summary": summary
     }
+
+    _brief_cache["data"] = body
+    _brief_cache["timestamp"] = now
+
     return body
 
 @app.get("/api/tasks")
@@ -1778,6 +1803,47 @@ async def get_metrics():
             "tasks_per_hour": 0,
             "success_rate": 100.0
         }
+    }
+
+@app.get("/api/dashboard/all")
+async def get_dashboard_all():
+    """Batch endpoint to fetch all dashboard data in a single request (Bolt optimization)"""
+    results = await asyncio.gather(
+        _safe_call(get_leads),
+        _safe_call(get_narcoguard_workflows),
+        _safe_call(get_agents),
+        _safe_call(get_tasks),
+        _safe_call(get_collab_feed),
+        _safe_call(get_user_messages),
+        _safe_call(get_autonomy_status),
+        _safe_call(get_pipelines),
+        _safe_call(get_campaigns),
+        _safe_call(get_n8n_workflows),
+        _safe_call(get_transparency_report),
+        _safe_call(get_content_briefs),
+        _safe_call(get_grants),
+        _safe_call(get_pricing_experiments),
+        _safe_call(get_kpi_anomalies),
+        _safe_call(weekly_brief)
+    )
+
+    return {
+        "leads": results[0],
+        "workflows": results[1],
+        "agents": results[2],
+        "tasks": results[3],
+        "collab": results[4],
+        "messages": results[5],
+        "autonomy": results[6],
+        "pipelines": results[7],
+        "campaigns": results[8],
+        "n8n": results[9],
+        "transparency": results[10],
+        "briefs": results[11],
+        "grants": results[12],
+        "experiments": results[13],
+        "anomalies": results[14],
+        "weekly": results[15]
     }
 
 if __name__ == "__main__":
