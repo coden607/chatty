@@ -561,9 +561,15 @@ class PydanticN8NEngine:
     async def _calculate_task(self, **kwargs) -> Dict[str, Any]:
         """Built-in calculation task"""
         expression = kwargs.get('expression', '0')
+
+        # Security: Validate expression against whitelist to prevent RCE
+        if not re.match(r'^[0-9+\-*/().\s]+$', expression):
+            logger.warning(f"⚠️ Blocked potential RCE attempt in calculation: {expression}")
+            return {'error': 'Invalid expression: only numbers and basic operators are allowed', 'expression': expression}
+
         try:
-            # Simple calculation (could be enhanced with proper expression parser)
-            result = eval(expression)
+            # Security: Execute with no builtins for defense in depth
+            result = eval(expression, {"__builtins__": {}}, {})
             return {'result': result, 'expression': expression}
         except Exception as e:
             return {'error': str(e), 'expression': expression}
