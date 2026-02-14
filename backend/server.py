@@ -182,7 +182,7 @@ class UserSchema(Schema):
     username = fields.Str(required=True, validate=validate.Length(min=3, max=80))
     email = fields.Email(required=True)
     password = fields.Str(required=True, validate=validate.Length(min=8))
-    role = fields.Str(validate=validate.OneOf(['user', 'admin']), missing='user')
+    role = fields.Str(dump_only=True)
 
 class AgentSchema(Schema):
     name = fields.Str(required=True, validate=validate.Length(min=1, max=100))
@@ -364,7 +364,7 @@ def register():
                 username=data['username'],
                 email=data['email'],
                 password_hash=bcrypt.hashpw(data['password'].encode(), bcrypt.gensalt()).decode(),
-                role=data.get('role', 'user')
+                role='user'  # Strictly enforce 'user' role for self-registration
             )
             session.add(user)
 
