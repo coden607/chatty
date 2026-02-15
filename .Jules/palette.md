@@ -5,3 +5,7 @@
 ## 2026-02-05 - [Interactive Dashboard Polish]
 **Learning:** For multi-panel dashboards, a delegated 'Enter' key listener targeting the panel's primary button significantly reduces friction for power users. Additionally, providing 'Refreshing...' state on the primary refresh button prevents redundant clicks and confirms the system is active.
 **Action:** Implement delegated 'Enter' key handlers in complex command interfaces and always disable/label-swap async trigger buttons during network requests using a `finally` block for resilience.
+
+## 2026-02-15 - [Consolidated Utility Patterns]
+**Learning:** In projects with multiple AI generators and data panels, implementing a generalized `copyToClipboard` utility with built-in visual feedback (label swapping + color transition) reduces code duplication and ensures a consistent user experience across the entire dashboard.
+**Action:** Favor generalized UI utility functions for repetitive tasks like clipboard management and async state handling to maintain visual consistency and simplify maintenance of large HTML/JS files.
