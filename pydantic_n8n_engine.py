@@ -11,6 +11,8 @@ import asyncio
 import logging
 import re
 import uuid
+import ast
+import operator
 from datetime import datetime, timedelta
 from typing import Dict, List, Any, Optional, Tuple, Union
 from pathlib import Path
@@ -562,11 +564,47 @@ class PydanticN8NEngine:
         """Built-in calculation task"""
         expression = kwargs.get('expression', '0')
         try:
-            # Simple calculation (could be enhanced with proper expression parser)
-            result = eval(expression)
+            # Secure calculation using AST evaluator to prevent RCE
+            result = self._safe_eval(expression)
             return {'result': result, 'expression': expression}
         except Exception as e:
             return {'error': str(e), 'expression': expression}
+
+    def _safe_eval(self, expression: str) -> Any:
+        """Safely evaluate a mathematical expression using AST"""
+        operators = {
+            ast.Add: operator.add,
+            ast.Sub: operator.sub,
+            ast.Mult: operator.mul,
+            ast.Div: operator.truediv,
+            ast.Pow: operator.pow,
+            ast.BitXor: operator.xor,
+            ast.USub: operator.neg,
+            ast.UAdd: operator.pos,
+        }
+
+        def _eval(node):
+            if isinstance(node, ast.Num):  # <number>
+                return node.n
+            elif isinstance(node, ast.Constant):  # Python 3.8+
+                return node.value
+            elif isinstance(node, ast.BinOp):  # <left> <operator> <right>
+                if type(node.op) not in operators:
+                    raise TypeError(f"Unsupported operator: {type(node.op)}")
+                return operators[type(node.op)](_eval(node.left), _eval(node.right))
+            elif isinstance(node, ast.UnaryOp):  # <operator> <operand>
+                if type(node.op) not in operators:
+                    raise TypeError(f"Unsupported unary operator: {type(node.op)}")
+                return operators[type(node.op)](_eval(node.operand))
+            else:
+                raise TypeError(f"Unsupported expression component: {type(node)}")
+
+        try:
+            tree = ast.parse(expression, mode='eval')
+            return _eval(tree.body)
+        except Exception as e:
+            logger.error(f"Expression evaluation failed: {e}")
+            raise ValueError(f"Invalid expression: {e}")
 
 class AIWorkflowOptimizer:
     """AI-driven workflow optimization engine"""
