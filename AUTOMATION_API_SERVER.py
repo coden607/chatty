@@ -10,6 +10,7 @@ from fastapi.responses import FileResponse
 from pydantic import BaseModel
 from typing import Dict, List, Any, Optional
 import asyncio
+import time
 import logging
 from datetime import datetime
 import json
@@ -217,6 +218,7 @@ pricing_experiments: List[Dict[str, Any]] = []
 crm_notes: List[Dict[str, Any]] = []
 metrics_history: List[Dict[str, Any]] = []
 anomaly_log: List[Dict[str, Any]] = []
+_brief_cache = {"body": None, "time": 0, "lock": None}
 VIRAL_DIR = Path("generated_content/viral")
 VIRAL_LOG = VIRAL_DIR / "experiment_history.jsonl"
 INVESTOR_DIR = Path("generated_content/investor")
@@ -1601,43 +1603,67 @@ async def get_kpi_anomalies():
 
 @app.get("/api/weekly/brief")
 async def weekly_brief():
-    """Get weekly summary brief"""
-    completed = transparency_log[:15] # Fetch more logs for context
-    events = collab_feed[:15]
-    
-    try:
-        from AUTOMATED_REVENUE_ENGINE import revenue_engine
-        
-        # Prepare context for AI
-        logs_text = "\n".join([f"- {acc.get('action')}: {acc.get('result')} ({acc.get('details')})" for acc in completed])
-        events_text = "\n".join([f"- {evt.get('agent')}: {evt.get('event')} - {evt.get('detail')}" for evt in events])
-        
-        system_prompt = "You are the Chief of Staff for a fully autonomous company."
-        user_prompt = f"""Generate a concise, 1-sentence strategic summary of the recent system activity.
-        
-        Recent Actions:
-        {logs_text}
-        
-        Collaboration Events:
-        {events_text}
-        
-        Focus on progress, autonomy, and key wins. If logs are empty, state that the system is initializing."""
-        
-        summary = await revenue_engine.generate_ai_content(system_prompt, user_prompt)
-        # Keep it brief if AI rambles
-        if len(summary) > 200:
-            summary = summary[:197] + "..."
-            
-    except Exception as e:
-        logger.error(f"Weekly brief AI generation failed: {e}")
-        summary = "Autonomy progressing. (AI Summary temporarily unavailable)"
+    """Get weekly summary brief (cached for 120s)"""
+    if _brief_cache["lock"] is None:
+        _brief_cache["lock"] = asyncio.Lock()
 
-    body = {
-        "completed": completed[:6], # Return fewer items to UI
-        "events": events[:6],
-        "summary": summary
+    async with _brief_cache["lock"]:
+        now = time.time()
+        if _brief_cache["body"] and (now - _brief_cache["time"] < 120):
+            return _brief_cache["body"]
+
+        completed = transparency_log[:15]
+        events = collab_feed[:15]
+        try:
+            from AUTOMATED_REVENUE_ENGINE import revenue_engine
+            logs_text = "\n".join([f"- {a.get('action')}: {a.get('result')} ({a.get('details')})" for a in completed])
+            events_text = "\n".join([f"- {e.get('agent')}: {e.get('event')} - {e.get('detail')}" for e in events])
+            system_prompt = "You are the Chief of Staff for a fully autonomous company."
+            user_prompt = f"Generate a 1-sentence summary of recent activity.\n\nActions:\n{logs_text}\n\nEvents:\n{events_text}"
+            summary = await revenue_engine.generate_ai_content(system_prompt, user_prompt)
+            if len(summary) > 200: summary = summary[:197] + "..."
+        except Exception as e:
+            logger.error(f"Weekly brief AI generation failed: {e}")
+            summary = "Autonomy progressing. (AI Summary temporarily unavailable)"
+
+        body = {"completed": completed[:6], "events": events[:6], "summary": summary}
+        _brief_cache.update({"body": body, "time": now})
+        return body
+
+@app.get("/api/dashboard/all")
+async def get_dashboard_all():
+    """Batch endpoint to aggregate all dashboard data in a single request"""
+    async def _safe_call(coro):
+        try:
+            return await coro
+        except Exception as e:
+            logger.error(f"Batch sub-call failed: {e}")
+            return {}
+
+    # Define endpoints to aggregate
+    endpoints = {
+        "status": get_status(),
+        "leads": get_leads(),
+        "workflows": get_narcoguard_workflows(),
+        "agents": get_agents(),
+        "tasks": get_tasks(),
+        "collab_feed": get_collab_feed(),
+        "messages": get_user_messages(),
+        "autonomy": get_autonomy_status(),
+        "pipelines": get_pipelines(),
+        "campaigns": get_campaigns(),
+        "n8n_workflows": get_n8n_workflows(),
+        "transparency": get_transparency_report(),
+        "content_briefs": get_content_briefs(),
+        "grants": get_grants(),
+        "experiments": get_pricing_experiments(),
+        "anomalies": get_kpi_anomalies(),
+        "weekly_brief": weekly_brief()
     }
-    return body
+
+    keys = list(endpoints.keys())
+    results = await asyncio.gather(*[_safe_call(endpoints[k]) for k in keys])
+    return dict(zip(keys, results))
 
 @app.get("/api/tasks")
 async def get_tasks():

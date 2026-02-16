@@ -778,6 +778,29 @@
           .replace(/'/g, '&#039;');
       }
 
+      async function refreshAll() {
+        try {
+          const res = await fetch(`${apiBase}/api/dashboard/all`);
+          const d = await res.json();
+          if (d.leads) updateDashboard(d.leads);
+          if (d.workflows) renderWorkflows(d.workflows.workflows || []);
+          if (d.agents) renderAgents(d.agents.agents || []);
+          if (d.tasks) renderTasks(d.tasks.tasks || []);
+          if (d.collab_feed) renderCollabFeed(d.collab_feed.events || []);
+          if (d.messages) renderOperatorMessages(d.messages.messages || []);
+          if (d.autonomy) renderAutonomyStatus(d.autonomy.state, d.autonomy.settings);
+          if (d.pipelines) renderPipelines(d.pipelines.pipelines || []);
+          if (d.campaigns) renderCampaigns(d.campaigns.campaigns || []);
+          if (d.n8n_workflows) renderN8nWorkflows(d.n8n_workflows.workflows || []);
+          if (d.transparency) renderTransparency(d.transparency.completed || []);
+          if (d.content_briefs) renderContentBriefs(d.content_briefs.briefs || []);
+          if (d.grants) renderGrants(d.grants.grants || []);
+          if (d.experiments) renderPricingExperiments(d.experiments.experiments || []);
+          if (d.anomalies) renderAnomalies(d.anomalies.anomalies || []);
+          if (d.weekly_brief) document.getElementById("weekly-brief").textContent = d.weekly_brief.summary || "No summary.";
+        } catch (e) { console.error("Dashboard refresh failed:", e); }
+      }
+
       async function fetchLeads() {
         const btn = document.querySelector('header .btn');
         const originalText = btn.innerText;
@@ -1587,39 +1610,9 @@
       `;
       document.head.appendChild(style);
 
-      // Poll for updates
-      setInterval(fetchLeads, 30000); // Slower polling
-      setInterval(fetchWorkflows, 45000);
-      setInterval(fetchAgents, 60000);
-      setInterval(fetchTasks, 45000);
-      setInterval(fetchCollabFeed, 30000);
-      setInterval(fetchOperatorMessages, 60000);
-      setInterval(fetchAutonomyStatus, 45000);
-      setInterval(fetchPipelines, 60000);
-      setInterval(fetchCampaigns, 60000);
-      setInterval(fetchN8nWorkflows, 60000);
-      setInterval(fetchTransparency, 60000);
-      setInterval(fetchContentBriefs, 60000);
-      setInterval(fetchGrants, 90000);
-      setInterval(fetchPricingExperiments, 90000);
-      setInterval(fetchAnomalies, 90000);
-      setInterval(fetchWeeklyBrief, 120000);
-      fetchLeads();
-      fetchWorkflows();
-      fetchAgents();
-      fetchTasks();
-      fetchCollabFeed();
-      fetchOperatorMessages();
-      fetchAutonomyStatus();
-      fetchPipelines();
-      fetchCampaigns();
-      fetchN8nWorkflows();
-      fetchTransparency();
-      fetchContentBriefs();
-      fetchGrants();
-      fetchPricingExperiments();
-      fetchAnomalies();
-      fetchWeeklyBrief();
+      // Unified polling via batch endpoint
+      setInterval(refreshAll, 30000);
+      refreshAll();
 
       if ("serviceWorker" in navigator) {
         window.addEventListener("load", () => {
