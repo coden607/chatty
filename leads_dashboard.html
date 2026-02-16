@@ -353,13 +353,21 @@
 
       .prompt-textarea {
         width: 100%;
-        min-height: 120px;
         background: rgba(255, 255, 255, 0.02);
         border: 1px solid rgba(255, 255, 255, 0.1);
         border-radius: 16px;
         color: var(--text);
         padding: 14px;
+      }
+
+      textarea.prompt-textarea {
+        min-height: 120px;
         resize: vertical;
+      }
+
+      input.prompt-textarea, select.prompt-textarea {
+        height: 48px;
+        min-height: 48px;
       }
 
       .prompt-row {
@@ -536,7 +544,7 @@
       <div class="lead-section" style="margin-top: 32px;">
         <div class="section-header">
           <h2>NarcoGuard Transparent Workflows</h2>
-          <button class="btn" onclick="refreshWorkflows()">Refresh Workflows</button>
+          <button class="btn" onclick="refreshWorkflows(this)">Refresh Workflows</button>
         </div>
         <div id="workflow-grid" class="workflow-grid">
           <div class="loading">Syncing workflow telemetry...</div>
@@ -575,7 +583,7 @@
       <div class="lead-section" style="margin-top: 32px;">
         <div class="section-header">
           <h2>Autonomy Control + Collaboration</h2>
-          <button class="btn" onclick="refreshAutonomy()">Sync Autonomy</button>
+          <button class="btn" onclick="refreshAutonomy(this)">Sync Autonomy</button>
         </div>
         <div class="command-grid">
           <div class="panel">
@@ -644,7 +652,7 @@
               <div class="pipeline-card">Loading pipelines...</div>
             </div>
             <div class="prompt-row">
-              <button class="btn" onclick="refreshPipelines()">Advance Pipelines</button>
+              <button class="btn" onclick="refreshPipelines(this)">Advance Pipelines</button>
             </div>
           </div>
           <div class="panel">
@@ -695,7 +703,7 @@
               <div class="log-entry">No briefs yet.</div>
             </div>
             <div class="prompt-row">
-              <button class="btn" onclick="refreshContentBriefs()">Refresh Briefs</button>
+              <button class="btn" onclick="refreshContentBriefs(this)">Refresh Briefs</button>
             </div>
           </div>
           <div class="panel">
@@ -730,6 +738,7 @@
               <button class="btn" onclick="generateProposal()">Proposal Draft</button>
               <button class="btn" onclick="generatePressPitch()">Press Pitch</button>
               <button class="btn" onclick="generateVideoScript()">Video Script</button>
+              <button class="btn" style="background: transparent; color: var(--text-muted); border: 1px solid var(--border);" onclick="copyToClipboard('generator-output', this)">Copy Output</button>
             </div>
             <div id="generator-output" class="generator-output">Generator output will appear here.</div>
           </div>
@@ -739,14 +748,15 @@
               <div class="log-entry">No anomalies detected.</div>
             </div>
             <div class="prompt-row">
-              <button class="btn" onclick="refreshAnomalies()">Refresh</button>
+              <button class="btn" onclick="refreshAnomalies(this)">Refresh</button>
             </div>
           </div>
           <div class="panel">
             <h3>Weekly Brief</h3>
             <div id="weekly-brief" class="generator-output">No brief yet.</div>
             <div class="prompt-row">
-              <button class="btn" onclick="refreshWeeklyBrief()">Refresh Brief</button>
+              <button class="btn" onclick="refreshWeeklyBrief(this)">Refresh Brief</button>
+              <button class="btn" style="background: transparent; color: var(--text-muted); border: 1px solid var(--border);" onclick="copyToClipboard('weekly-brief', this)">Copy Brief</button>
             </div>
           </div>
         </div>
@@ -860,25 +870,31 @@
         }
       });
 
-      async function copyStrategy() {
-        const strategy = document.getElementById("modal-content").innerText;
-        const btn = document.getElementById("copy-strategy-btn");
-
+      async function copyToClipboard(elementId, btn) {
+        const content = document.getElementById(elementId).innerText || document.getElementById(elementId).textContent;
         try {
-          await navigator.clipboard.writeText(strategy);
+          await navigator.clipboard.writeText(content);
           const originalText = btn.innerText;
+          const originalColor = btn.style.color;
+          const originalBorder = btn.style.borderColor;
+
           btn.innerText = "Copied!";
           btn.style.color = "var(--success)";
           btn.style.borderColor = "var(--success)";
 
           setTimeout(() => {
             btn.innerText = originalText;
-            btn.style.color = "var(--text-muted)";
-            btn.style.borderColor = "var(--border)";
+            btn.style.color = originalColor;
+            btn.style.borderColor = originalBorder;
           }, 2000);
         } catch (err) {
-          console.error("Failed to copy strategy:", err);
+          console.error("Failed to copy:", err);
         }
+      }
+
+      async function copyStrategy() {
+        const btn = document.getElementById("copy-strategy-btn");
+        await copyToClipboard("modal-content", btn);
       }
 
       function updateDashboard(data) {
@@ -974,12 +990,16 @@
         });
       }
 
-      async function refreshWorkflows() {
+      async function refreshWorkflows(btn) {
+        const originalText = btn ? btn.innerText : "Refresh Workflows";
+        if (btn) { btn.innerText = "Refreshing..."; btn.disabled = true; }
         try {
           await fetch(`${apiBase}/api/narcoguard/workflows/refresh`, { method: "POST" });
-          fetchWorkflows();
+          await fetchWorkflows();
         } catch (error) {
           console.error("Failed to refresh workflows:", error);
+        } finally {
+          if (btn) { btn.innerText = originalText; btn.disabled = false; }
         }
       }
 
@@ -1197,20 +1217,28 @@
         }
       }
 
-      function refreshAutonomy() {
-        fetchTasks();
-        fetchCollabFeed();
-        fetchOperatorMessages();
-        fetchAutonomyStatus();
-        fetchPipelines();
-        fetchCampaigns();
-        fetchN8nWorkflows();
-        fetchTransparency();
-        fetchContentBriefs();
-        fetchGrants();
-        fetchPricingExperiments();
-        fetchAnomalies();
-        fetchWeeklyBrief();
+      async function refreshAutonomy(btn) {
+        const originalText = btn ? btn.innerText : "Sync Autonomy";
+        if (btn) { btn.innerText = "Syncing..."; btn.disabled = true; }
+        try {
+          await Promise.all([
+            fetchTasks(),
+            fetchCollabFeed(),
+            fetchOperatorMessages(),
+            fetchAutonomyStatus(),
+            fetchPipelines(),
+            fetchCampaigns(),
+            fetchN8nWorkflows(),
+            fetchTransparency(),
+            fetchContentBriefs(),
+            fetchGrants(),
+            fetchPricingExperiments(),
+            fetchAnomalies(),
+            fetchWeeklyBrief()
+          ]);
+        } finally {
+          if (btn) { btn.innerText = originalText; btn.disabled = false; }
+        }
       }
 
       async function fetchAutonomyStatus() {
@@ -1280,10 +1308,16 @@
           .join("");
       }
 
-      async function refreshPipelines() {
-        await fetch(`${apiBase}/api/pipelines/refresh`, { method: "POST" });
-        fetchPipelines();
-        fetchCollabFeed();
+      async function refreshPipelines(btn) {
+        const originalText = btn ? btn.innerText : "Advance Pipelines";
+        if (btn) { btn.innerText = "Advancing..."; btn.disabled = true; }
+        try {
+          await fetch(`${apiBase}/api/pipelines/refresh`, { method: "POST" });
+          await fetchPipelines();
+          await fetchCollabFeed();
+        } finally {
+          if (btn) { btn.innerText = originalText; btn.disabled = false; }
+        }
       }
 
       async function fetchCampaigns() {
@@ -1412,9 +1446,15 @@
           .join("");
       }
 
-      async function refreshContentBriefs() {
-        await fetch(`${apiBase}/api/content/briefs/refresh`, { method: "POST" });
-        fetchContentBriefs();
+      async function refreshContentBriefs(btn) {
+        const originalText = btn ? btn.innerText : "Refresh Briefs";
+        if (btn) { btn.innerText = "Refreshing..."; btn.disabled = true; }
+        try {
+          await fetch(`${apiBase}/api/content/briefs/refresh`, { method: "POST" });
+          await fetchContentBriefs();
+        } finally {
+          if (btn) { btn.innerText = originalText; btn.disabled = false; }
+        }
       }
 
       async function fetchGrants() {
@@ -1558,6 +1598,26 @@
           document.getElementById("weekly-brief").textContent = data.summary || "No summary.";
         } catch (error) {
           console.error("Failed to fetch weekly brief:", error);
+        }
+      }
+
+      async function refreshAnomalies(btn) {
+        const originalText = btn ? btn.innerText : "Refresh";
+        if (btn) { btn.innerText = "Refreshing..."; btn.disabled = true; }
+        try {
+          await fetchAnomalies();
+        } finally {
+          if (btn) { btn.innerText = originalText; btn.disabled = false; }
+        }
+      }
+
+      async function refreshWeeklyBrief(btn) {
+        const originalText = btn ? btn.innerText : "Refresh Brief";
+        if (btn) { btn.innerText = "Refreshing..."; btn.disabled = true; }
+        try {
+          await fetchWeeklyBrief();
+        } finally {
+          if (btn) { btn.innerText = originalText; btn.disabled = false; }
         }
       }
 
