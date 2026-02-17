@@ -212,6 +212,12 @@ okr_state = {
 okr_history: List[Dict[str, Any]] = []
 
 content_briefs: List[Dict[str, Any]] = []
+
+# Caching for expensive AI endpoints
+_brief_cache = None
+_brief_cache_time = 0
+_brief_lock = None
+
 grant_tracker: List[Dict[str, Any]] = []
 pricing_experiments: List[Dict[str, Any]] = []
 crm_notes: List[Dict[str, Any]] = []
@@ -1601,43 +1607,58 @@ async def get_kpi_anomalies():
 
 @app.get("/api/weekly/brief")
 async def weekly_brief():
-    """Get weekly summary brief"""
-    completed = transparency_log[:15] # Fetch more logs for context
-    events = collab_feed[:15]
+    """Get weekly summary brief (with 120s caching)"""
+    global _brief_cache, _brief_cache_time, _brief_lock
     
-    try:
-        from AUTOMATED_REVENUE_ENGINE import revenue_engine
+    # Lazy-initialize lock to ensure it's bound to the correct event loop
+    if _brief_lock is None:
+        _brief_lock = asyncio.Lock()
         
-        # Prepare context for AI
-        logs_text = "\n".join([f"- {acc.get('action')}: {acc.get('result')} ({acc.get('details')})" for acc in completed])
-        events_text = "\n".join([f"- {evt.get('agent')}: {evt.get('event')} - {evt.get('detail')}" for evt in events])
-        
-        system_prompt = "You are the Chief of Staff for a fully autonomous company."
-        user_prompt = f"""Generate a concise, 1-sentence strategic summary of the recent system activity.
-        
-        Recent Actions:
-        {logs_text}
-        
-        Collaboration Events:
-        {events_text}
-        
-        Focus on progress, autonomy, and key wins. If logs are empty, state that the system is initializing."""
-        
-        summary = await revenue_engine.generate_ai_content(system_prompt, user_prompt)
-        # Keep it brief if AI rambles
-        if len(summary) > 200:
-            summary = summary[:197] + "..."
-            
-    except Exception as e:
-        logger.error(f"Weekly brief AI generation failed: {e}")
-        summary = "Autonomy progressing. (AI Summary temporarily unavailable)"
+    async with _brief_lock:
+        import time
+        now = time.time()
+        if _brief_cache and (now - _brief_cache_time < 120):
+            return _brief_cache
 
-    body = {
-        "completed": completed[:6], # Return fewer items to UI
-        "events": events[:6],
-        "summary": summary
-    }
-    return body
+        completed = transparency_log[:15] # Fetch more logs for context
+        events = collab_feed[:15]
+        
+        try:
+            from AUTOMATED_REVENUE_ENGINE import revenue_engine
+            
+            # Prepare context for AI
+            logs_text = "\n".join([f"- {acc.get('action')}: {acc.get('result')} ({acc.get('details')})" for acc in completed])
+            events_text = "\n".join([f"- {evt.get('agent')}: {evt.get('event')} - {evt.get('detail')}" for evt in events])
+
+            system_prompt = "You are the Chief of Staff for a fully autonomous company."
+            user_prompt = f"""Generate a concise, 1-sentence strategic summary of the recent system activity.
+
+            Recent Actions:
+            {logs_text}
+
+            Collaboration Events:
+            {events_text}
+
+            Focus on progress, autonomy, and key wins. If logs are empty, state that the system is initializing."""
+
+            summary = await revenue_engine.generate_ai_content(system_prompt, user_prompt)
+            # Keep it brief if AI rambles
+            if len(summary) > 200:
+                summary = summary[:197] + "..."
+
+        except Exception as e:
+            logger.error(f"Weekly brief AI generation failed: {e}")
+            summary = "Autonomy progressing. (AI Summary temporarily unavailable)"
+
+        body = {
+            "completed": completed[:6], # Return fewer items to UI
+            "events": events[:6],
+            "summary": summary
+        }
+
+        _brief_cache = body
+        _brief_cache_time = now
+        return body
 
 @app.get("/api/tasks")
 async def get_tasks():
@@ -1747,6 +1768,56 @@ async def get_automation(automation_name: str):
         raise HTTPException(status_code=404, detail="Automation not found")
     
     return automations[automation_name]
+
+async def _safe_call(coro):
+    """Helper to safely call an async function for the batch dashboard"""
+    try:
+        return await coro
+    except Exception as e:
+        logger.error(f"Dashboard sub-call failed: {e}")
+        return None
+
+@app.get("/api/dashboard/all")
+async def get_dashboard_all():
+    """Batch endpoint for all dashboard data to minimize network requests"""
+    results = await asyncio.gather(
+        _safe_call(get_leads()),
+        _safe_call(get_narcoguard_workflows()),
+        _safe_call(get_agents()),
+        _safe_call(get_tasks()),
+        _safe_call(get_collab_feed()),
+        _safe_call(get_user_messages()),
+        _safe_call(get_autonomy_status()),
+        _safe_call(get_pipelines()),
+        _safe_call(get_campaigns()),
+        _safe_call(get_n8n_workflows()),
+        _safe_call(get_transparency_report()),
+        _safe_call(get_content_briefs()),
+        _safe_call(get_grants()),
+        _safe_call(get_pricing_experiments()),
+        _safe_call(get_kpi_anomalies()),
+        _safe_call(weekly_brief()),
+        return_exceptions=True
+    )
+
+    return {
+        "leads": results[0],
+        "workflows": results[1],
+        "agents": results[2],
+        "tasks": results[3],
+        "collab": results[4],
+        "messages": results[5],
+        "autonomy": results[6],
+        "pipelines": results[7],
+        "campaigns": results[8],
+        "n8n": results[9],
+        "transparency": results[10],
+        "briefs": results[11],
+        "grants": results[12],
+        "experiments": results[13],
+        "anomalies": results[14],
+        "weekly": results[15]
+    }
 
 @app.get("/api/health")
 async def health_check():
