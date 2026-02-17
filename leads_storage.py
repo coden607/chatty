@@ -10,6 +10,18 @@ LEADS_FILE = os.path.join(os.path.dirname(os.path.abspath(__file__)), "leads.jso
 _leads_cache = None
 _last_mtime = 0
 
+def _update_cache(leads):
+    """Helper to update the in-memory cache and mtime"""
+    global _leads_cache, _last_mtime
+    _leads_cache = leads
+    try:
+        if os.path.exists(LEADS_FILE):
+            _last_mtime = os.path.getmtime(LEADS_FILE)
+        else:
+            _last_mtime = 0
+    except (OSError, FileNotFoundError):
+        _last_mtime = 0
+
 def save_lead(lead_data: Dict[str, Any]):
     """Save a lead to the JSON storage (dedupe by email)."""
     leads = get_all_leads()
@@ -48,7 +60,7 @@ def save_lead(lead_data: Dict[str, Any]):
     with open(LEADS_FILE, "w") as f:
         json.dump(leads, f, indent=4)
 
-    # Cache will be invalidated on next read by mtime check
+    _update_cache(leads)
     return target_lead
 
 def get_all_leads() -> List[Dict[str, Any]]:
@@ -84,6 +96,8 @@ def update_lead_status(lead_id: int, status: str):
     with open(LEADS_FILE, "w") as f:
         json.dump(leads, f, indent=4)
 
+    _update_cache(leads)
+
 def update_lead_follow_up(lead_id: int, follow_up_payload: Dict[str, Any]):
     """Update a lead's follow-up metadata"""
     leads = get_all_leads()
@@ -94,6 +108,8 @@ def update_lead_follow_up(lead_id: int, follow_up_payload: Dict[str, Any]):
             break
     with open(LEADS_FILE, "w") as f:
         json.dump(leads, f, indent=4)
+
+    _update_cache(leads)
 
 
 def add_lead(name: str, email: str, source: str, metadata: Dict[str, Any] = None) -> Dict[str, Any]:

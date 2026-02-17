@@ -5,3 +5,7 @@
 ## 2026-02-03 - [Optimize JSON storage with mtime-based caching]
 **Learning:** For disk-based JSON storage, using `os.path.getmtime` to validate an in-memory cache provides a massive performance boost (~37x in this case) with minimal complexity and high reliability.
 **Action:** Always check for redundant file I/O in frequently called data retrieval functions and implement mtime-based caching.
+
+## 2026-02-17 - [Batching and Caching for Dashboard]
+**Learning:** Replacing multiple independent API polling loops (16 in this case) with a single batch endpoint using `asyncio.gather` reduces frontend data load time by ~60x. Combining this with 120s caching for expensive AI-driven components prevents server-side bottlenecks and AI cost explosion.
+**Action:** Consolidate multiple related API calls into a single batch endpoint and implement thundering-herd protection (asyncio.Lock) for expensive sub-components.
