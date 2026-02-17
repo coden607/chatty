@@ -233,11 +233,15 @@
         color: #000;
         font-weight: 600;
         cursor: pointer;
-        transition: opacity 0.3s ease;
+        transition: opacity 0.3s ease, transform 0.2s ease, box-shadow 0.3s ease;
       }
 
       .btn:hover {
         opacity: 0.9;
+      }
+
+      .btn:active {
+        transform: scale(0.98);
       }
 
       .loading {
@@ -353,13 +357,21 @@
 
       .prompt-textarea {
         width: 100%;
-        min-height: 120px;
         background: rgba(255, 255, 255, 0.02);
         border: 1px solid rgba(255, 255, 255, 0.1);
         border-radius: 16px;
         color: var(--text);
         padding: 14px;
+      }
+
+      textarea.prompt-textarea {
+        min-height: 120px;
         resize: vertical;
+      }
+
+      input.prompt-textarea,
+      select.prompt-textarea {
+        height: 48px;
       }
 
       .prompt-row {
@@ -727,11 +739,14 @@
             <h3>Generators</h3>
             <input id="generator-title" aria-label="Generator title or topic" class="prompt-textarea" placeholder="Title / Topic" />
             <div class="prompt-row">
-              <button class="btn" onclick="generateProposal()">Proposal Draft</button>
-              <button class="btn" onclick="generatePressPitch()">Press Pitch</button>
-              <button class="btn" onclick="generateVideoScript()">Video Script</button>
+              <button class="btn" onclick="generateProposal(this)">Proposal Draft</button>
+              <button class="btn" onclick="generatePressPitch(this)">Press Pitch</button>
+              <button class="btn" onclick="generateVideoScript(this)">Video Script</button>
             </div>
-            <div id="generator-output" class="generator-output">Generator output will appear here.</div>
+            <div id="generator-output" class="generator-output" aria-live="polite">Generator output will appear here.</div>
+            <div class="prompt-row" style="margin-top: 10px; justify-content: flex-end;">
+              <button class="btn" style="background: transparent; color: var(--text-muted); border: 1px solid var(--border); padding: 8px 16px; font-size: 0.8rem;" onclick="copyToClipboard('generator-output', this)">Copy Output</button>
+            </div>
           </div>
           <div class="panel">
             <h3>KPI Anomalies</h3>
@@ -744,9 +759,10 @@
           </div>
           <div class="panel">
             <h3>Weekly Brief</h3>
-            <div id="weekly-brief" class="generator-output">No brief yet.</div>
+            <div id="weekly-brief" class="generator-output" aria-live="polite">No brief yet.</div>
             <div class="prompt-row">
-              <button class="btn" onclick="refreshWeeklyBrief()">Refresh Brief</button>
+              <button class="btn" onclick="refreshWeeklyBrief(this)">Refresh Brief</button>
+              <button class="btn" style="background: transparent; color: var(--text-muted); border: 1px solid var(--border);" onclick="copyToClipboard('weekly-brief', this)">Copy Brief</button>
             </div>
           </div>
         </div>
@@ -791,6 +807,7 @@
           updateDashboard(data);
 
           const status = document.getElementById("status-msg");
+          status.innerText = `Updated at ${new Date().toLocaleTimeString()}`;
           status.style.opacity = 1;
           setTimeout(() => (status.style.opacity = 0), 3000);
         } catch (error) {
@@ -828,14 +845,25 @@
         }
       }
 
+      let lastFocusedElement = null;
       function showModal(name, strategy) {
+        lastFocusedElement = document.activeElement;
         document.getElementById("modal-title").innerText = `AI Conversion Strategy for ${name}`;
         document.getElementById("modal-content").innerText = strategy;
         document.getElementById("modal-overlay").style.display = "flex";
+
+        // Move focus to primary action in modal
+        setTimeout(() => {
+          const copyBtn = document.getElementById("copy-strategy-btn");
+          if (copyBtn) copyBtn.focus();
+        }, 100);
       }
 
       function closeModal() {
         document.getElementById("modal-overlay").style.display = "none";
+        if (lastFocusedElement) {
+          lastFocusedElement.focus();
+        }
       }
 
       // Close modal on Escape key
@@ -860,25 +888,39 @@
         }
       });
 
-      async function copyStrategy() {
-        const strategy = document.getElementById("modal-content").innerText;
-        const btn = document.getElementById("copy-strategy-btn");
+      // Generalized copy utility with per-button timeout management
+      async function copyToClipboard(elementId, btn) {
+        const el = document.getElementById(elementId);
+        const content = el.innerText || el.textContent;
+        // Don't copy placeholder text
+        if (!content || content.includes("will appear here") || content.includes("No brief yet")) return;
 
         try {
-          await navigator.clipboard.writeText(strategy);
-          const originalText = btn.innerText;
+          await navigator.clipboard.writeText(content);
+
+          if (btn._copyTimeout) clearTimeout(btn._copyTimeout);
+
+          const originalText = btn.dataset.originalText || btn.innerText;
+          if (!btn.dataset.originalText) btn.dataset.originalText = originalText;
+
           btn.innerText = "Copied!";
           btn.style.color = "var(--success)";
           btn.style.borderColor = "var(--success)";
 
-          setTimeout(() => {
+          btn._copyTimeout = setTimeout(() => {
             btn.innerText = originalText;
-            btn.style.color = "var(--text-muted)";
-            btn.style.borderColor = "var(--border)";
+            btn.style.removeProperty('color');
+            btn.style.removeProperty('border-color');
+            btn._copyTimeout = null;
           }, 2000);
         } catch (err) {
-          console.error("Failed to copy strategy:", err);
+          console.error("Failed to copy:", err);
         }
+      }
+
+      async function copyStrategy() {
+        const btn = document.getElementById("copy-strategy-btn");
+        await copyToClipboard("modal-content", btn);
       }
 
       function updateDashboard(data) {
@@ -1495,37 +1537,67 @@
         fetchPricingExperiments();
       }
 
-      async function generateProposal() {
-        const title = document.getElementById("generator-title").value.trim() || "Pilot Proposal";
-        const response = await fetch(`${apiBase}/api/proposals/draft`, {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ title })
-        });
-        const data = await response.json();
-        document.getElementById("generator-output").innerText = data.draft || "No draft returned.";
+      async function generateProposal(btn) {
+        const originalText = btn.innerText;
+        btn.innerText = "Generating...";
+        btn.disabled = true;
+        try {
+          const title = document.getElementById("generator-title").value.trim() || "Pilot Proposal";
+          const response = await fetch(`${apiBase}/api/proposals/draft`, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ title })
+          });
+          const data = await response.json();
+          document.getElementById("generator-output").innerText = data.draft || "No draft returned.";
+        } catch (error) {
+          console.error("Proposal generation failed:", error);
+        } finally {
+          btn.innerText = originalText;
+          btn.disabled = false;
+        }
       }
 
-      async function generatePressPitch() {
-        const angle = document.getElementById("generator-title").value.trim() || "Automation for harm reduction";
-        const response = await fetch(`${apiBase}/api/press/pitch`, {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ angle })
-        });
-        const data = await response.json();
-        document.getElementById("generator-output").innerText = data.draft || "No pitch returned.";
+      async function generatePressPitch(btn) {
+        const originalText = btn.innerText;
+        btn.innerText = "Generating...";
+        btn.disabled = true;
+        try {
+          const angle = document.getElementById("generator-title").value.trim() || "Automation for harm reduction";
+          const response = await fetch(`${apiBase}/api/press/pitch`, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ angle })
+          });
+          const data = await response.json();
+          document.getElementById("generator-output").innerText = data.draft || "No pitch returned.";
+        } catch (error) {
+          console.error("Press pitch failed:", error);
+        } finally {
+          btn.innerText = originalText;
+          btn.disabled = false;
+        }
       }
 
-      async function generateVideoScript() {
-        const topic = document.getElementById("generator-title").value.trim() || "NarcoGuard demo";
-        const response = await fetch(`${apiBase}/api/video/script`, {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ topic, length_sec: 90 })
-        });
-        const data = await response.json();
-        document.getElementById("generator-output").innerText = data.draft || "No script returned.";
+      async function generateVideoScript(btn) {
+        const originalText = btn.innerText;
+        btn.innerText = "Generating...";
+        btn.disabled = true;
+        try {
+          const topic = document.getElementById("generator-title").value.trim() || "NarcoGuard demo";
+          const response = await fetch(`${apiBase}/api/video/script`, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ topic, length_sec: 90 })
+          });
+          const data = await response.json();
+          document.getElementById("generator-output").innerText = data.draft || "No script returned.";
+        } catch (error) {
+          console.error("Video script failed:", error);
+        } finally {
+          btn.innerText = originalText;
+          btn.disabled = false;
+        }
       }
 
       async function fetchAnomalies() {
@@ -1558,6 +1630,18 @@
           document.getElementById("weekly-brief").textContent = data.summary || "No summary.";
         } catch (error) {
           console.error("Failed to fetch weekly brief:", error);
+        }
+      }
+
+      async function refreshWeeklyBrief(btn) {
+        const originalText = btn.innerText;
+        btn.innerText = "Refreshing...";
+        btn.disabled = true;
+        try {
+          await fetchWeeklyBrief();
+        } finally {
+          btn.innerText = originalText;
+          btn.disabled = false;
         }
       }
 
