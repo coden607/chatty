@@ -2,3 +2,8 @@
 **Vulnerability:** API-provided lead data was injected directly into the DOM using `innerHTML` without sanitization. This allowed for script execution via lead names, emails, or sources.
 **Learning:** Even when using template literals, data must be escaped if assigned to `innerHTML`. Event handlers like `onclick` are particularly tricky as they require additional care to avoid breaking with quotes or allowing attribute injection.
 **Prevention:** Always use a helper like `escapeHTML` for dynamic content in `innerHTML`. For event handlers, prefer passing `this` and retrieving data from the DOM or using `dataset` to avoid complex string escaping in attributes.
+
+## 2026-02-17 - [Remote Code Execution (RCE) in Workflow Engine]
+**Vulnerability:** The workflow engine used raw `eval()` to process mathematical expressions in the `calculate` task. This allowed attackers to execute arbitrary Python code by providing a malicious expression.
+**Learning:** Using `eval()` on untrusted input is extremely dangerous, even if intended only for simple calculations. It provides a direct path to full system compromise.
+**Prevention:** Use a safe evaluation method like a whitelist-based AST parser (`ast.parse`) to only allow specific operators and constants, or use a dedicated math expression library. Never allow arbitrary code execution unless explicitly intended and strictly sandboxed.
