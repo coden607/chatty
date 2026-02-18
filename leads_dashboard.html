@@ -731,7 +731,10 @@
               <button class="btn" onclick="generatePressPitch()">Press Pitch</button>
               <button class="btn" onclick="generateVideoScript()">Video Script</button>
             </div>
-            <div id="generator-output" class="generator-output">Generator output will appear here.</div>
+            <div id="generator-output" aria-live="polite" class="generator-output">Generator output will appear here.</div>
+            <div class="prompt-row">
+              <button class="btn" style="background: transparent; color: var(--text-muted); border: 1px solid var(--border);" onclick="copyToClipboard('generator-output', this)">Copy Output</button>
+            </div>
           </div>
           <div class="panel">
             <h3>KPI Anomalies</h3>
@@ -744,9 +747,10 @@
           </div>
           <div class="panel">
             <h3>Weekly Brief</h3>
-            <div id="weekly-brief" class="generator-output">No brief yet.</div>
+            <div id="weekly-brief" aria-live="polite" class="generator-output">No brief yet.</div>
             <div class="prompt-row">
               <button class="btn" onclick="refreshWeeklyBrief()">Refresh Brief</button>
+              <button class="btn" style="background: transparent; color: var(--text-muted); border: 1px solid var(--border);" onclick="copyToClipboard('weekly-brief', this)">Copy Brief</button>
             </div>
           </div>
         </div>
@@ -767,6 +771,30 @@
     <script>
       const apiBase = "http://localhost:8080";
       let selectedAgent = null;
+
+      async function copyToClipboard(elementId, btn) {
+        const element = document.getElementById(elementId);
+        const text = element.innerText || element.textContent;
+        try {
+          await navigator.clipboard.writeText(text);
+          if (btn._copyTimeout) clearTimeout(btn._copyTimeout);
+          const originalText = btn.getAttribute('data-original') || btn.innerText;
+          if (!btn.getAttribute('data-original')) btn.setAttribute('data-original', originalText);
+
+          btn.innerText = "Copied!";
+          btn.style.color = "var(--success)";
+          btn.style.borderColor = "var(--success)";
+
+          btn._copyTimeout = setTimeout(() => {
+            btn.innerText = originalText;
+            btn.style.color = "var(--text-muted)";
+            btn.style.borderColor = "var(--border)";
+            btn._copyTimeout = null;
+          }, 2000);
+        } catch (err) {
+          console.error("Failed to copy:", err);
+        }
+      }
 
       function escapeHTML(str) {
         if (!str) return '';
@@ -791,6 +819,9 @@
           updateDashboard(data);
 
           const status = document.getElementById("status-msg");
+          const now = new Date();
+          const timeStr = now.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' });
+          status.innerText = `Refreshed at ${timeStr}`;
           status.style.opacity = 1;
           setTimeout(() => (status.style.opacity = 0), 3000);
         } catch (error) {
@@ -861,24 +892,8 @@
       });
 
       async function copyStrategy() {
-        const strategy = document.getElementById("modal-content").innerText;
         const btn = document.getElementById("copy-strategy-btn");
-
-        try {
-          await navigator.clipboard.writeText(strategy);
-          const originalText = btn.innerText;
-          btn.innerText = "Copied!";
-          btn.style.color = "var(--success)";
-          btn.style.borderColor = "var(--success)";
-
-          setTimeout(() => {
-            btn.innerText = originalText;
-            btn.style.color = "var(--text-muted)";
-            btn.style.borderColor = "var(--border)";
-          }, 2000);
-        } catch (err) {
-          console.error("Failed to copy strategy:", err);
-        }
+        await copyToClipboard("modal-content", btn);
       }
 
       function updateDashboard(data) {
@@ -1197,20 +1212,34 @@
         }
       }
 
-      function refreshAutonomy() {
-        fetchTasks();
-        fetchCollabFeed();
-        fetchOperatorMessages();
-        fetchAutonomyStatus();
-        fetchPipelines();
-        fetchCampaigns();
-        fetchN8nWorkflows();
-        fetchTransparency();
-        fetchContentBriefs();
-        fetchGrants();
-        fetchPricingExperiments();
-        fetchAnomalies();
-        fetchWeeklyBrief();
+      async function refreshAutonomy() {
+        const btn = event && event.target && event.target.innerText === "Sync Autonomy" ? event.target : null;
+        if (btn) {
+          btn.innerText = "Syncing...";
+          btn.disabled = true;
+        }
+        try {
+          await Promise.all([
+            fetchTasks(),
+            fetchCollabFeed(),
+            fetchOperatorMessages(),
+            fetchAutonomyStatus(),
+            fetchPipelines(),
+            fetchCampaigns(),
+            fetchN8nWorkflows(),
+            fetchTransparency(),
+            fetchContentBriefs(),
+            fetchGrants(),
+            fetchPricingExperiments(),
+            fetchAnomalies(),
+            refreshWeeklyBrief()
+          ]);
+        } finally {
+          if (btn) {
+            btn.innerText = "Sync Autonomy";
+            btn.disabled = false;
+          }
+        }
       }
 
       async function fetchAutonomyStatus() {
@@ -1495,37 +1524,39 @@
         fetchPricingExperiments();
       }
 
+      async function runGenerator(btn, endpoint, payload) {
+        const originalText = btn.innerText;
+        btn.innerText = "Generating...";
+        btn.disabled = true;
+        try {
+          const response = await fetch(`${apiBase}/api/${endpoint}`, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify(payload)
+          });
+          const data = await response.json();
+          document.getElementById("generator-output").innerText = data.draft || "No draft returned.";
+        } catch (error) {
+          console.error("Generator failed:", error);
+        } finally {
+          btn.innerText = originalText;
+          btn.disabled = false;
+        }
+      }
+
       async function generateProposal() {
         const title = document.getElementById("generator-title").value.trim() || "Pilot Proposal";
-        const response = await fetch(`${apiBase}/api/proposals/draft`, {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ title })
-        });
-        const data = await response.json();
-        document.getElementById("generator-output").innerText = data.draft || "No draft returned.";
+        await runGenerator(event.target, "proposals/draft", { title });
       }
 
       async function generatePressPitch() {
         const angle = document.getElementById("generator-title").value.trim() || "Automation for harm reduction";
-        const response = await fetch(`${apiBase}/api/press/pitch`, {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ angle })
-        });
-        const data = await response.json();
-        document.getElementById("generator-output").innerText = data.draft || "No pitch returned.";
+        await runGenerator(event.target, "press/pitch", { angle });
       }
 
       async function generateVideoScript() {
         const topic = document.getElementById("generator-title").value.trim() || "NarcoGuard demo";
-        const response = await fetch(`${apiBase}/api/video/script`, {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ topic, length_sec: 90 })
-        });
-        const data = await response.json();
-        document.getElementById("generator-output").innerText = data.draft || "No script returned.";
+        await runGenerator(event.target, "video/script", { topic, length_sec: 90 });
       }
 
       async function fetchAnomalies() {
@@ -1550,14 +1581,23 @@
           .join("");
       }
 
-      async function fetchWeeklyBrief() {
+      async function refreshWeeklyBrief() {
+        const btn = event && event.target && event.target.innerText === "Refresh Brief" ? event.target : null;
+        if (btn) {
+          btn.innerText = "Refreshing...";
+          btn.disabled = true;
+        }
         try {
           const response = await fetch(`${apiBase}/api/weekly/brief`);
           const data = await response.json();
-          // Using textContent for safety, though it was already using innerText
           document.getElementById("weekly-brief").textContent = data.summary || "No summary.";
         } catch (error) {
           console.error("Failed to fetch weekly brief:", error);
+        } finally {
+          if (btn) {
+            btn.innerText = "Refresh Brief";
+            btn.disabled = false;
+          }
         }
       }
 
@@ -1603,7 +1643,7 @@
       setInterval(fetchGrants, 90000);
       setInterval(fetchPricingExperiments, 90000);
       setInterval(fetchAnomalies, 90000);
-      setInterval(fetchWeeklyBrief, 120000);
+      setInterval(refreshWeeklyBrief, 120000);
       fetchLeads();
       fetchWorkflows();
       fetchAgents();
@@ -1619,7 +1659,7 @@
       fetchGrants();
       fetchPricingExperiments();
       fetchAnomalies();
-      fetchWeeklyBrief();
+      refreshWeeklyBrief();
 
       if ("serviceWorker" in navigator) {
         window.addEventListener("load", () => {
