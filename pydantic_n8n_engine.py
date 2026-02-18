@@ -525,6 +525,38 @@ class PydanticN8NEngine:
                     return sum(values) / len(values) if values else 0
         
         return data
+
+    def _safe_eval(self, expression: str) -> Any:
+        """Safely evaluate mathematical expressions using AST to prevent RCE"""
+        import ast
+        import operator
+
+        # Whitelist of allowed operators for mathematical expressions
+        operators = {
+            ast.Add: operator.add, ast.Sub: operator.sub,
+            ast.Mult: operator.mul, ast.Div: operator.truediv,
+            ast.Pow: operator.pow, ast.BitXor: operator.xor,
+            ast.USub: operator.neg, ast.UAdd: operator.pos
+        }
+
+        def eval_node(node):
+            if isinstance(node, ast.Constant) and isinstance(node.value, (int, float)):
+                return node.value
+            elif isinstance(node, ast.Num):  # Compatibility for older Python versions
+                return node.n
+            elif isinstance(node, ast.BinOp):
+                return operators[type(node.op)](eval_node(node.left), eval_node(node.right))
+            elif isinstance(node, ast.UnaryOp):
+                return operators[type(node.op)](eval_node(node.operand))
+            else:
+                raise TypeError(f"Unsupported node type: {type(node).__name__}")
+
+        try:
+            tree = ast.parse(expression, mode='eval')
+            return eval_node(tree.body)
+        except Exception as e:
+            logger.error(f"Safe eval failed for expression: {expression}", error=str(e))
+            raise ValueError(f"Unsafe or invalid expression: {str(e)}")
     
     def _register_builtin_tasks(self):
         """Register built-in task functions"""
@@ -559,11 +591,11 @@ class PydanticN8NEngine:
         return {'current_time': datetime.now().strftime(format_str)}
     
     async def _calculate_task(self, **kwargs) -> Dict[str, Any]:
-        """Built-in calculation task"""
+        """Built-in calculation task with security-focused safe evaluation"""
         expression = kwargs.get('expression', '0')
         try:
-            # Simple calculation (could be enhanced with proper expression parser)
-            result = eval(expression)
+            # Use safe_eval instead of raw eval() to prevent RCE
+            result = self._safe_eval(expression)
             return {'result': result, 'expression': expression}
         except Exception as e:
             return {'error': str(e), 'expression': expression}
