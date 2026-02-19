@@ -732,6 +732,9 @@
               <button class="btn" onclick="generateVideoScript()">Video Script</button>
             </div>
             <div id="generator-output" class="generator-output">Generator output will appear here.</div>
+            <div class="prompt-row" style="margin-top: 10px;">
+              <button class="btn" aria-label="Copy generated output" style="background: transparent; color: var(--text-muted); border: 1px solid var(--border); font-size: 0.8rem;" onclick="copyToClipboard('generator-output', this)">Copy Output</button>
+            </div>
           </div>
           <div class="panel">
             <h3>KPI Anomalies</h3>
@@ -747,6 +750,7 @@
             <div id="weekly-brief" class="generator-output">No brief yet.</div>
             <div class="prompt-row">
               <button class="btn" onclick="refreshWeeklyBrief()">Refresh Brief</button>
+              <button class="btn" aria-label="Copy weekly brief" style="background: transparent; color: var(--text-muted); border: 1px solid var(--border); font-size: 0.8rem;" onclick="copyToClipboard('weekly-brief', this)">Copy Brief</button>
             </div>
           </div>
         </div>
@@ -860,25 +864,27 @@
         }
       });
 
-      async function copyStrategy() {
-        const strategy = document.getElementById("modal-content").innerText;
-        const btn = document.getElementById("copy-strategy-btn");
-
+      async function copyToClipboard(elementId, btn) {
+        const content = document.getElementById(elementId).innerText || document.getElementById(elementId).textContent;
         try {
-          await navigator.clipboard.writeText(strategy);
+          await navigator.clipboard.writeText(content);
           const originalText = btn.innerText;
           btn.innerText = "Copied!";
           btn.style.color = "var(--success)";
           btn.style.borderColor = "var(--success)";
-
-          setTimeout(() => {
+          if (btn._copyTimeout) clearTimeout(btn._copyTimeout);
+          btn._copyTimeout = setTimeout(() => {
             btn.innerText = originalText;
-            btn.style.color = "var(--text-muted)";
-            btn.style.borderColor = "var(--border)";
+            btn.style.color = "";
+            btn.style.borderColor = "";
           }, 2000);
         } catch (err) {
-          console.error("Failed to copy strategy:", err);
+          console.error("Failed to copy:", err);
         }
+      }
+
+      async function copyStrategy() {
+        await copyToClipboard("modal-content", document.getElementById("copy-strategy-btn"));
       }
 
       function updateDashboard(data) {
