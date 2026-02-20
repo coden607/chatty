@@ -5,3 +5,7 @@
 ## 2026-02-05 - [Interactive Dashboard Polish]
 **Learning:** For multi-panel dashboards, a delegated 'Enter' key listener targeting the panel's primary button significantly reduces friction for power users. Additionally, providing 'Refreshing...' state on the primary refresh button prevents redundant clicks and confirms the system is active.
 **Action:** Implement delegated 'Enter' key handlers in complex command interfaces and always disable/label-swap async trigger buttons during network requests using a `finally` block for resilience.
+
+## 2026-02-12 - [Robust Clipboard Feedback]
+**Learning:** Simple clipboard feedback (label swap) can become stuck if the user clicks the button multiple times within the timeout window, as the 'original text' might be captured as the feedback state ('Copied!').
+**Action:** Use a persistent `_originalText` property on the button element to store the label during the first click and ensure it is only cleared after the timeout reverts the text. This prevents state-sticking during rapid interactions.

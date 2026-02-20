@@ -732,6 +732,9 @@
               <button class="btn" onclick="generateVideoScript()">Video Script</button>
             </div>
             <div id="generator-output" class="generator-output">Generator output will appear here.</div>
+            <div class="prompt-row" style="margin-top: 12px;">
+              <button class="btn" style="background: transparent; color: var(--text-muted); border: 1px solid var(--border);" aria-label="Copy generated output" onclick="copyToClipboard('generator-output', this)">Copy Output</button>
+            </div>
           </div>
           <div class="panel">
             <h3>KPI Anomalies</h3>
@@ -739,14 +742,14 @@
               <div class="log-entry">No anomalies detected.</div>
             </div>
             <div class="prompt-row">
-              <button class="btn" onclick="refreshAnomalies()">Refresh</button>
+              <button class="btn" onclick="refreshAnomalies(this)">Refresh</button>
             </div>
           </div>
           <div class="panel">
             <h3>Weekly Brief</h3>
             <div id="weekly-brief" class="generator-output">No brief yet.</div>
             <div class="prompt-row">
-              <button class="btn" onclick="refreshWeeklyBrief()">Refresh Brief</button>
+              <button class="btn" onclick="refreshWeeklyBrief(this)">Refresh Brief</button>
             </div>
           </div>
         </div>
@@ -860,25 +863,26 @@
         }
       });
 
-      async function copyStrategy() {
-        const strategy = document.getElementById("modal-content").innerText;
-        const btn = document.getElementById("copy-strategy-btn");
-
+      async function copyToClipboard(elementId, btn) {
+        const el = document.getElementById(elementId);
+        const text = el.innerText || el.textContent;
         try {
-          await navigator.clipboard.writeText(strategy);
-          const originalText = btn.innerText;
+          await navigator.clipboard.writeText(text);
+          if (!btn._originalText) btn._originalText = btn.innerText;
           btn.innerText = "Copied!";
           btn.style.color = "var(--success)";
           btn.style.borderColor = "var(--success)";
-
-          setTimeout(() => {
-            btn.innerText = originalText;
-            btn.style.color = "var(--text-muted)";
-            btn.style.borderColor = "var(--border)";
+          if (btn._copyTimeout) clearTimeout(btn._copyTimeout);
+          btn._copyTimeout = setTimeout(() => {
+            btn.innerText = btn._originalText;
+            btn.style.color = ""; btn.style.borderColor = "";
+            btn._copyTimeout = btn._originalText = null;
           }, 2000);
-        } catch (err) {
-          console.error("Failed to copy strategy:", err);
-        }
+        } catch (err) { console.error("Copy failed:", err); }
+      }
+
+      async function copyStrategy() {
+        await copyToClipboard("modal-content", document.getElementById("copy-strategy-btn"));
       }
 
       function updateDashboard(data) {
@@ -1528,6 +1532,11 @@
         document.getElementById("generator-output").innerText = data.draft || "No script returned.";
       }
 
+      async function refreshAnomalies(btn) {
+        btn.disabled = true; const t = btn.innerText; btn.innerText = "Refreshing...";
+        try { await fetchAnomalies(); } finally { btn.disabled = false; btn.innerText = t; }
+      }
+
       async function fetchAnomalies() {
         try {
           const response = await fetch(`${apiBase}/api/kpi/anomalies`);
@@ -1548,6 +1557,11 @@
           .slice(0, 6)
           .map((item) => `<div class="log-entry"><strong>${escapeHTML(item.metric)}</strong><br>${escapeHTML(item.value)} vs ${escapeHTML(item.baseline)}</div>`)
           .join("");
+      }
+
+      async function refreshWeeklyBrief(btn) {
+        btn.disabled = true; const t = btn.innerText; btn.innerText = "Refreshing...";
+        try { await fetchWeeklyBrief(); } finally { btn.disabled = false; btn.innerText = t; }
       }
 
       async function fetchWeeklyBrief() {
