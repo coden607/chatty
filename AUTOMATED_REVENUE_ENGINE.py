@@ -24,23 +24,17 @@ _secrets_file = os.getenv("CHATTY_SECRETS_FILE")
 if _secrets_file:
     load_dotenv(os.path.expanduser(_secrets_file), override=False)
 
-# Delayed imports for slow external SDKs
-stripe = None
-anthropic = None
-SendGridAPIClient = None
-Mail = None
+# Heavy SDK imports moved to module level to reduce request-time latency
+print("⏳ Loading Financial & AI SDKs (Stripe, Anthropic, SendGrid)...")
+import stripe
+import anthropic
+from sendgrid import SendGridAPIClient
+from sendgrid.helpers.mail import Mail
+print("✅ Financial SDKs Loaded")
 
 def _lazy_import_revenue():
-    global stripe, anthropic, SendGridAPIClient, Mail
-    if stripe is not None:
-        return
-    
-    print("⏳ Loading Financial & AI SDKs (Stripe, Anthropic)...")
-    import stripe
-    import anthropic
-    from sendgrid import SendGridAPIClient
-    from sendgrid.helpers.mail import Mail
-    print("✅ Financial SDKs Loaded")
+    """Deprecated: SDKs are now loaded at module level for performance."""
+    pass
 
 logging.basicConfig(level=logging.DEBUG, format='%(asctime)s - %(name)s - %(levelname)s - %(message)s')
 logger = logging.getLogger(__name__)
@@ -49,7 +43,6 @@ class AutomatedRevenueEngine:
     """Fully automated revenue generation engine"""
 
     def __init__(self):
-        _lazy_import_revenue()
         self.is_running = False
         self.revenue_streams = {}
         self.api_integrations = {}
