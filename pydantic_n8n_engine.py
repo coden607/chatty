@@ -558,12 +558,46 @@ class PydanticN8NEngine:
         format_str = kwargs.get('format', '%Y-%m-%d %H:%M:%S')
         return {'current_time': datetime.now().strftime(format_str)}
     
+    def _safe_eval(self, expr: str):
+        """Safely evaluate a mathematical expression using AST."""
+        import ast
+        import operator
+
+        # Supported operators
+        operators = {
+            ast.Add: operator.add,
+            ast.Sub: operator.sub,
+            ast.Mult: operator.mul,
+            ast.Div: operator.truediv,
+            ast.Pow: operator.pow,
+            ast.BitXor: operator.xor,
+            ast.USub: operator.neg,
+        }
+
+        def eval_node(node):
+            if isinstance(node, ast.Num):  # <3.8
+                return node.n
+            elif isinstance(node, ast.Constant):  # >=3.8
+                return node.value
+            elif isinstance(node, ast.BinOp):
+                return operators[type(node.op)](eval_node(node.left), eval_node(node.right))
+            elif isinstance(node, ast.UnaryOp):
+                return operators[type(node.op)](eval_node(node.operand))
+            else:
+                raise TypeError(f"Unsupported node type: {type(node)}")
+
+        try:
+            tree = ast.parse(expr, mode='eval')
+            return eval_node(tree.body)
+        except Exception as e:
+            raise ValueError(f"Safe eval failed: {str(e)}")
+
     async def _calculate_task(self, **kwargs) -> Dict[str, Any]:
         """Built-in calculation task"""
         expression = kwargs.get('expression', '0')
         try:
-            # Simple calculation (could be enhanced with proper expression parser)
-            result = eval(expression)
+            # Safely evaluate mathematical expression
+            result = self._safe_eval(str(expression))
             return {'result': result, 'expression': expression}
         except Exception as e:
             return {'error': str(e), 'expression': expression}
