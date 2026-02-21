@@ -10,6 +10,7 @@ from fastapi.responses import FileResponse
 from pydantic import BaseModel
 from typing import Dict, List, Any, Optional
 import asyncio
+import time
 import logging
 from datetime import datetime
 import json
@@ -18,6 +19,7 @@ import re
 from pathlib import Path
 from leads_storage import get_all_leads, add_lead
 from dotenv import load_dotenv
+from AUTOMATED_REVENUE_ENGINE import revenue_engine
 
 load_dotenv(".env", override=False)
 _secrets_file = os.getenv("CHATTY_SECRETS_FILE")
@@ -203,6 +205,8 @@ trend_state = {
     "items": [],
     "sources": []
 }
+_last_trend_mtime = 0
+_last_trend_file = None
 
 okr_state = {
     "current_cycle": "Q1",
@@ -217,6 +221,12 @@ pricing_experiments: List[Dict[str, Any]] = []
 crm_notes: List[Dict[str, Any]] = []
 metrics_history: List[Dict[str, Any]] = []
 anomaly_log: List[Dict[str, Any]] = []
+
+# Weekly brief cache state
+_brief_cache: Optional[Dict[str, Any]] = None
+_brief_cache_time: float = 0
+_brief_cache_lock = asyncio.Lock()
+
 VIRAL_DIR = Path("generated_content/viral")
 VIRAL_LOG = VIRAL_DIR / "experiment_history.jsonl"
 INVESTOR_DIR = Path("generated_content/investor")
@@ -382,6 +392,8 @@ def _record_learning(outcome: str, score: float, notes: str = "") -> None:
     learning_log[:] = learning_log[:60]
 
 def _refresh_trends() -> None:
+    """Refresh trends from disk with mtime-based caching"""
+    global _last_trend_mtime, _last_trend_file
     os.makedirs(TREND_DIR, exist_ok=True)
     trend_files = sorted(
         (f for f in os.listdir(TREND_DIR) if f.endswith(".json")),
@@ -390,12 +402,21 @@ def _refresh_trends() -> None:
     if not trend_files:
         return
     latest_path = os.path.join(TREND_DIR, trend_files[0])
+
     try:
+        # Check if the file has changed since last refresh
+        current_mtime = os.path.getmtime(latest_path)
+        if latest_path == _last_trend_file and current_mtime <= _last_trend_mtime:
+            return
+
         with open(latest_path, "r", encoding="ascii") as handle:
             payload = json.load(handle)
         trend_state["items"] = payload.get("items", [])[:25]
         trend_state["sources"] = payload.get("sources", [])[:10]
         trend_state["last_refresh"] = datetime.now().isoformat()
+
+        _last_trend_mtime = current_mtime
+        _last_trend_file = latest_path
     except (json.JSONDecodeError, OSError):
         return
 
@@ -1412,7 +1433,6 @@ async def pilot_calc(payload: PilotCalcRequest):
 async def draft_proposal(payload: DraftRequest):
     """Generate a proposal draft"""
     try:
-        from AUTOMATED_REVENUE_ENGINE import revenue_engine
         system_prompt = "You are a professional grant writer and business developer for NarcoGuard."
         user_prompt = f"""Write a comprehensive proposal draft for: {payload.title}
         
@@ -1437,7 +1457,6 @@ async def draft_proposal(payload: DraftRequest):
 async def investor_weekly(payload: DraftRequest):
     """Generate an investor weekly update draft"""
     try:
-        from AUTOMATED_REVENUE_ENGINE import revenue_engine
         system_prompt = "You are the founder of NarcoGuard writing a weekly update to investors."
         user_prompt = f"""Write a weekly investor update for: {payload.title}
         
@@ -1461,7 +1480,6 @@ async def investor_weekly(payload: DraftRequest):
 async def investor_narrative(payload: DraftRequest):
     """Generate a narrative refresh draft"""
     try:
-        from AUTOMATED_REVENUE_ENGINE import revenue_engine
         system_prompt = "You are a strategic communications expert for a MedTech startup."
         user_prompt = f"""Refine the core investor narrative for: {payload.title}
         
@@ -1499,7 +1517,6 @@ async def data_room_checklist():
 async def press_pitch(payload: PressPitchRequest):
     """Generate a press pitch"""
     try:
-        from AUTOMATED_REVENUE_ENGINE import revenue_engine
         system_prompt = "You are a PR specialist for NarcoGuard."
         user_prompt = f"""Write a compelling press pitch for: {payload.outlet or 'Tech Media'}
         
@@ -1523,7 +1540,6 @@ async def press_pitch(payload: PressPitchRequest):
 async def video_script(payload: VideoScriptRequest):
     """Generate a short video script"""
     try:
-        from AUTOMATED_REVENUE_ENGINE import revenue_engine
         system_prompt = "You are a video producer for social media content."
         user_prompt = f"""Write a video script ({payload.length_sec or 90} seconds) about: {payload.topic}
         
@@ -1543,7 +1559,6 @@ async def video_script(payload: VideoScriptRequest):
 async def partner_brief(payload: PartnerBriefRequest):
     """Generate a partner outreach brief"""
     try:
-        from AUTOMATED_REVENUE_ENGINE import revenue_engine
         system_prompt = "You are a partnership director for a health tech company."
         user_prompt = f"""Write a partnership proposal brief for: {payload.partner_type}
         
@@ -1601,43 +1616,50 @@ async def get_kpi_anomalies():
 
 @app.get("/api/weekly/brief")
 async def weekly_brief():
-    """Get weekly summary brief"""
-    completed = transparency_log[:15] # Fetch more logs for context
-    events = collab_feed[:15]
+    """Get weekly summary brief with 120-second in-memory cache"""
+    global _brief_cache, _brief_cache_time
     
-    try:
-        from AUTOMATED_REVENUE_ENGINE import revenue_engine
-        
-        # Prepare context for AI
-        logs_text = "\n".join([f"- {acc.get('action')}: {acc.get('result')} ({acc.get('details')})" for acc in completed])
-        events_text = "\n".join([f"- {evt.get('agent')}: {evt.get('event')} - {evt.get('detail')}" for evt in events])
-        
-        system_prompt = "You are the Chief of Staff for a fully autonomous company."
-        user_prompt = f"""Generate a concise, 1-sentence strategic summary of the recent system activity.
-        
-        Recent Actions:
-        {logs_text}
-        
-        Collaboration Events:
-        {events_text}
-        
-        Focus on progress, autonomy, and key wins. If logs are empty, state that the system is initializing."""
-        
-        summary = await revenue_engine.generate_ai_content(system_prompt, user_prompt)
-        # Keep it brief if AI rambles
-        if len(summary) > 200:
-            summary = summary[:197] + "..."
-            
-    except Exception as e:
-        logger.error(f"Weekly brief AI generation failed: {e}")
-        summary = "Autonomy progressing. (AI Summary temporarily unavailable)"
+    async with _brief_cache_lock:
+        now = time.time()
+        # Return cached response if valid (120s TTL)
+        if _brief_cache and (now - _brief_cache_time < 120):
+            return _brief_cache
 
-    body = {
-        "completed": completed[:6], # Return fewer items to UI
-        "events": events[:6],
-        "summary": summary
-    }
-    return body
+        completed = transparency_log[:15] # Fetch more logs for context
+        events = collab_feed[:15]
+        
+        try:
+            # Prepare context for AI
+            logs_text = "\n".join([f"- {acc.get('action')}: {acc.get('result')} ({acc.get('details')})" for acc in completed])
+            events_text = "\n".join([f"- {evt.get('agent')}: {evt.get('event')} - {evt.get('detail')}" for evt in events])
+            
+            system_prompt = "You are the Chief of Staff for a fully autonomous company."
+            user_prompt = f"""Generate a concise, 1-sentence strategic summary of the recent system activity.
+
+            Recent Actions:
+            {logs_text}
+
+            Collaboration Events:
+            {events_text}
+
+            Focus on progress, autonomy, and key wins. If logs are empty, state that the system is initializing."""
+
+            summary = await revenue_engine.generate_ai_content(system_prompt, user_prompt)
+            # Keep it brief if AI rambles
+            if len(summary) > 200:
+                summary = summary[:197] + "..."
+
+        except Exception as e:
+            logger.error(f"Weekly brief AI generation failed: {e}")
+            summary = "Autonomy progressing. (AI Summary temporarily unavailable)"
+
+        _brief_cache = {
+            "completed": completed[:6], # Return fewer items to UI
+            "events": events[:6],
+            "summary": summary
+        }
+        _brief_cache_time = now
+        return _brief_cache
 
 @app.get("/api/tasks")
 async def get_tasks():
