@@ -575,7 +575,7 @@
       <div class="lead-section" style="margin-top: 32px;">
         <div class="section-header">
           <h2>Autonomy Control + Collaboration</h2>
-          <button class="btn" onclick="refreshAutonomy()">Sync Autonomy</button>
+          <button class="btn" onclick="refreshAutonomy(this)">Sync Autonomy</button>
         </div>
         <div class="command-grid">
           <div class="panel">
@@ -727,11 +727,14 @@
             <h3>Generators</h3>
             <input id="generator-title" aria-label="Generator title or topic" class="prompt-textarea" placeholder="Title / Topic" />
             <div class="prompt-row">
-              <button class="btn" onclick="generateProposal()">Proposal Draft</button>
-              <button class="btn" onclick="generatePressPitch()">Press Pitch</button>
-              <button class="btn" onclick="generateVideoScript()">Video Script</button>
+              <button class="btn" onclick="generateAI('proposal', this)">Proposal Draft</button>
+              <button class="btn" onclick="generateAI('pitch', this)">Press Pitch</button>
+              <button class="btn" onclick="generateAI('video', this)">Video Script</button>
             </div>
-            <div id="generator-output" class="generator-output">Generator output will appear here.</div>
+            <div id="generator-output" class="generator-output" aria-live="polite">Generator output will appear here.</div>
+            <div class="prompt-row" style="margin-top: 10px; justify-content: flex-end;">
+              <button class="btn" style="background: transparent; color: var(--text-muted); border: 1px solid var(--border); font-size: 0.8rem;" onclick="copyToClipboard('generator-output', this)">Copy Output</button>
+            </div>
           </div>
           <div class="panel">
             <h3>KPI Anomalies</h3>
@@ -739,14 +742,15 @@
               <div class="log-entry">No anomalies detected.</div>
             </div>
             <div class="prompt-row">
-              <button class="btn" onclick="refreshAnomalies()">Refresh</button>
+              <button class="btn" onclick="refreshAnomalies(this)">Refresh</button>
             </div>
           </div>
           <div class="panel">
             <h3>Weekly Brief</h3>
-            <div id="weekly-brief" class="generator-output">No brief yet.</div>
+            <div id="weekly-brief" class="generator-output" aria-live="polite">No brief yet.</div>
             <div class="prompt-row">
-              <button class="btn" onclick="refreshWeeklyBrief()">Refresh Brief</button>
+              <button class="btn" onclick="refreshWeeklyBrief(this)">Refresh Brief</button>
+              <button class="btn" style="background: transparent; color: var(--text-muted); border: 1px solid var(--border); font-size: 0.8rem;" onclick="copyToClipboard('weekly-brief', this)">Copy Brief</button>
             </div>
           </div>
         </div>
@@ -758,7 +762,7 @@
             <h2 id="modal-title" style="margin-bottom: 20px; background: linear-gradient(to right, var(--primary), var(--secondary)); background-clip: text; -webkit-background-clip: text; -webkit-text-fill-color: transparent;">AI Conversion Strategy</h2>
             <div id="modal-content" style="white-space: pre-wrap; line-height: 1.6; color: var(--text);"></div>
             <div style="margin-top: 30px; display: flex; justify-content: flex-end;">
-              <button id="copy-strategy-btn" class="btn" style="background: transparent; color: var(--text-muted); border: 1px solid var(--border);" onclick="copyStrategy()">Copy Strategy</button>
+              <button id="copy-strategy-btn" class="btn" style="background: transparent; color: var(--text-muted); border: 1px solid var(--border);" onclick="copyToClipboard('modal-content', this)">Copy Strategy</button>
             </div>
         </div>
       </div>
@@ -860,25 +864,23 @@
         }
       });
 
-      async function copyStrategy() {
-        const strategy = document.getElementById("modal-content").innerText;
-        const btn = document.getElementById("copy-strategy-btn");
-
+      async function copyToClipboard(elementId, btn) {
+        const content = document.getElementById(elementId).innerText;
+        if (!content) return;
         try {
-          await navigator.clipboard.writeText(strategy);
-          const originalText = btn.innerText;
+          await navigator.clipboard.writeText(content);
+          if (btn._timeout) clearTimeout(btn._timeout);
+          const originalText = btn._originalText || btn.innerText;
+          btn._originalText = originalText;
           btn.innerText = "Copied!";
           btn.style.color = "var(--success)";
           btn.style.borderColor = "var(--success)";
-
-          setTimeout(() => {
+          btn._timeout = setTimeout(() => {
             btn.innerText = originalText;
-            btn.style.color = "var(--text-muted)";
-            btn.style.borderColor = "var(--border)";
+            btn.style.color = "";
+            btn.style.borderColor = "";
           }, 2000);
-        } catch (err) {
-          console.error("Failed to copy strategy:", err);
-        }
+        } catch (err) { console.error("Copy failed:", err); }
       }
 
       function updateDashboard(data) {
@@ -1197,20 +1199,20 @@
         }
       }
 
-      function refreshAutonomy() {
-        fetchTasks();
-        fetchCollabFeed();
-        fetchOperatorMessages();
-        fetchAutonomyStatus();
-        fetchPipelines();
-        fetchCampaigns();
-        fetchN8nWorkflows();
-        fetchTransparency();
-        fetchContentBriefs();
-        fetchGrants();
-        fetchPricingExperiments();
-        fetchAnomalies();
-        fetchWeeklyBrief();
+      async function refreshAutonomy(btn) {
+        const originalText = btn.innerText;
+        btn.innerText = "Syncing..."; btn.disabled = true;
+        try {
+          await Promise.all([
+            fetchTasks(), fetchCollabFeed(), fetchOperatorMessages(),
+            fetchAutonomyStatus(), fetchPipelines(), fetchCampaigns(),
+            fetchN8nWorkflows(), fetchTransparency(), fetchContentBriefs(),
+            fetchGrants(), fetchPricingExperiments(), fetchAnomalies(),
+            fetchWeeklyBrief()
+          ]);
+        } finally {
+          btn.innerText = originalText; btn.disabled = false;
+        }
       }
 
       async function fetchAutonomyStatus() {
@@ -1495,37 +1497,43 @@
         fetchPricingExperiments();
       }
 
-      async function generateProposal() {
-        const title = document.getElementById("generator-title").value.trim() || "Pilot Proposal";
-        const response = await fetch(`${apiBase}/api/proposals/draft`, {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ title })
-        });
-        const data = await response.json();
-        document.getElementById("generator-output").innerText = data.draft || "No draft returned.";
+      async function generateAI(type, btn) {
+        const title = document.getElementById("generator-title").value.trim() || "NarcoGuard Project";
+        const originalText = btn.innerText;
+        btn.innerText = "Generating..."; btn.disabled = true;
+        try {
+          const configs = {
+            proposal: { path: 'proposals/draft', body: { title }, error: "No draft returned." },
+            pitch: { path: 'press/pitch', body: { angle: title }, error: "No pitch returned." },
+            video: { path: 'video/script', body: { topic: title, length_sec: 90 }, error: "No script returned." }
+          };
+          const { path, body, error } = configs[type];
+          const response = await fetch(`${apiBase}/api/${path}`, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify(body)
+          });
+          const data = await response.json();
+          document.getElementById("generator-output").innerText = data.draft || error;
+        } catch (error) {
+          document.getElementById("generator-output").innerText = "Error generating content.";
+        } finally {
+          btn.innerText = originalText; btn.disabled = false;
+        }
       }
 
-      async function generatePressPitch() {
-        const angle = document.getElementById("generator-title").value.trim() || "Automation for harm reduction";
-        const response = await fetch(`${apiBase}/api/press/pitch`, {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ angle })
-        });
-        const data = await response.json();
-        document.getElementById("generator-output").innerText = data.draft || "No pitch returned.";
+      async function refreshWeeklyBrief(btn) {
+        const originalText = btn.innerText;
+        btn.innerText = "Refreshing..."; btn.disabled = true;
+        try { await fetchWeeklyBrief(); }
+        finally { btn.innerText = originalText; btn.disabled = false; }
       }
 
-      async function generateVideoScript() {
-        const topic = document.getElementById("generator-title").value.trim() || "NarcoGuard demo";
-        const response = await fetch(`${apiBase}/api/video/script`, {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ topic, length_sec: 90 })
-        });
-        const data = await response.json();
-        document.getElementById("generator-output").innerText = data.draft || "No script returned.";
+      async function refreshAnomalies(btn) {
+        const originalText = btn.innerText;
+        btn.innerText = "Refreshing..."; btn.disabled = true;
+        try { await fetchAnomalies(); }
+        finally { btn.innerText = originalText; btn.disabled = false; }
       }
 
       async function fetchAnomalies() {
