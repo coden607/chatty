@@ -5,3 +5,7 @@
 ## 2026-02-03 - [Optimize JSON storage with mtime-based caching]
 **Learning:** For disk-based JSON storage, using `os.path.getmtime` to validate an in-memory cache provides a massive performance boost (~37x in this case) with minimal complexity and high reliability.
 **Action:** Always check for redundant file I/O in frequently called data retrieval functions and implement mtime-based caching.
+
+## 2025-05-14 - [Cache expensive AI summary calls]
+**Learning:** Endpoints that trigger AI content generation (like weekly briefs) can take 5-30 seconds per request, creating a massive bottleneck and unnecessary cost if polled frequently by a dashboard.
+**Action:** Implement in-memory caching with a reasonable TTL (e.g., 120s) and use an asyncio.Lock to prevent race conditions where multiple requests trigger simultaneous AI calls for the same data.
