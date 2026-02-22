@@ -11,6 +11,8 @@ import asyncio
 import logging
 import re
 import uuid
+import ast
+import operator
 from datetime import datetime, timedelta
 from typing import Dict, List, Any, Optional, Tuple, Union
 from pathlib import Path
@@ -557,13 +559,49 @@ class PydanticN8NEngine:
         """Built-in time retrieval task"""
         format_str = kwargs.get('format', '%Y-%m-%d %H:%M:%S')
         return {'current_time': datetime.now().strftime(format_str)}
-    
+
+    def _safe_eval(self, expression: str):
+        """
+        Safely evaluate a mathematical expression using AST.
+        Only allows basic math operators and numeric constants.
+        """
+        operators = {
+            ast.Add: operator.add,
+            ast.Sub: operator.sub,
+            ast.Mult: operator.mul,
+            ast.Div: operator.truediv,
+            ast.BitXor: operator.xor,
+            ast.USub: operator.neg,
+        }
+
+        def eval_node(node):
+            if isinstance(node, ast.Num):  # < 3.8
+                return node.n
+            elif isinstance(node, ast.Constant):  # >= 3.8
+                if not isinstance(node.value, (int, float)):
+                    raise TypeError(f"Only numeric constants allowed, not {type(node.value)}")
+                return node.value
+            elif isinstance(node, ast.BinOp):
+                if type(node.op) not in operators:
+                    raise TypeError(f"Unsupported operator: {type(node.op)}")
+                return operators[type(node.op)](eval_node(node.left), eval_node(node.right))
+            elif isinstance(node, ast.UnaryOp):
+                return operators[type(node.op)](eval_node(node.operand))
+            else:
+                raise TypeError(f"Unsupported expression node: {type(node)}")
+
+        try:
+            tree = ast.parse(expression, mode='eval')
+            return eval_node(tree.body)
+        except Exception as e:
+            raise ValueError(f"Invalid or unsafe expression: {e}")
+
     async def _calculate_task(self, **kwargs) -> Dict[str, Any]:
         """Built-in calculation task"""
         expression = kwargs.get('expression', '0')
         try:
-            # Simple calculation (could be enhanced with proper expression parser)
-            result = eval(expression)
+            # Safely evaluate math expression instead of using raw eval()
+            result = self._safe_eval(expression)
             return {'result': result, 'expression': expression}
         except Exception as e:
             return {'error': str(e), 'expression': expression}
