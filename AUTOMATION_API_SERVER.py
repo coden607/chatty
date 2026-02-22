@@ -11,6 +11,7 @@ from pydantic import BaseModel
 from typing import Dict, List, Any, Optional
 import asyncio
 import logging
+import time
 from datetime import datetime
 import json
 import os
@@ -217,6 +218,12 @@ pricing_experiments: List[Dict[str, Any]] = []
 crm_notes: List[Dict[str, Any]] = []
 metrics_history: List[Dict[str, Any]] = []
 anomaly_log: List[Dict[str, Any]] = []
+
+# Cache for expensive weekly brief AI generation (120s TTL)
+_weekly_brief_cache: Optional[Dict[str, Any]] = None
+_weekly_brief_expires: float = 0
+_weekly_brief_lock = asyncio.Lock()
+
 VIRAL_DIR = Path("generated_content/viral")
 VIRAL_LOG = VIRAL_DIR / "experiment_history.jsonl"
 INVESTOR_DIR = Path("generated_content/investor")
@@ -1601,43 +1608,63 @@ async def get_kpi_anomalies():
 
 @app.get("/api/weekly/brief")
 async def weekly_brief():
-    """Get weekly summary brief"""
-    completed = transparency_log[:15] # Fetch more logs for context
-    events = collab_feed[:15]
+    """Get weekly summary brief (with 120s in-memory caching)"""
+    global _weekly_brief_cache, _weekly_brief_expires
     
-    try:
-        from AUTOMATED_REVENUE_ENGINE import revenue_engine
-        
-        # Prepare context for AI
-        logs_text = "\n".join([f"- {acc.get('action')}: {acc.get('result')} ({acc.get('details')})" for acc in completed])
-        events_text = "\n".join([f"- {evt.get('agent')}: {evt.get('event')} - {evt.get('detail')}" for evt in events])
-        
-        system_prompt = "You are the Chief of Staff for a fully autonomous company."
-        user_prompt = f"""Generate a concise, 1-sentence strategic summary of the recent system activity.
-        
-        Recent Actions:
-        {logs_text}
-        
-        Collaboration Events:
-        {events_text}
-        
-        Focus on progress, autonomy, and key wins. If logs are empty, state that the system is initializing."""
-        
-        summary = await revenue_engine.generate_ai_content(system_prompt, user_prompt)
-        # Keep it brief if AI rambles
-        if len(summary) > 200:
-            summary = summary[:197] + "..."
-            
-    except Exception as e:
-        logger.error(f"Weekly brief AI generation failed: {e}")
-        summary = "Autonomy progressing. (AI Summary temporarily unavailable)"
+    # ⚡ Performance: Return cached result if valid to avoid expensive AI call
+    now = time.time()
+    if _weekly_brief_cache and now < _weekly_brief_expires:
+        logger.info("⚡ Weekly brief served from cache")
+        return _weekly_brief_cache
 
-    body = {
-        "completed": completed[:6], # Return fewer items to UI
-        "events": events[:6],
-        "summary": summary
-    }
-    return body
+    # ⚡ Performance: Use lock to ensure only one AI call is made for the brief
+    async with _weekly_brief_lock:
+        # Double-check after acquiring lock
+        if _weekly_brief_cache and time.time() < _weekly_brief_expires:
+            return _weekly_brief_cache
+
+        completed = transparency_log[:15] # Fetch more logs for context
+        events = collab_feed[:15]
+        
+        try:
+            from AUTOMATED_REVENUE_ENGINE import revenue_engine
+            
+            # Prepare context for AI
+            logs_text = "\n".join([f"- {acc.get('action')}: {acc.get('result')} ({acc.get('details')})" for acc in completed])
+            events_text = "\n".join([f"- {evt.get('agent')}: {evt.get('event')} - {evt.get('detail')}" for evt in events])
+
+            system_prompt = "You are the Chief of Staff for a fully autonomous company."
+            user_prompt = f"""Generate a concise, 1-sentence strategic summary of the recent system activity.
+
+            Recent Actions:
+            {logs_text}
+
+            Collaboration Events:
+            {events_text}
+
+            Focus on progress, autonomy, and key wins. If logs are empty, state that the system is initializing."""
+
+            # This is the most expensive operation (can take 2-10 seconds)
+            summary = await revenue_engine.generate_ai_content(system_prompt, user_prompt)
+            # Keep it brief if AI rambles
+            if len(summary) > 200:
+                summary = summary[:197] + "..."
+
+        except Exception as e:
+            logger.error(f"Weekly brief AI generation failed: {e}")
+            summary = "Autonomy progressing. (AI Summary temporarily unavailable)"
+
+        body = {
+            "completed": completed[:6], # Return fewer items to UI
+            "events": events[:6],
+            "summary": summary
+        }
+
+        # ⚡ Performance: Update cache and set expiry (120 seconds)
+        _weekly_brief_cache = body
+        _weekly_brief_expires = time.time() + 120
+
+        return body
 
 @app.get("/api/tasks")
 async def get_tasks():
