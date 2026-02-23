@@ -5,3 +5,7 @@
 ## 2026-02-05 - [Interactive Dashboard Polish]
 **Learning:** For multi-panel dashboards, a delegated 'Enter' key listener targeting the panel's primary button significantly reduces friction for power users. Additionally, providing 'Refreshing...' state on the primary refresh button prevents redundant clicks and confirms the system is active.
 **Action:** Implement delegated 'Enter' key handlers in complex command interfaces and always disable/label-swap async trigger buttons during network requests using a `finally` block for resilience.
+
+## 2026-02-06 - [Robust Async UI Feedback]
+**Learning:** When refactoring async UI functions to support loading states (e.g., button disabling), always ensure the 'btn' parameter is optional (null-checked). Functions called by both user interaction and background pollers will crash if they assume a button reference is always present.
+**Action:** Use optional chaining or explicit null checks (e.g., `btn?.innerText`) when accessing DOM elements in shared utility functions.
