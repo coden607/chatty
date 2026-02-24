@@ -731,7 +731,10 @@
               <button class="btn" onclick="generatePressPitch()">Press Pitch</button>
               <button class="btn" onclick="generateVideoScript()">Video Script</button>
             </div>
-            <div id="generator-output" class="generator-output">Generator output will appear here.</div>
+            <div id="generator-output" aria-live="polite" class="generator-output">Generator output will appear here.</div>
+            <div class="prompt-row" style="justify-content: flex-end;">
+              <button class="btn" style="background: transparent; color: var(--text-muted); border: 1px solid var(--border); padding: 8px 16px; font-size: 0.8rem;" onclick="copyToClipboard('generator-output', this)">Copy Output</button>
+            </div>
           </div>
           <div class="panel">
             <h3>KPI Anomalies</h3>
@@ -744,9 +747,10 @@
           </div>
           <div class="panel">
             <h3>Weekly Brief</h3>
-            <div id="weekly-brief" class="generator-output">No brief yet.</div>
+            <div id="weekly-brief" aria-live="polite" class="generator-output">No brief yet.</div>
             <div class="prompt-row">
-              <button class="btn" onclick="refreshWeeklyBrief()">Refresh Brief</button>
+              <button class="btn" onclick="fetchWeeklyBrief()">Refresh Brief</button>
+              <button class="btn" style="background: transparent; color: var(--text-muted); border: 1px solid var(--border); padding: 8px 16px; font-size: 0.8rem;" onclick="copyToClipboard('weekly-brief', this)">Copy Brief</button>
             </div>
           </div>
         </div>
@@ -758,7 +762,7 @@
             <h2 id="modal-title" style="margin-bottom: 20px; background: linear-gradient(to right, var(--primary), var(--secondary)); background-clip: text; -webkit-background-clip: text; -webkit-text-fill-color: transparent;">AI Conversion Strategy</h2>
             <div id="modal-content" style="white-space: pre-wrap; line-height: 1.6; color: var(--text);"></div>
             <div style="margin-top: 30px; display: flex; justify-content: flex-end;">
-              <button id="copy-strategy-btn" class="btn" style="background: transparent; color: var(--text-muted); border: 1px solid var(--border);" onclick="copyStrategy()">Copy Strategy</button>
+              <button id="copy-strategy-btn" class="btn" style="background: transparent; color: var(--text-muted); border: 1px solid var(--border);" onclick="copyToClipboard('modal-content', this)">Copy Strategy</button>
             </div>
         </div>
       </div>
@@ -860,25 +864,26 @@
         }
       });
 
-      async function copyStrategy() {
-        const strategy = document.getElementById("modal-content").innerText;
-        const btn = document.getElementById("copy-strategy-btn");
-
+      async function copyToClipboard(elementId, btn) {
+        const el = document.getElementById(elementId);
+        const text = el.innerText || el.textContent;
         try {
-          await navigator.clipboard.writeText(strategy);
+          await navigator.clipboard.writeText(text);
           const originalText = btn.innerText;
+          // Capture original styles to prevent regression on reset
+          const originalColor = btn.style.color;
+          const originalBorderColor = btn.style.borderColor;
+
           btn.innerText = "Copied!";
           btn.style.color = "var(--success)";
           btn.style.borderColor = "var(--success)";
 
           setTimeout(() => {
             btn.innerText = originalText;
-            btn.style.color = "var(--text-muted)";
-            btn.style.borderColor = "var(--border)";
+            btn.style.color = originalColor;
+            btn.style.borderColor = originalBorderColor;
           }, 2000);
-        } catch (err) {
-          console.error("Failed to copy strategy:", err);
-        }
+        } catch (err) { console.error("Failed to copy:", err); }
       }
 
       function updateDashboard(data) {
