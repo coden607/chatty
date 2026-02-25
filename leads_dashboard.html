@@ -727,11 +727,11 @@
             <h3>Generators</h3>
             <input id="generator-title" aria-label="Generator title or topic" class="prompt-textarea" placeholder="Title / Topic" />
             <div class="prompt-row">
-              <button class="btn" onclick="generateProposal()">Proposal Draft</button>
-              <button class="btn" onclick="generatePressPitch()">Press Pitch</button>
-              <button class="btn" onclick="generateVideoScript()">Video Script</button>
+              <button class="btn" onclick="generateAI('proposal', this)">Proposal Draft</button>
+              <button class="btn" onclick="generateAI('pitch', this)">Press Pitch</button>
+              <button class="btn" onclick="generateAI('video', this)">Video Script</button>
             </div>
-            <div id="generator-output" class="generator-output">Generator output will appear here.</div>
+            <div id="generator-output" class="generator-output" aria-live="polite">Generator output will appear here.</div>
           </div>
           <div class="panel">
             <h3>KPI Anomalies</h3>
@@ -744,9 +744,9 @@
           </div>
           <div class="panel">
             <h3>Weekly Brief</h3>
-            <div id="weekly-brief" class="generator-output">No brief yet.</div>
+            <div id="weekly-brief" class="generator-output" aria-live="polite">No brief yet.</div>
             <div class="prompt-row">
-              <button class="btn" onclick="refreshWeeklyBrief()">Refresh Brief</button>
+              <button class="btn" onclick="fetchWeeklyBrief(this)">Refresh Brief</button>
             </div>
           </div>
         </div>
@@ -1495,37 +1495,21 @@
         fetchPricingExperiments();
       }
 
-      async function generateProposal() {
-        const title = document.getElementById("generator-title").value.trim() || "Pilot Proposal";
-        const response = await fetch(`${apiBase}/api/proposals/draft`, {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ title })
-        });
-        const data = await response.json();
-        document.getElementById("generator-output").innerText = data.draft || "No draft returned.";
-      }
-
-      async function generatePressPitch() {
-        const angle = document.getElementById("generator-title").value.trim() || "Automation for harm reduction";
-        const response = await fetch(`${apiBase}/api/press/pitch`, {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ angle })
-        });
-        const data = await response.json();
-        document.getElementById("generator-output").innerText = data.draft || "No pitch returned.";
-      }
-
-      async function generateVideoScript() {
-        const topic = document.getElementById("generator-title").value.trim() || "NarcoGuard demo";
-        const response = await fetch(`${apiBase}/api/video/script`, {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ topic, length_sec: 90 })
-        });
-        const data = await response.json();
-        document.getElementById("generator-output").innerText = data.draft || "No script returned.";
+      async function generateAI(type, btn) {
+        const title = document.getElementById("generator-title").value.trim() || "Topic", originalText = btn.innerText;
+        btn.innerText = "Generating..."; btn.disabled = true;
+        try {
+          const endpoints = { proposal: 'proposals/draft', pitch: 'press/pitch', video: 'video/script' };
+          const body = type === 'video' ? { topic: title, length_sec: 90 } : (type === 'pitch' ? { angle: title } : { title });
+          const response = await fetch(`${apiBase}/api/${endpoints[type]}`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(body)
+          });
+          const data = await response.json();
+          document.getElementById("generator-output").textContent = data.draft || "No output returned.";
+        } catch (error) { console.error("AI Generation failed:", error); }
+        finally { btn.innerText = originalText; btn.disabled = false; }
       }
 
       async function fetchAnomalies() {
@@ -1550,15 +1534,15 @@
           .join("");
       }
 
-      async function fetchWeeklyBrief() {
+      async function fetchWeeklyBrief(btn) {
+        const originalText = btn?.innerText;
+        if (btn) { btn.innerText = "Refreshing..."; btn.disabled = true; }
         try {
           const response = await fetch(`${apiBase}/api/weekly/brief`);
           const data = await response.json();
-          // Using textContent for safety, though it was already using innerText
           document.getElementById("weekly-brief").textContent = data.summary || "No summary.";
-        } catch (error) {
-          console.error("Failed to fetch weekly brief:", error);
-        }
+        } catch (error) { console.error("Failed to fetch weekly brief:", error); }
+        finally { if (btn) { btn.innerText = originalText; btn.disabled = false; } }
       }
 
       function renderTransparency(items) {
