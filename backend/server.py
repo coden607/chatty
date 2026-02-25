@@ -182,22 +182,22 @@ class UserSchema(Schema):
     username = fields.Str(required=True, validate=validate.Length(min=3, max=80))
     email = fields.Email(required=True)
     password = fields.Str(required=True, validate=validate.Length(min=8))
-    role = fields.Str(validate=validate.OneOf(['user', 'admin']), missing='user')
+    role = fields.Str(dump_only=True)
 
 class AgentSchema(Schema):
     name = fields.Str(required=True, validate=validate.Length(min=1, max=100))
     description = fields.Str()
-    autonomy_level = fields.Str(validate=validate.OneOf(['supervised', 'semi_autonomous', 'autonomous']), missing='supervised')
-    capabilities = fields.List(fields.Str(), missing=[])
-    tools = fields.List(fields.Str(), missing=[])
-    config = fields.Dict(missing={})
+    autonomy_level = fields.Str(validate=validate.OneOf(['supervised', 'semi_autonomous', 'autonomous']), load_default='supervised')
+    capabilities = fields.List(fields.Str(), load_default=[])
+    tools = fields.List(fields.Str(), load_default=[])
+    config = fields.Dict(load_default={})
 
 class TaskSchema(Schema):
     title = fields.Str(required=True, validate=validate.Length(min=1, max=200))
     description = fields.Str()
-    priority = fields.Str(validate=validate.OneOf(['low', 'medium', 'high', 'critical']), missing='medium')
+    priority = fields.Str(validate=validate.OneOf(['low', 'medium', 'high', 'critical']), load_default='medium')
     task_type = fields.Str()
-    parameters = fields.Dict(missing={})
+    parameters = fields.Dict(load_default={})
     agent_id = fields.Str()
 
 # Error Handling
@@ -364,7 +364,7 @@ def register():
                 username=data['username'],
                 email=data['email'],
                 password_hash=bcrypt.hashpw(data['password'].encode(), bcrypt.gensalt()).decode(),
-                role=data.get('role', 'user')
+                role='user'  # Strictly enforce 'user' role for self-registration
             )
             session.add(user)
 
@@ -1601,7 +1601,7 @@ def analyze_content():
 
 @app.route('/api/ai/collaborate', methods=['POST'])
 @jwt_required()
-def coordinate_agents():
+async def coordinate_agents():
     """Coordinate multi-agent collaboration"""
     try:
         user_id = get_jwt_identity()

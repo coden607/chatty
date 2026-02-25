@@ -248,11 +248,11 @@ class PydanticN8NEngine:
         
         # Execute tasks based on dependencies
         completed_tasks = set()
-        pending_tasks = set(workflow.tasks)
+        pending_tasks = list(workflow.tasks)
         
         while pending_tasks:
             # Find tasks ready to execute
-            ready_tasks = self._get_ready_tasks(pending_tasks, completed_tasks, execution.dependencies)
+            ready_tasks = self._get_ready_tasks(pending_tasks, completed_tasks, workflow.dependencies)
             
             if not ready_tasks:
                 # Check for circular dependencies
@@ -294,7 +294,7 @@ class PydanticN8NEngine:
             graph[task_id] = dependencies
         return graph
     
-    def _get_ready_tasks(self, pending_tasks: set, completed_tasks: set, dependencies: Dict[str, List[str]]) -> List[Dict[str, Any]]:
+    def _get_ready_tasks(self, pending_tasks: List[Dict[str, Any]], completed_tasks: set, dependencies: Dict[str, List[str]]) -> List[Dict[str, Any]]:
         """Get tasks ready for execution"""
         ready_tasks = []
         
@@ -377,7 +377,10 @@ class PydanticN8NEngine:
             
             # Execute function
             function = self.task_registry[function_name]
-            result = await asyncio.to_thread(function, **function_args)
+            if asyncio.iscoroutinefunction(function):
+                result = await function(**function_args)
+            else:
+                result = await asyncio.to_thread(function, **function_args)
             
             return {'result': result}
             
@@ -558,12 +561,53 @@ class PydanticN8NEngine:
         format_str = kwargs.get('format', '%Y-%m-%d %H:%M:%S')
         return {'current_time': datetime.now().strftime(format_str)}
     
+    def _safe_eval(self, expression: str) -> Any:
+        """
+        Safely evaluate a mathematical expression using AST.
+        Whitelists specific operators and numeric constants.
+        """
+        import ast
+        import operator
+
+        # Allowed operators (Excluding Pow to prevent DoS)
+        operators = {
+            ast.Add: operator.add,
+            ast.Sub: operator.sub,
+            ast.Mult: operator.mul,
+            ast.Div: operator.truediv,
+            ast.BitXor: operator.xor,
+            ast.USub: operator.neg,
+            ast.UAdd: operator.pos,
+        }
+
+        def _eval(node):
+            if isinstance(node, ast.Constant): # Python 3.8+
+                if isinstance(node.value, (int, float, complex)):
+                    return node.value
+                raise TypeError(f"Invalid constant type: {type(node.value)}")
+            elif isinstance(node, ast.BinOp):
+                if type(node.op) in operators:
+                    return operators[type(node.op)](_eval(node.left), _eval(node.right))
+                raise TypeError(f"Unsupported operator: {type(node.op)}")
+            elif isinstance(node, ast.UnaryOp):
+                if type(node.op) in operators:
+                    return operators[type(node.op)](_eval(node.operand))
+                raise TypeError(f"Unsupported operator: {type(node.op)}")
+            else:
+                raise TypeError(f"Unsupported node type: {type(node)}")
+
+        try:
+            tree = ast.parse(expression, mode='eval')
+            return _eval(tree.body)
+        except Exception as e:
+            raise ValueError(f"Invalid expression: {e}")
+
     async def _calculate_task(self, **kwargs) -> Dict[str, Any]:
         """Built-in calculation task"""
         expression = kwargs.get('expression', '0')
         try:
-            # Simple calculation (could be enhanced with proper expression parser)
-            result = eval(expression)
+            # Secure calculation using safe_eval
+            result = self._safe_eval(expression)
             return {'result': result, 'expression': expression}
         except Exception as e:
             return {'error': str(e), 'expression': expression}
