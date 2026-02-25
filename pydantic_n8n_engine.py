@@ -243,47 +243,76 @@ class PydanticN8NEngine:
             'execution_order': []
         }
         
-        # Build execution graph
-        execution_graph = self._build_execution_graph(workflow)
-        
         # Execute tasks based on dependencies
         completed_tasks = set()
-        pending_tasks = set(workflow.tasks)
+        # BOLT OPTIMIZATION: Use dict for O(1) removal of pending tasks
+        pending_tasks = {t['id']: t for t in workflow.tasks}
         
         while pending_tasks:
             # Find tasks ready to execute
-            ready_tasks = self._get_ready_tasks(pending_tasks, completed_tasks, execution.dependencies)
+            # BOLT BUG FIX: Accessing workflow.dependencies instead of non-existent execution.dependencies
+            ready_tasks = self._get_ready_tasks(pending_tasks.values(), completed_tasks, workflow.dependencies)
             
             if not ready_tasks:
                 # Check for circular dependencies
                 raise ValueError("Circular dependency detected in workflow")
             
             # Execute ready tasks
-            for task in ready_tasks:
-                try:
-                    result = await self._execute_task(task, context)
-                    context['task_results'][task['id']] = result
-                    context['execution_order'].append(task['id'])
-                    completed_tasks.add(task['id'])
-                    pending_tasks.remove(task)
-                    
-                    execution.tasks_executed += 1
-                    execution.tasks_completed += 1
-                    
-                    logger.info(f"✅ Task completed: {task['name']}")
-                    
-                except Exception as e:
-                    execution.tasks_failed += 1
-                    
-                    if workflow.error_handling == 'fail_fast':
-                        raise
-                    elif workflow.error_handling == 'continue_on_error':
-                        logger.warning(f"⚠️ Task failed but continuing: {task['name']} - {str(e)}")
-                        context['task_results'][task['id']] = {'error': str(e)}
+            # BOLT OPTIMIZATION: Implement parallel execution for independent tasks
+            if workflow.parallel_execution and len(ready_tasks) > 1:
+                logger.info(f"⚡ Parallelizing {len(ready_tasks)} ready tasks")
+                # Run all ready tasks in parallel
+                results = await asyncio.gather(*[self._execute_task(task, context) for task in ready_tasks], return_exceptions=True)
+
+                for task, result in zip(ready_tasks, results):
+                    if isinstance(result, Exception):
+                        # Re-raise or handle based on error strategy (fail_fast by default)
+                        logger.error(f"❌ Task failed in parallel: {task['name']} - {str(result)}")
+                        execution.tasks_failed += 1
+                        if workflow.error_handling == 'fail_fast':
+                            raise result
+                        elif workflow.error_handling == 'continue_on_error':
+                            context['task_results'][task['id']] = {'error': str(result)}
+                            completed_tasks.add(task['id'])
+                            pending_tasks.pop(task['id'])
+                        else:
+                            # BOLT FIX: Avoid infinite loop by raising if unknown error strategy
+                            raise result
+                    else:
+                        context['task_results'][task['id']] = result
+                        context['execution_order'].append(task['id'])
                         completed_tasks.add(task['id'])
-                        pending_tasks.remove(task)
-                    else:  # retry_all
-                        raise
+                        pending_tasks.pop(task['id'])
+                        execution.tasks_executed += 1
+                        execution.tasks_completed += 1
+                        logger.info(f"✅ Task completed (parallel): {task['name']}")
+            else:
+                # Sequential execution
+                for task in ready_tasks:
+                    try:
+                        result = await self._execute_task(task, context)
+                        context['task_results'][task['id']] = result
+                        context['execution_order'].append(task['id'])
+                        completed_tasks.add(task['id'])
+                        pending_tasks.pop(task['id'])
+
+                        execution.tasks_executed += 1
+                        execution.tasks_completed += 1
+
+                        logger.info(f"✅ Task completed: {task['name']}")
+
+                    except Exception as e:
+                        execution.tasks_failed += 1
+
+                        if workflow.error_handling == 'fail_fast':
+                            raise
+                        elif workflow.error_handling == 'continue_on_error':
+                            logger.warning(f"⚠️ Task failed but continuing: {task['name']} - {str(e)}")
+                            context['task_results'][task['id']] = {'error': str(e)}
+                            completed_tasks.add(task['id'])
+                            pending_tasks.pop(task['id'])
+                        else:  # retry_all
+                            raise
     
     def _build_execution_graph(self, workflow: PydanticWorkflow) -> Dict[str, List[str]]:
         """Build execution dependency graph"""
@@ -294,8 +323,8 @@ class PydanticN8NEngine:
             graph[task_id] = dependencies
         return graph
     
-    def _get_ready_tasks(self, pending_tasks: set, completed_tasks: set, dependencies: Dict[str, List[str]]) -> List[Dict[str, Any]]:
-        """Get tasks ready for execution"""
+    def _get_ready_tasks(self, pending_tasks: Union[set, list], completed_tasks: set, dependencies: Dict[str, List[str]]) -> List[Dict[str, Any]]:
+        """Get tasks ready for execution (Accepts list for unhashable dict tasks)"""
         ready_tasks = []
         
         for task in pending_tasks:
@@ -310,7 +339,6 @@ class PydanticN8NEngine:
     
     async def _execute_task(self, task: Dict[str, Any], context: Dict[str, Any]) -> Dict[str, Any]:
         """Execute a single task"""
-        task_id = task['id']
         task_type = task['type']
         task_config = task.get('config', {})
         

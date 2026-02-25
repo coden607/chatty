@@ -9,3 +9,7 @@
 ## 2026-02-24 - [Cache expensive AI generation]
 **Learning:** AI-powered API endpoints are a major performance bottleneck due to high latency and cost. Implementing an in-memory cache with an `asyncio.Lock` (using double-checked locking) provides a massive responsiveness boost (~125x) and protects against thundering herd problems.
 **Action:** Identify endpoints polled by the UI and apply time-based caching with concurrency controls to redundant LLM calls.
+
+## 2026-02-25 - [Parallel task execution in workflow engine]
+**Learning:** Sequential execution of independent I/O-bound tasks in a workflow engine is a major performance bottleneck. Using `asyncio.gather` for "ready" tasks (those with met dependencies) provides an O(N) speedup for N parallel tasks.
+**Action:** Always identify opportunities to batch or parallelize independent operations in workflow-style systems. Use dictionary-based lookups for state management to maintain O(1) performance during frequent updates.
