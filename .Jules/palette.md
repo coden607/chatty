@@ -5,3 +5,7 @@
 ## 2026-02-05 - [Interactive Dashboard Polish]
 **Learning:** For multi-panel dashboards, a delegated 'Enter' key listener targeting the panel's primary button significantly reduces friction for power users. Additionally, providing 'Refreshing...' state on the primary refresh button prevents redundant clicks and confirms the system is active.
 **Action:** Implement delegated 'Enter' key handlers in complex command interfaces and always disable/label-swap async trigger buttons during network requests using a `finally` block for resilience.
+
+## 2026-02-26 - [Micro-UX: Loading States & ARIA Live]
+**Learning:** Adding `aria-live="polite"` to AI-generated content areas ensures that asynchronous updates are announced to screen reader users without requiring manual focus shifts. Small touches like 'Generating...' text on buttons during long-running AI tasks prevent redundant clicks and provide immediate visual confirmation of the background activity.
+**Action:** Always pair `aria-live` with visible loading states for AI-driven features. Keep UX patches focused and under 50 lines to maintain maintainability in single-file dashboard architectures.
