@@ -4,28 +4,20 @@ Pydantic AI n8n Workflow Engine
 Self-optimizing workflows with Pydantic validation and AI-driven task routing
 """
 
-import os
 import json
-import time
+import ast
+import operator
 import asyncio
-import logging
 import re
 import uuid
-from datetime import datetime, timedelta
-from typing import Dict, List, Any, Optional, Tuple, Union
-from pathlib import Path
-from collections import defaultdict
-import concurrent.futures
-from dataclasses import dataclass, field
+from datetime import datetime
+from typing import Dict, List, Any, Optional
 from enum import Enum
 
 import requests
 from pydantic import BaseModel, Field, validator, ValidationError
-from pydantic_ai import Agent, ModelRetry
-from pydantic_ai.models.test import TestModel
 
-from server import db, Agent, Task, logger
-from learning_system import memory_system, adaptive_learning
+from server import logger
 from openclaw_integration import MultiLLMRouter
 
 class WorkflowStatus(str, Enum):
@@ -244,7 +236,7 @@ class PydanticN8NEngine:
         }
         
         # Build execution graph
-        execution_graph = self._build_execution_graph(workflow)
+        self._build_execution_graph(workflow)
         
         # Execute tasks based on dependencies
         completed_tasks = set()
@@ -310,7 +302,6 @@ class PydanticN8NEngine:
     
     async def _execute_task(self, task: Dict[str, Any], context: Dict[str, Any]) -> Dict[str, Any]:
         """Execute a single task"""
-        task_id = task['id']
         task_type = task['type']
         task_config = task.get('config', {})
         
@@ -558,12 +549,52 @@ class PydanticN8NEngine:
         format_str = kwargs.get('format', '%Y-%m-%d %H:%M:%S')
         return {'current_time': datetime.now().strftime(format_str)}
     
+    def _safe_eval(self, expression: str):
+        """
+        Hardened expression evaluator that whitelists only mathematical operators and numeric constants.
+        Prevents RCE and DoS via string/list repetition or massive exponentiation.
+        """
+        # Whitelist of allowed operators
+        operators = {
+            ast.Add: operator.add,
+            ast.Sub: operator.sub,
+            ast.Mult: operator.mul,
+            ast.Div: operator.truediv,
+            ast.BitXor: operator.xor,
+            ast.USub: operator.neg,
+            ast.UAdd: operator.pos,
+        }
+
+        def _eval_node(node):
+            if isinstance(node, ast.Constant):  # Python 3.8+
+                if isinstance(node.value, (int, float, complex)):
+                    return node.value
+                raise TypeError(f"Invalid constant: {node.value}")
+            elif isinstance(node, ast.Num):  # Older Python
+                return node.n
+            elif isinstance(node, ast.BinOp):
+                if type(node.op) not in operators:
+                    raise TypeError(f"Unsupported operator: {type(node.op)}")
+                return operators[type(node.op)](_eval_node(node.left), _eval_node(node.right))
+            elif isinstance(node, ast.UnaryOp):
+                if type(node.op) not in operators:
+                    raise TypeError(f"Unsupported unary operator: {type(node.op)}")
+                return operators[type(node.op)](_eval_node(node.operand))
+            else:
+                raise TypeError(f"Invalid expression node: {type(node)}")
+
+        try:
+            tree = ast.parse(str(expression), mode='eval')
+            return _eval_node(tree.body)
+        except Exception as e:
+            logger.error(f"Safe eval failed for expression '{expression}': {e}")
+            raise ValueError(f"Invalid or unsafe expression: {e}")
+
     async def _calculate_task(self, **kwargs) -> Dict[str, Any]:
-        """Built-in calculation task"""
+        """Built-in calculation task (hardened)"""
         expression = kwargs.get('expression', '0')
         try:
-            # Simple calculation (could be enhanced with proper expression parser)
-            result = eval(expression)
+            result = self._safe_eval(expression)
             return {'result': result, 'expression': expression}
         except Exception as e:
             return {'error': str(e), 'expression': expression}
