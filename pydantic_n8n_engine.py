@@ -243,47 +243,66 @@ class PydanticN8NEngine:
             'execution_order': []
         }
         
-        # Build execution graph
-        execution_graph = self._build_execution_graph(workflow)
-        
         # Execute tasks based on dependencies
         completed_tasks = set()
-        pending_tasks = set(workflow.tasks)
+        # BOLT OPTIMIZATION: Use dictionary for O(1) removal and avoid unhashable dict error
+        pending_tasks = {task['id']: task for task in workflow.tasks}
         
         while pending_tasks:
             # Find tasks ready to execute
-            ready_tasks = self._get_ready_tasks(pending_tasks, completed_tasks, execution.dependencies)
+            # BOLT BUGFIX: Correctly reference workflow.dependencies instead of non-existent execution.dependencies
+            ready_tasks = self._get_ready_tasks(list(pending_tasks.values()), completed_tasks, workflow.dependencies)
             
             if not ready_tasks:
                 # Check for circular dependencies
                 raise ValueError("Circular dependency detected in workflow")
             
-            # Execute ready tasks
-            for task in ready_tasks:
-                try:
-                    result = await self._execute_task(task, context)
-                    context['task_results'][task['id']] = result
-                    context['execution_order'].append(task['id'])
-                    completed_tasks.add(task['id'])
-                    pending_tasks.remove(task)
-                    
-                    execution.tasks_executed += 1
-                    execution.tasks_completed += 1
-                    
-                    logger.info(f"✅ Task completed: {task['name']}")
-                    
-                except Exception as e:
-                    execution.tasks_failed += 1
-                    
-                    if workflow.error_handling == 'fail_fast':
-                        raise
-                    elif workflow.error_handling == 'continue_on_error':
-                        logger.warning(f"⚠️ Task failed but continuing: {task['name']} - {str(e)}")
-                        context['task_results'][task['id']] = {'error': str(e)}
-                        completed_tasks.add(task['id'])
-                        pending_tasks.remove(task)
-                    else:  # retry_all
-                        raise
+            # BOLT OPTIMIZATION: Implement parallel execution for independent tasks if enabled
+            if workflow.parallel_execution:
+                logger.info(f"⚡ Executing {len(ready_tasks)} tasks in parallel")
+                tasks_to_run = [self._execute_task(task, context) for task in ready_tasks]
+                results = await asyncio.gather(*tasks_to_run, return_exceptions=True)
+
+                for task, result in zip(ready_tasks, results):
+                    if isinstance(result, Exception):
+                        self._handle_task_error(workflow, execution, task, result, context, completed_tasks, pending_tasks)
+                    else:
+                        self._handle_task_success(execution, task, result, context, completed_tasks, pending_tasks)
+            else:
+                # Execute ready tasks sequentially
+                for task in ready_tasks:
+                    try:
+                        result = await self._execute_task(task, context)
+                        self._handle_task_success(execution, task, result, context, completed_tasks, pending_tasks)
+                    except Exception as e:
+                        self._handle_task_error(workflow, execution, task, e, context, completed_tasks, pending_tasks)
+
+    def _handle_task_success(self, execution, task, result, context, completed_tasks, pending_tasks):
+        """Helper to mark task as successful and update state"""
+        context['task_results'][task['id']] = result
+        context['execution_order'].append(task['id'])
+        completed_tasks.add(task['id'])
+        if task['id'] in pending_tasks:
+            del pending_tasks[task['id']]
+
+        execution.tasks_executed += 1
+        execution.tasks_completed += 1
+        logger.info(f"✅ Task completed: {task['name']}")
+
+    def _handle_task_error(self, workflow, execution, task, error, context, completed_tasks, pending_tasks):
+        """Helper to handle task error based on workflow policy"""
+        execution.tasks_failed += 1
+
+        if workflow.error_handling == 'fail_fast':
+            raise error
+        elif workflow.error_handling == 'continue_on_error':
+            logger.warning(f"⚠️ Task failed but continuing: {task['name']} - {str(error)}")
+            context['task_results'][task['id']] = {'error': str(error)}
+            completed_tasks.add(task['id'])
+            if task['id'] in pending_tasks:
+                del pending_tasks[task['id']]
+        else:  # retry_all or default
+            raise error
     
     def _build_execution_graph(self, workflow: PydanticWorkflow) -> Dict[str, List[str]]:
         """Build execution dependency graph"""
@@ -310,7 +329,6 @@ class PydanticN8NEngine:
     
     async def _execute_task(self, task: Dict[str, Any], context: Dict[str, Any]) -> Dict[str, Any]:
         """Execute a single task"""
-        task_id = task['id']
         task_type = task['type']
         task_config = task.get('config', {})
         
@@ -456,11 +474,17 @@ class PydanticN8NEngine:
     def _replace_variables(self, data: Any, context: Dict[str, Any]) -> Any:
         """Replace variables in data with context values"""
         if isinstance(data, str):
-            # Simple variable replacement
-            for key, value in context.items():
-                if isinstance(value, (str, int, float, bool)):
-                    data = data.replace(f'{{{{{key}}}}}', str(value))
-            return data
+            # BOLT OPTIMIZATION: Use regex for single-pass variable substitution (O(N) instead of O(N*M))
+            # Support variables with dots or dashes, and only stringify supported types
+            def _subber(m):
+                key = m.group(1)
+                if key in context:
+                    val = context[key]
+                    if isinstance(val, (str, int, float, bool)):
+                        return str(val)
+                return m.group(0) # Keep original if not found or unsupported type
+
+            return re.sub(r'\{\{(.*?)\}\}', _subber, data)
         elif isinstance(data, dict):
             return {k: self._replace_variables(v, context) for k, v in data.items()}
         elif isinstance(data, list):
