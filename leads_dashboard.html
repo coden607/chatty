@@ -536,7 +536,7 @@
       <div class="lead-section" style="margin-top: 32px;">
         <div class="section-header">
           <h2>NarcoGuard Transparent Workflows</h2>
-          <button class="btn" onclick="refreshWorkflows()">Refresh Workflows</button>
+          <button class="btn" onclick="refreshWorkflows(this)">Refresh Workflows</button>
         </div>
         <div id="workflow-grid" class="workflow-grid">
           <div class="loading">Syncing workflow telemetry...</div>
@@ -695,7 +695,7 @@
               <div class="log-entry">No briefs yet.</div>
             </div>
             <div class="prompt-row">
-              <button class="btn" onclick="refreshContentBriefs()">Refresh Briefs</button>
+              <button class="btn" onclick="refreshContentBriefs(this)">Refresh Briefs</button>
             </div>
           </div>
           <div class="panel">
@@ -727,11 +727,11 @@
             <h3>Generators</h3>
             <input id="generator-title" aria-label="Generator title or topic" class="prompt-textarea" placeholder="Title / Topic" />
             <div class="prompt-row">
-              <button class="btn" onclick="generateProposal()">Proposal Draft</button>
-              <button class="btn" onclick="generatePressPitch()">Press Pitch</button>
-              <button class="btn" onclick="generateVideoScript()">Video Script</button>
+              <button class="btn" onclick="generateProposal(this)">Proposal Draft</button>
+              <button class="btn" onclick="generatePressPitch(this)">Press Pitch</button>
+              <button class="btn" onclick="generateVideoScript(this)">Video Script</button>
             </div>
-            <div id="generator-output" class="generator-output">Generator output will appear here.</div>
+            <div id="generator-output" class="generator-output" aria-live="polite">Generator output will appear here.</div>
           </div>
           <div class="panel">
             <h3>KPI Anomalies</h3>
@@ -744,9 +744,9 @@
           </div>
           <div class="panel">
             <h3>Weekly Brief</h3>
-            <div id="weekly-brief" class="generator-output">No brief yet.</div>
+            <div id="weekly-brief" class="generator-output" aria-live="polite">No brief yet.</div>
             <div class="prompt-row">
-              <button class="btn" onclick="refreshWeeklyBrief()">Refresh Brief</button>
+              <button class="btn" onclick="refreshWeeklyBrief(this)">Refresh Brief</button>
             </div>
           </div>
         </div>
@@ -974,12 +974,21 @@
         });
       }
 
-      async function refreshWorkflows() {
+      async function refreshWorkflows(btn) {
+        if (btn) {
+          btn.disabled = true;
+          btn.innerText = "Refreshing...";
+        }
         try {
           await fetch(`${apiBase}/api/narcoguard/workflows/refresh`, { method: "POST" });
-          fetchWorkflows();
+          await fetchWorkflows();
         } catch (error) {
           console.error("Failed to refresh workflows:", error);
+        } finally {
+          if (btn) {
+            btn.disabled = false;
+            btn.innerText = "Refresh Workflows";
+          }
         }
       }
 
@@ -1210,7 +1219,7 @@
         fetchGrants();
         fetchPricingExperiments();
         fetchAnomalies();
-        fetchWeeklyBrief();
+        refreshWeeklyBrief();
       }
 
       async function fetchAutonomyStatus() {
@@ -1412,9 +1421,22 @@
           .join("");
       }
 
-      async function refreshContentBriefs() {
-        await fetch(`${apiBase}/api/content/briefs/refresh`, { method: "POST" });
-        fetchContentBriefs();
+      async function refreshContentBriefs(btn) {
+        if (btn) {
+          btn.disabled = true;
+          btn.innerText = "Refreshing...";
+        }
+        try {
+          await fetch(`${apiBase}/api/content/briefs/refresh`, { method: "POST" });
+          await fetchContentBriefs();
+        } catch (error) {
+          console.error("Failed to refresh content briefs:", error);
+        } finally {
+          if (btn) {
+            btn.disabled = false;
+            btn.innerText = "Refresh Briefs";
+          }
+        }
       }
 
       async function fetchGrants() {
@@ -1495,37 +1517,76 @@
         fetchPricingExperiments();
       }
 
-      async function generateProposal() {
-        const title = document.getElementById("generator-title").value.trim() || "Pilot Proposal";
-        const response = await fetch(`${apiBase}/api/proposals/draft`, {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ title })
-        });
-        const data = await response.json();
-        document.getElementById("generator-output").innerText = data.draft || "No draft returned.";
+      async function generateProposal(btn) {
+        if (btn) {
+          btn.disabled = true;
+          btn.innerText = "Generating...";
+        }
+        try {
+          const title = document.getElementById("generator-title").value.trim() || "Pilot Proposal";
+          const response = await fetch(`${apiBase}/api/proposals/draft`, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ title })
+          });
+          const data = await response.json();
+          document.getElementById("generator-output").innerText = data.draft || "No draft returned.";
+        } catch (error) {
+          console.error("Proposal generation failed:", error);
+        } finally {
+          if (btn) {
+            btn.disabled = false;
+            btn.innerText = "Proposal Draft";
+          }
+        }
       }
 
-      async function generatePressPitch() {
-        const angle = document.getElementById("generator-title").value.trim() || "Automation for harm reduction";
-        const response = await fetch(`${apiBase}/api/press/pitch`, {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ angle })
-        });
-        const data = await response.json();
-        document.getElementById("generator-output").innerText = data.draft || "No pitch returned.";
+      async function generatePressPitch(btn) {
+        if (btn) {
+          btn.disabled = true;
+          btn.innerText = "Generating...";
+        }
+        try {
+          const angle = document.getElementById("generator-title").value.trim() || "Automation for harm reduction";
+          const response = await fetch(`${apiBase}/api/press/pitch`, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ angle })
+          });
+          const data = await response.json();
+          document.getElementById("generator-output").innerText = data.draft || "No pitch returned.";
+        } catch (error) {
+          console.error("Press pitch generation failed:", error);
+        } finally {
+          if (btn) {
+            btn.disabled = false;
+            btn.innerText = "Press Pitch";
+          }
+        }
       }
 
-      async function generateVideoScript() {
-        const topic = document.getElementById("generator-title").value.trim() || "NarcoGuard demo";
-        const response = await fetch(`${apiBase}/api/video/script`, {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ topic, length_sec: 90 })
-        });
-        const data = await response.json();
-        document.getElementById("generator-output").innerText = data.draft || "No script returned.";
+      async function generateVideoScript(btn) {
+        if (btn) {
+          btn.disabled = true;
+          btn.innerText = "Generating...";
+        }
+        try {
+          const topic = document.getElementById("generator-title").value.trim() || "NarcoGuard demo";
+          const response = await fetch(`${apiBase}/api/video/script`, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ topic, length_sec: 90 })
+          });
+          const data = await response.json();
+          document.getElementById("generator-output").innerText = data.draft || "No script returned.";
+        } catch (error) {
+          console.error("Video script generation failed:", error);
+        } finally {
+          if (btn) {
+            btn.disabled = false;
+            btn.innerText = "Video Script";
+          }
+        }
       }
 
       async function fetchAnomalies() {
@@ -1550,14 +1611,22 @@
           .join("");
       }
 
-      async function fetchWeeklyBrief() {
+      async function refreshWeeklyBrief(btn) {
+        if (btn) {
+          btn.disabled = true;
+          btn.innerText = "Refreshing...";
+        }
         try {
           const response = await fetch(`${apiBase}/api/weekly/brief`);
           const data = await response.json();
-          // Using textContent for safety, though it was already using innerText
           document.getElementById("weekly-brief").textContent = data.summary || "No summary.";
         } catch (error) {
           console.error("Failed to fetch weekly brief:", error);
+        } finally {
+          if (btn) {
+            btn.disabled = false;
+            btn.innerText = "Refresh Brief";
+          }
         }
       }
 
@@ -1603,7 +1672,7 @@
       setInterval(fetchGrants, 90000);
       setInterval(fetchPricingExperiments, 90000);
       setInterval(fetchAnomalies, 90000);
-      setInterval(fetchWeeklyBrief, 120000);
+      setInterval(refreshWeeklyBrief, 120000);
       fetchLeads();
       fetchWorkflows();
       fetchAgents();
@@ -1619,7 +1688,7 @@
       fetchGrants();
       fetchPricingExperiments();
       fetchAnomalies();
-      fetchWeeklyBrief();
+      refreshWeeklyBrief();
 
       if ("serviceWorker" in navigator) {
         window.addEventListener("load", () => {
