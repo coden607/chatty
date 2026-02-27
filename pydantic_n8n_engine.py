@@ -248,29 +248,29 @@ class PydanticN8NEngine:
         
         # Execute tasks based on dependencies
         completed_tasks = set()
-        pending_tasks = set(workflow.tasks)
+        pending_tasks = {task['id']: task for task in workflow.tasks}
         
         while pending_tasks:
             # Find tasks ready to execute
-            ready_tasks = self._get_ready_tasks(pending_tasks, completed_tasks, execution.dependencies)
+            ready_tasks = self._get_ready_tasks(pending_tasks, completed_tasks, workflow.dependencies)
             
             if not ready_tasks:
                 # Check for circular dependencies
                 raise ValueError("Circular dependency detected in workflow")
             
             # Execute ready tasks
-            for task in ready_tasks:
+            async def run_task(task_to_run):
                 try:
-                    result = await self._execute_task(task, context)
-                    context['task_results'][task['id']] = result
-                    context['execution_order'].append(task['id'])
-                    completed_tasks.add(task['id'])
-                    pending_tasks.remove(task)
+                    result = await self._execute_task(task_to_run, context)
+                    context['task_results'][task_to_run['id']] = result
+                    context['execution_order'].append(task_to_run['id'])
+                    completed_tasks.add(task_to_run['id'])
+                    del pending_tasks[task_to_run['id']]
                     
                     execution.tasks_executed += 1
                     execution.tasks_completed += 1
                     
-                    logger.info(f"✅ Task completed: {task['name']}")
+                    logger.info(f"✅ Task completed: {task_to_run['name']}")
                     
                 except Exception as e:
                     execution.tasks_failed += 1
@@ -278,12 +278,20 @@ class PydanticN8NEngine:
                     if workflow.error_handling == 'fail_fast':
                         raise
                     elif workflow.error_handling == 'continue_on_error':
-                        logger.warning(f"⚠️ Task failed but continuing: {task['name']} - {str(e)}")
-                        context['task_results'][task['id']] = {'error': str(e)}
-                        completed_tasks.add(task['id'])
-                        pending_tasks.remove(task)
+                        logger.warning(f"⚠️ Task failed but continuing: {task_to_run['name']} - {str(e)}")
+                        context['task_results'][task_to_run['id']] = {'error': str(e)}
+                        completed_tasks.add(task_to_run['id'])
+                        del pending_tasks[task_to_run['id']]
                     else:  # retry_all
                         raise
+
+            if workflow.parallel_execution:
+                # Parallel execution of all ready tasks
+                await asyncio.gather(*(run_task(task) for task in ready_tasks))
+            else:
+                # Sequential execution
+                for task in ready_tasks:
+                    await run_task(task)
     
     def _build_execution_graph(self, workflow: PydanticWorkflow) -> Dict[str, List[str]]:
         """Build execution dependency graph"""
@@ -294,12 +302,11 @@ class PydanticN8NEngine:
             graph[task_id] = dependencies
         return graph
     
-    def _get_ready_tasks(self, pending_tasks: set, completed_tasks: set, dependencies: Dict[str, List[str]]) -> List[Dict[str, Any]]:
+    def _get_ready_tasks(self, pending_tasks: Dict[str, Any], completed_tasks: set, dependencies: Dict[str, List[str]]) -> List[Dict[str, Any]]:
         """Get tasks ready for execution"""
         ready_tasks = []
         
-        for task in pending_tasks:
-            task_id = task['id']
+        for task_id, task in pending_tasks.items():
             task_deps = dependencies.get(task_id, [])
             
             # Check if all dependencies are completed
@@ -454,13 +461,19 @@ class PydanticN8NEngine:
             raise Exception(f"AI task execution failed: {str(e)}")
     
     def _replace_variables(self, data: Any, context: Dict[str, Any]) -> Any:
-        """Replace variables in data with context values"""
+        """Replace variables in data with context values using optimized regex"""
         if isinstance(data, str):
-            # Simple variable replacement
-            for key, value in context.items():
-                if isinstance(value, (str, int, float, bool)):
-                    data = data.replace(f'{{{{{key}}}}}', str(value))
-            return data
+            # Optimized single-pass variable replacement
+            def replacer(match):
+                key = match.group(1).strip()
+                # Try context first, then nested access if key contains dots or dashes
+                value = context.get(key)
+                if value is None:
+                    # Basic support for nested access or keys with dots
+                    return match.group(0)
+                return str(value)
+
+            return re.sub(r'\{\{(.*?)\}\}', replacer, data)
         elif isinstance(data, dict):
             return {k: self._replace_variables(v, context) for k, v in data.items()}
         elif isinstance(data, list):
