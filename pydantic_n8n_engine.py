@@ -11,6 +11,8 @@ import asyncio
 import logging
 import re
 import uuid
+import ast
+import operator
 from datetime import datetime, timedelta
 from typing import Dict, List, Any, Optional, Tuple, Union
 from pathlib import Path
@@ -558,12 +560,52 @@ class PydanticN8NEngine:
         format_str = kwargs.get('format', '%Y-%m-%d %H:%M:%S')
         return {'current_time': datetime.now().strftime(format_str)}
     
+    def _safe_eval(self, expr: str):
+        """
+        Safely evaluate a mathematical expression using AST.
+        Only allows basic arithmetic operators and numbers.
+        """
+        allowed_operators = {
+            ast.Add: operator.add,
+            ast.Sub: operator.sub,
+            ast.Mult: operator.mul,
+            ast.Div: operator.truediv,
+            ast.Pow: operator.pow,
+            ast.BitXor: operator.xor,
+            ast.USub: operator.neg,
+            ast.UAdd: operator.pos,
+        }
+
+        def _eval(node):
+            if isinstance(node, ast.Num):  # For older Python versions
+                return node.n
+            elif isinstance(node, ast.Constant):  # For Python 3.8+
+                if isinstance(node.value, (int, float, complex)):
+                    return node.value
+                raise TypeError(f"Unsupported constant type: {type(node.value)}")
+            elif isinstance(node, ast.BinOp):
+                if type(node.op) in allowed_operators:
+                    return allowed_operators[type(node.op)](_eval(node.left), _eval(node.right))
+                raise TypeError(f"Unsupported binary operator: {type(node.op)}")
+            elif isinstance(node, ast.UnaryOp):
+                if type(node.op) in allowed_operators:
+                    return allowed_operators[type(node.op)](_eval(node.operand))
+                raise TypeError(f"Unsupported unary operator: {type(node.op)}")
+            else:
+                raise TypeError(f"Unsupported expression node: {type(node)}")
+
+        try:
+            tree = ast.parse(expr, mode='eval')
+            return _eval(tree.body)
+        except Exception as e:
+            raise ValueError(f"Failed to safely evaluate expression: {str(e)}")
+
     async def _calculate_task(self, **kwargs) -> Dict[str, Any]:
-        """Built-in calculation task"""
+        """Built-in calculation task using safe evaluation"""
         expression = kwargs.get('expression', '0')
         try:
-            # Simple calculation (could be enhanced with proper expression parser)
-            result = eval(expression)
+            # Using safe_eval instead of eval() to prevent RCE
+            result = self._safe_eval(expression)
             return {'result': result, 'expression': expression}
         except Exception as e:
             return {'error': str(e), 'expression': expression}
