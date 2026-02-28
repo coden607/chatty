@@ -536,7 +536,7 @@
       <div class="lead-section" style="margin-top: 32px;">
         <div class="section-header">
           <h2>NarcoGuard Transparent Workflows</h2>
-          <button class="btn" onclick="refreshWorkflows()">Refresh Workflows</button>
+          <button class="btn" onclick="refreshWorkflows(this)">Refresh Workflows</button>
         </div>
         <div id="workflow-grid" class="workflow-grid">
           <div class="loading">Syncing workflow telemetry...</div>
@@ -575,7 +575,7 @@
       <div class="lead-section" style="margin-top: 32px;">
         <div class="section-header">
           <h2>Autonomy Control + Collaboration</h2>
-          <button class="btn" onclick="refreshAutonomy()">Sync Autonomy</button>
+          <button class="btn" onclick="refreshAutonomy(this)">Sync Autonomy</button>
         </div>
         <div class="command-grid">
           <div class="panel">
@@ -746,7 +746,7 @@
             <h3>Weekly Brief</h3>
             <div id="weekly-brief" class="generator-output">No brief yet.</div>
             <div class="prompt-row">
-              <button class="btn" onclick="refreshWeeklyBrief()">Refresh Brief</button>
+              <button class="btn" onclick="refreshWeeklyBrief(this)">Refresh Brief</button>
             </div>
           </div>
         </div>
@@ -974,12 +974,23 @@
         });
       }
 
-      async function refreshWorkflows() {
+      async function refreshWorkflows(btn) {
+        let originalText;
+        if (btn) {
+          originalText = btn.innerText;
+          btn.innerText = "Syncing...";
+          btn.disabled = true;
+        }
         try {
           await fetch(`${apiBase}/api/narcoguard/workflows/refresh`, { method: "POST" });
-          fetchWorkflows();
+          await fetchWorkflows();
         } catch (error) {
           console.error("Failed to refresh workflows:", error);
+        } finally {
+          if (btn) {
+            btn.innerText = originalText;
+            btn.disabled = false;
+          }
         }
       }
 
@@ -1197,20 +1208,37 @@
         }
       }
 
-      function refreshAutonomy() {
-        fetchTasks();
-        fetchCollabFeed();
-        fetchOperatorMessages();
-        fetchAutonomyStatus();
-        fetchPipelines();
-        fetchCampaigns();
-        fetchN8nWorkflows();
-        fetchTransparency();
-        fetchContentBriefs();
-        fetchGrants();
-        fetchPricingExperiments();
-        fetchAnomalies();
-        fetchWeeklyBrief();
+      async function refreshAutonomy(btn) {
+        let originalText;
+        if (btn) {
+          originalText = btn.innerText;
+          btn.innerText = "Syncing...";
+          btn.disabled = true;
+        }
+        try {
+          await Promise.all([
+            fetchTasks(),
+            fetchCollabFeed(),
+            fetchOperatorMessages(),
+            fetchAutonomyStatus(),
+            fetchPipelines(),
+            fetchCampaigns(),
+            fetchN8nWorkflows(),
+            fetchTransparency(),
+            fetchContentBriefs(),
+            fetchGrants(),
+            fetchPricingExperiments(),
+            fetchAnomalies(),
+            refreshWeeklyBrief()
+          ]);
+        } catch (error) {
+          console.error("Failed to sync autonomy:", error);
+        } finally {
+          if (btn) {
+            btn.innerText = originalText;
+            btn.disabled = false;
+          }
+        }
       }
 
       async function fetchAutonomyStatus() {
@@ -1550,7 +1578,13 @@
           .join("");
       }
 
-      async function fetchWeeklyBrief() {
+      async function refreshWeeklyBrief(btn) {
+        let originalText;
+        if (btn) {
+          originalText = btn.innerText;
+          btn.innerText = "Refreshing...";
+          btn.disabled = true;
+        }
         try {
           const response = await fetch(`${apiBase}/api/weekly/brief`);
           const data = await response.json();
@@ -1558,6 +1592,11 @@
           document.getElementById("weekly-brief").textContent = data.summary || "No summary.";
         } catch (error) {
           console.error("Failed to fetch weekly brief:", error);
+        } finally {
+          if (btn) {
+            btn.innerText = originalText;
+            btn.disabled = false;
+          }
         }
       }
 
@@ -1603,7 +1642,7 @@
       setInterval(fetchGrants, 90000);
       setInterval(fetchPricingExperiments, 90000);
       setInterval(fetchAnomalies, 90000);
-      setInterval(fetchWeeklyBrief, 120000);
+      setInterval(refreshWeeklyBrief, 120000);
       fetchLeads();
       fetchWorkflows();
       fetchAgents();
@@ -1619,7 +1658,7 @@
       fetchGrants();
       fetchPricingExperiments();
       fetchAnomalies();
-      fetchWeeklyBrief();
+      refreshWeeklyBrief();
 
       if ("serviceWorker" in navigator) {
         window.addEventListener("load", () => {
