@@ -744,9 +744,9 @@
           </div>
           <div class="panel">
             <h3>Weekly Brief</h3>
-            <div id="weekly-brief" class="generator-output">No brief yet.</div>
+            <div id="weekly-brief" class="generator-output" aria-live="polite">No brief yet.</div>
             <div class="prompt-row">
-              <button class="btn" onclick="refreshWeeklyBrief()">Refresh Brief</button>
+              <button class="btn" onclick="refreshWeeklyBrief(this)">Refresh Brief</button>
             </div>
           </div>
         </div>
@@ -1558,6 +1558,22 @@
           document.getElementById("weekly-brief").textContent = data.summary || "No summary.";
         } catch (error) {
           console.error("Failed to fetch weekly brief:", error);
+        }
+      }
+
+      async function refreshWeeklyBrief(btn) {
+        if (!btn) {
+          return fetchWeeklyBrief();
+        }
+        const originalText = btn.innerText;
+        btn.innerText = "Refreshing...";
+        btn.disabled = true;
+
+        try {
+          await fetchWeeklyBrief();
+        } finally {
+          btn.innerText = originalText;
+          btn.disabled = false;
         }
       }
 
