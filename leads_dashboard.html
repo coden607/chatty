@@ -746,7 +746,7 @@
             <h3>Weekly Brief</h3>
             <div id="weekly-brief" class="generator-output">No brief yet.</div>
             <div class="prompt-row">
-              <button class="btn" onclick="refreshWeeklyBrief()">Refresh Brief</button>
+              <button class="btn" onclick="refreshWeeklyBrief(this)">Refresh Brief</button>
             </div>
           </div>
         </div>
@@ -1548,6 +1548,22 @@
           .slice(0, 6)
           .map((item) => `<div class="log-entry"><strong>${escapeHTML(item.metric)}</strong><br>${escapeHTML(item.value)} vs ${escapeHTML(item.baseline)}</div>`)
           .join("");
+      }
+
+      async function refreshWeeklyBrief(btn) {
+        const originalText = btn?.innerText || "Refresh Brief";
+        if (btn) {
+          btn.innerText = "Refreshing...";
+          btn.disabled = true;
+        }
+        try {
+          await fetchWeeklyBrief();
+        } finally {
+          if (btn) {
+            btn.innerText = originalText;
+            btn.disabled = false;
+          }
+        }
       }
 
       async function fetchWeeklyBrief() {
