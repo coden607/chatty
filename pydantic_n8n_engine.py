@@ -24,8 +24,17 @@ from pydantic import BaseModel, Field, validator, ValidationError
 from pydantic_ai import Agent, ModelRetry
 from pydantic_ai.models.test import TestModel
 
-from server import db, Agent, Task, logger
-from learning_system import memory_system, adaptive_learning
+try:
+    from server import db, Agent as SystemAgent, Task, logger
+    from learning_system import memory_system, adaptive_learning
+except ImportError:
+    # Handle circular imports or missing modules during standalone testing
+    db = None
+    SystemAgent = None
+    Task = None
+    logger = logging.getLogger(__name__)
+    memory_system = None
+    adaptive_learning = None
 from openclaw_integration import MultiLLMRouter
 
 class WorkflowStatus(str, Enum):
@@ -248,11 +257,12 @@ class PydanticN8NEngine:
         
         # Execute tasks based on dependencies
         completed_tasks = set()
-        pending_tasks = set(workflow.tasks)
+        # Use a dictionary mapping task ID to task data for easier lookup and to avoid unhashable dict issues
+        pending_tasks = {task['id']: task for task in workflow.tasks}
         
         while pending_tasks:
             # Find tasks ready to execute
-            ready_tasks = self._get_ready_tasks(pending_tasks, completed_tasks, execution.dependencies)
+            ready_tasks = self._get_ready_tasks(pending_tasks, completed_tasks, workflow.dependencies)
             
             if not ready_tasks:
                 # Check for circular dependencies
@@ -261,11 +271,13 @@ class PydanticN8NEngine:
             # Execute ready tasks
             for task in ready_tasks:
                 try:
+                # Use task ID instead of the task dictionary itself in readiness checks
+                # to avoid "unhashable type: 'dict'" error.
                     result = await self._execute_task(task, context)
                     context['task_results'][task['id']] = result
                     context['execution_order'].append(task['id'])
                     completed_tasks.add(task['id'])
-                    pending_tasks.remove(task)
+                    del pending_tasks[task['id']]
                     
                     execution.tasks_executed += 1
                     execution.tasks_completed += 1
@@ -281,7 +293,7 @@ class PydanticN8NEngine:
                         logger.warning(f"⚠️ Task failed but continuing: {task['name']} - {str(e)}")
                         context['task_results'][task['id']] = {'error': str(e)}
                         completed_tasks.add(task['id'])
-                        pending_tasks.remove(task)
+                        del pending_tasks[task['id']]
                     else:  # retry_all
                         raise
     
@@ -294,12 +306,11 @@ class PydanticN8NEngine:
             graph[task_id] = dependencies
         return graph
     
-    def _get_ready_tasks(self, pending_tasks: set, completed_tasks: set, dependencies: Dict[str, List[str]]) -> List[Dict[str, Any]]:
+    def _get_ready_tasks(self, pending_tasks: Dict[str, Any], completed_tasks: set, dependencies: Dict[str, List[str]]) -> List[Dict[str, Any]]:
         """Get tasks ready for execution"""
         ready_tasks = []
         
-        for task in pending_tasks:
-            task_id = task['id']
+        for task_id, task in pending_tasks.items():
             task_deps = dependencies.get(task_id, [])
             
             # Check if all dependencies are completed
@@ -320,6 +331,17 @@ class PydanticN8NEngine:
         if task_type == 'http_request':
             return await self._execute_http_request(task_config, context)
         elif task_type == 'function_call':
+            # Check if it's a built-in task that is async
+            function_name = task_config.get('function')
+            if function_name == 'calculate':
+                return await self._calculate_task(**task_config.get('args', {}))
+            elif function_name == 'send_email':
+                return await self._send_email_task(**task_config.get('args', {}))
+            elif function_name == 'log_message':
+                return await self._log_message_task(**task_config.get('args', {}))
+            elif function_name == 'get_time':
+                return await self._get_time_task(**task_config.get('args', {}))
+
             return await self._execute_function_call(task_config, context)
         elif task_type == 'conditional':
             return await self._execute_conditional(task_config, context)
@@ -558,12 +580,61 @@ class PydanticN8NEngine:
         format_str = kwargs.get('format', '%Y-%m-%d %H:%M:%S')
         return {'current_time': datetime.now().strftime(format_str)}
     
+    def _safe_eval(self, expression: str) -> Any:
+        """
+        Hardened expression evaluator using AST.
+        Only allows basic math operators and numeric/boolean constants.
+        Specifically blocks dangerous operations, function calls, and the Pow (**) operator.
+        """
+        import ast
+        import operator
+
+        # Supported operators
+        operators = {
+            ast.Add: operator.add,
+            ast.Sub: operator.sub,
+            ast.Mult: operator.mul,
+            ast.Div: operator.truediv,
+            ast.BitXor: operator.xor,
+            ast.USub: operator.neg,
+            ast.UAdd: operator.pos,
+        }
+
+        def _eval(node):
+            if isinstance(node, ast.Num):  # < Python 3.8
+                return node.n
+            elif isinstance(node, ast.Constant):  # Python 3.8+
+                if isinstance(node.value, (int, float, complex)):
+                    return node.value
+                elif isinstance(node.value, bool):
+                    return node.value
+                raise TypeError(f"Unsupported constant type: {type(node.value)}")
+            elif isinstance(node, ast.BinOp):
+                if type(node.op) in operators:
+                    return operators[type(node.op)](_eval(node.left), _eval(node.right))
+                raise TypeError(f"Unsupported binary operator: {type(node.op)}")
+            elif isinstance(node, ast.UnaryOp):
+                if type(node.op) in operators:
+                    return operators[type(node.op)](_eval(node.operand))
+                raise TypeError(f"Unsupported unary operator: {type(node.op)}")
+            elif isinstance(node, ast.Expression):
+                return _eval(node.body)
+            else:
+                raise TypeError(f"Unsupported AST node: {type(node)}")
+
+        try:
+            tree = ast.parse(expression, mode='eval')
+            return _eval(tree)
+        except Exception as e:
+            logger.error(f"Safe eval failed for expression '{expression}': {str(e)}")
+            raise
+
     async def _calculate_task(self, **kwargs) -> Dict[str, Any]:
         """Built-in calculation task"""
         expression = kwargs.get('expression', '0')
         try:
-            # Simple calculation (could be enhanced with proper expression parser)
-            result = eval(expression)
+            # Use hardened safe_eval instead of insecure eval()
+            result = self._safe_eval(expression)
             return {'result': result, 'expression': expression}
         except Exception as e:
             return {'error': str(e), 'expression': expression}
