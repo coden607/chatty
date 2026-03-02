@@ -248,42 +248,70 @@ class PydanticN8NEngine:
         
         # Execute tasks based on dependencies
         completed_tasks = set()
-        pending_tasks = set(workflow.tasks)
+        # Use dict mapping task_id to task_data to resolve 'unhashable type: dict'
+        pending_tasks = {task['id']: task for task in workflow.tasks}
         
         while pending_tasks:
-            # Find tasks ready to execute
-            ready_tasks = self._get_ready_tasks(pending_tasks, completed_tasks, execution.dependencies)
+            # Find tasks ready to execute (BOLT BUGFIX: execution.dependencies -> workflow.dependencies)
+            ready_tasks = self._get_ready_tasks(pending_tasks.values(), completed_tasks, workflow.dependencies)
             
             if not ready_tasks:
                 # Check for circular dependencies
                 raise ValueError("Circular dependency detected in workflow")
             
-            # Execute ready tasks
-            for task in ready_tasks:
-                try:
-                    result = await self._execute_task(task, context)
-                    context['task_results'][task['id']] = result
-                    context['execution_order'].append(task['id'])
-                    completed_tasks.add(task['id'])
-                    pending_tasks.remove(task)
+            # BOLT OPTIMIZATION: Implement parallel execution via asyncio.gather if enabled
+            if workflow.parallel_execution:
+                results = await asyncio.gather(
+                    *[self._execute_task(task, context) for task in ready_tasks],
+                    return_exceptions=(workflow.error_handling == 'continue_on_error')
+                )
+
+                for task, result in zip(ready_tasks, results):
+                    task_id = task['id']
+                    if isinstance(result, Exception):
+                        execution.tasks_failed += 1
+                        logger.error(f"❌ Task failed: {task['name']} - {str(result)}")
+                        if workflow.error_handling == 'fail_fast':
+                            raise result
+                        context['task_results'][task_id] = {'error': str(result)}
+                    else:
+                        context['task_results'][task_id] = result
+                        context['execution_order'].append(task_id)
+                        execution.tasks_completed += 1
+                        logger.info(f"✅ Task completed: {task['name']}")
                     
+                    completed_tasks.add(task_id)
+                    del pending_tasks[task_id]
                     execution.tasks_executed += 1
-                    execution.tasks_completed += 1
-                    
-                    logger.info(f"✅ Task completed: {task['name']}")
-                    
-                except Exception as e:
-                    execution.tasks_failed += 1
-                    
-                    if workflow.error_handling == 'fail_fast':
-                        raise
-                    elif workflow.error_handling == 'continue_on_error':
-                        logger.warning(f"⚠️ Task failed but continuing: {task['name']} - {str(e)}")
-                        context['task_results'][task['id']] = {'error': str(e)}
-                        completed_tasks.add(task['id'])
-                        pending_tasks.remove(task)
-                    else:  # retry_all
-                        raise
+            else:
+                # Sequential execution
+                for task in ready_tasks:
+                    task_id = task['id']
+                    try:
+                        result = await self._execute_task(task, context)
+                        context['task_results'][task_id] = result
+                        context['execution_order'].append(task_id)
+                        completed_tasks.add(task_id)
+                        del pending_tasks[task_id]
+
+                        execution.tasks_executed += 1
+                        execution.tasks_completed += 1
+
+                        logger.info(f"✅ Task completed: {task['name']}")
+
+                    except Exception as e:
+                        execution.tasks_failed += 1
+
+                        if workflow.error_handling == 'fail_fast':
+                            raise
+                        elif workflow.error_handling == 'continue_on_error':
+                            logger.warning(f"⚠️ Task failed but continuing: {task['name']} - {str(e)}")
+                            context['task_results'][task_id] = {'error': str(e)}
+                            completed_tasks.add(task_id)
+                            del pending_tasks[task_id]
+                            execution.tasks_executed += 1
+                        else:  # retry_all
+                            raise
     
     def _build_execution_graph(self, workflow: PydanticWorkflow) -> Dict[str, List[str]]:
         """Build execution dependency graph"""
@@ -294,7 +322,7 @@ class PydanticN8NEngine:
             graph[task_id] = dependencies
         return graph
     
-    def _get_ready_tasks(self, pending_tasks: set, completed_tasks: set, dependencies: Dict[str, List[str]]) -> List[Dict[str, Any]]:
+    def _get_ready_tasks(self, pending_tasks: Union[set, List[Dict[str, Any]]], completed_tasks: set, dependencies: Dict[str, List[str]]) -> List[Dict[str, Any]]:
         """Get tasks ready for execution"""
         ready_tasks = []
         
@@ -377,7 +405,10 @@ class PydanticN8NEngine:
             
             # Execute function
             function = self.task_registry[function_name]
-            result = await asyncio.to_thread(function, **function_args)
+            if asyncio.iscoroutinefunction(function):
+                result = await function(**function_args)
+            else:
+                result = await asyncio.to_thread(function, **function_args)
             
             return {'result': result}
             
@@ -454,13 +485,10 @@ class PydanticN8NEngine:
             raise Exception(f"AI task execution failed: {str(e)}")
     
     def _replace_variables(self, data: Any, context: Dict[str, Any]) -> Any:
-        """Replace variables in data with context values"""
+        """Replace variables in data with context values using O(N) regex substitution"""
         if isinstance(data, str):
-            # Simple variable replacement
-            for key, value in context.items():
-                if isinstance(value, (str, int, float, bool)):
-                    data = data.replace(f'{{{{{key}}}}}', str(value))
-            return data
+            # Single-pass regex replacement for O(N) performance
+            return re.sub(r'\{\{(.*?)\}\}', lambda m: str(context.get(m.group(1), m.group(0))), data)
         elif isinstance(data, dict):
             return {k: self._replace_variables(v, context) for k, v in data.items()}
         elif isinstance(data, list):
