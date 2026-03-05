@@ -28,6 +28,9 @@ from server import db, Agent, Task, logger
 from learning_system import memory_system, adaptive_learning
 from openclaw_integration import MultiLLMRouter
 
+# Regex for efficient variable replacement in templates
+_VAR_PATTERN = re.compile(r'\{\{([^{}]+)\}\}')
+
 class WorkflowStatus(str, Enum):
     """Workflow status enumeration"""
     PENDING = "pending"
@@ -454,13 +457,16 @@ class PydanticN8NEngine:
             raise Exception(f"AI task execution failed: {str(e)}")
     
     def _replace_variables(self, data: Any, context: Dict[str, Any]) -> Any:
-        """Replace variables in data with context values"""
+        """Replace variables in data with context values using optimized regex"""
         if isinstance(data, str):
-            # Simple variable replacement
-            for key, value in context.items():
-                if isinstance(value, (str, int, float, bool)):
-                    data = data.replace(f'{{{{{key}}}}}', str(value))
-            return data
+            def _replacer(match):
+                key = match.group(1)
+                if key in context:
+                    val = context[key]
+                    if isinstance(val, (str, int, float, bool)):
+                        return str(val)
+                return match.group(0)  # Keep original if not in context or wrong type
+            return _VAR_PATTERN.sub(_replacer, data)
         elif isinstance(data, dict):
             return {k: self._replace_variables(v, context) for k, v in data.items()}
         elif isinstance(data, list):
