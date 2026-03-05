@@ -5,3 +5,7 @@
 ## 2026-02-05 - [Interactive Dashboard Polish]
 **Learning:** For multi-panel dashboards, a delegated 'Enter' key listener targeting the panel's primary button significantly reduces friction for power users. Additionally, providing 'Refreshing...' state on the primary refresh button prevents redundant clicks and confirms the system is active.
 **Action:** Implement delegated 'Enter' key handlers in complex command interfaces and always disable/label-swap async trigger buttons during network requests using a `finally` block for resilience.
+
+## 2026-02-28 - [Standardized Loading States & Focus Visibility]
+**Learning:** In vanilla JS dashboards, standardizing async button states via a centralized helper (e.g., `uiAction`) prevents inconsistent feedback and ensures resilience against failed requests. Additionally, adding `:focus-visible` globally is a critical, low-effort accessibility win for keyboard navigation in complex, button-heavy interfaces.
+**Action:** Use a centralized async wrapper for all dashboard actions and ensure `:focus-visible` indicators are present for all interactive elements.
