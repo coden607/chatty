@@ -1614,10 +1614,10 @@ def coordinate_agents():
             raise APIError("Task and agent IDs required", 400)
 
         # Initialize collaboration
-        await collaboration_system.initialize_collaboration(agent_ids)
+        collaboration_system.initialize_collaboration(agent_ids)
 
         # Coordinate task execution
-        result = await collaboration_system.coordinate_task(task)
+        result = collaboration_system.coordinate_task(task)
 
         return jsonify({
             'coordination_result': result,
