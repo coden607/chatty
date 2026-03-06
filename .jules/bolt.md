@@ -9,3 +9,6 @@
 ## 2026-02-24 - [Cache expensive AI generation]
 **Learning:** AI-powered API endpoints are a major performance bottleneck due to high latency and cost. Implementing an in-memory cache with an `asyncio.Lock` (using double-checked locking) provides a massive responsiveness boost (~125x) and protects against thundering herd problems.
 **Action:** Identify endpoints polled by the UI and apply time-based caching with concurrency controls to redundant LLM calls.
+## 2026-03-05 - [Optimize variable substitution with single-pass regex]
+**Learning:** String substitution templates using repeated `str.replace()` in a loop over a large context dictionary results in $O(N \times M)$ complexity. Switching to a pre-compiled regex with `re.sub()` and a callback reduces this to $O(N)$.
+**Action:** Use a single-pass regex replacement for template variable substitution to ensure performance remains stable as context size grows.

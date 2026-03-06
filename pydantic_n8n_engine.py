@@ -20,6 +20,11 @@ from dataclasses import dataclass, field
 from enum import Enum
 
 import requests
+
+# Pre-compile the regex pattern for variable substitution ({{var_name}})
+# This is a Bolt optimization that avoids repeated pattern compilation and
+# enables a single-pass replacement for complex templates.
+VAR_PATTERN = re.compile(r'\{\{(.*?)\}\}')
 from pydantic import BaseModel, Field, validator, ValidationError
 from pydantic_ai import Agent, ModelRetry
 from pydantic_ai.models.test import TestModel
@@ -454,13 +459,24 @@ class PydanticN8NEngine:
             raise Exception(f"AI task execution failed: {str(e)}")
     
     def _replace_variables(self, data: Any, context: Dict[str, Any]) -> Any:
-        """Replace variables in data with context values"""
+        """
+        Replace variables in data with context values.
+        BOLT OPTIMIZATION: Uses a single-pass regex substitution for strings, providing
+        significant performance gains for templates with many variables or large context.
+        """
         if isinstance(data, str):
-            # Simple variable replacement
-            for key, value in context.items():
-                if isinstance(value, (str, int, float, bool)):
-                    data = data.replace(f'{{{{{key}}}}}', str(value))
-            return data
+            if '{{' not in data:
+                return data
+
+            def replace_match(match):
+                var_name = match.group(1).strip()
+                if var_name in context:
+                    val = context[var_name]
+                    if isinstance(val, (str, int, float, bool)):
+                        return str(val)
+                return match.group(0)
+
+            return VAR_PATTERN.sub(replace_match, data)
         elif isinstance(data, dict):
             return {k: self._replace_variables(v, context) for k, v in data.items()}
         elif isinstance(data, list):
