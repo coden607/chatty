@@ -10,6 +10,7 @@ import time
 import asyncio
 import logging
 import re
+import ast
 import uuid
 from datetime import datetime, timedelta
 from typing import Dict, List, Any, Optional, Tuple, Union
@@ -559,14 +560,52 @@ class PydanticN8NEngine:
         return {'current_time': datetime.now().strftime(format_str)}
     
     async def _calculate_task(self, **kwargs) -> Dict[str, Any]:
-        """Built-in calculation task"""
+        """Built-in calculation task (remediated for RCE)"""
         expression = kwargs.get('expression', '0')
         try:
-            # Simple calculation (could be enhanced with proper expression parser)
-            result = eval(expression)
+            # Restricted calculation to prevent RCE vulnerabilities
+            result = self._safe_eval(expression)
             return {'result': result, 'expression': expression}
         except Exception as e:
             return {'error': str(e), 'expression': expression}
+
+    def _safe_eval(self, expression: str) -> Any:
+        """Safely evaluate arithmetic expressions using AST parsing."""
+        # Sentinel Remediation: Replace eval() with a restricted AST evaluator
+        # to prevent arbitrary code execution while maintaining core math functionality.
+        allowed_operators = {
+            ast.Add: lambda a, b: a + b,
+            ast.Sub: lambda a, b: a - b,
+            ast.Mult: lambda a, b: a * b,
+            ast.Div: lambda a, b: a / b,
+            ast.BitXor: lambda a, b: a ^ b,
+            ast.USub: lambda a: -a,
+            ast.UAdd: lambda a: a
+        }
+
+        def _eval_node(node):
+            if isinstance(node, ast.Num):  # < Python 3.8
+                return node.n
+            elif isinstance(node, ast.Constant):  # Python 3.8+
+                return node.value
+            elif isinstance(node, ast.BinOp):
+                left = _eval_node(node.left)
+                right = _eval_node(node.right)
+                return allowed_operators[type(node.op)](left, right)
+            elif isinstance(node, ast.UnaryOp):
+                operand = _eval_node(node.operand)
+                return allowed_operators[type(node.op)](operand)
+            elif isinstance(node, ast.Expression):
+                return _eval_node(node.body)
+            else:
+                raise TypeError(f"Unsupported expression node: {type(node)}")
+
+        try:
+            tree = ast.parse(expression, mode='eval')
+            return _eval_node(tree)
+        except Exception as e:
+            logger.error(f"Safe eval failed for expression '{expression}': {str(e)}")
+            raise ValueError(f"Invalid or unsafe expression: {str(e)}")
 
 class AIWorkflowOptimizer:
     """AI-driven workflow optimization engine"""
