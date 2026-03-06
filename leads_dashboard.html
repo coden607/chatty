@@ -478,6 +478,14 @@
         color: var(--text-muted);
         white-space: pre-wrap;
       }
+
+      button:focus-visible,
+      input:focus-visible,
+      select:focus-visible,
+      textarea:focus-visible {
+        outline: 2px solid var(--primary);
+        outline-offset: 2px;
+      }
     </style>
   </head>
   <body>
@@ -485,7 +493,7 @@
     <div class="container">
       <header>
         <div class="logo">CHATTY.AI</div>
-        <button class="btn" onclick="fetchLeads()">Refresh Intelligence</button>
+        <button class="btn" onclick="fetchLeads(this)">Refresh Intelligence</button>
       </header>
 
       <div class="stats-grid">
@@ -536,7 +544,7 @@
       <div class="lead-section" style="margin-top: 32px;">
         <div class="section-header">
           <h2>NarcoGuard Transparent Workflows</h2>
-          <button class="btn" onclick="refreshWorkflows()">Refresh Workflows</button>
+          <button class="btn" onclick="refreshWorkflows(this)">Refresh Workflows</button>
         </div>
         <div id="workflow-grid" class="workflow-grid">
           <div class="loading">Syncing workflow telemetry...</div>
@@ -575,7 +583,7 @@
       <div class="lead-section" style="margin-top: 32px;">
         <div class="section-header">
           <h2>Autonomy Control + Collaboration</h2>
-          <button class="btn" onclick="refreshAutonomy()">Sync Autonomy</button>
+          <button class="btn" onclick="refreshAutonomy(this)">Sync Autonomy</button>
         </div>
         <div class="command-grid">
           <div class="panel">
@@ -644,7 +652,7 @@
               <div class="pipeline-card">Loading pipelines...</div>
             </div>
             <div class="prompt-row">
-              <button class="btn" onclick="refreshPipelines()">Advance Pipelines</button>
+            <button class="btn" onclick="refreshPipelines(this)">Advance Pipelines</button>
             </div>
           </div>
           <div class="panel">
@@ -695,7 +703,7 @@
               <div class="log-entry">No briefs yet.</div>
             </div>
             <div class="prompt-row">
-              <button class="btn" onclick="refreshContentBriefs()">Refresh Briefs</button>
+              <button class="btn" onclick="refreshContentBriefs(this)">Refresh Briefs</button>
             </div>
           </div>
           <div class="panel">
@@ -739,14 +747,14 @@
               <div class="log-entry">No anomalies detected.</div>
             </div>
             <div class="prompt-row">
-              <button class="btn" onclick="refreshAnomalies()">Refresh</button>
+              <button class="btn" onclick="refreshAnomalies(this)">Refresh</button>
             </div>
           </div>
           <div class="panel">
             <h3>Weekly Brief</h3>
             <div id="weekly-brief" class="generator-output">No brief yet.</div>
             <div class="prompt-row">
-              <button class="btn" onclick="refreshWeeklyBrief()">Refresh Brief</button>
+              <button class="btn" onclick="refreshWeeklyBrief(this)">Refresh Brief</button>
             </div>
           </div>
         </div>
@@ -768,6 +776,19 @@
       const apiBase = "http://localhost:8080";
       let selectedAgent = null;
 
+      async function uiAction(btn, text, action) {
+        if (!btn) return action();
+        const originalText = btn.innerText;
+        btn.innerText = text;
+        btn.disabled = true;
+        try {
+          return await action();
+        } finally {
+          btn.innerText = originalText;
+          btn.disabled = false;
+        }
+      }
+
       function escapeHTML(str) {
         if (!str) return '';
         return str.toString()
@@ -778,54 +799,44 @@
           .replace(/'/g, '&#039;');
       }
 
-      async function fetchLeads() {
-        const btn = document.querySelector('header .btn');
-        const originalText = btn.innerText;
-        btn.innerText = "Refreshing...";
-        btn.disabled = true;
+      async function fetchLeads(btn) {
+        const targetBtn = btn || document.querySelector('header .btn');
+        await uiAction(targetBtn, "Refreshing...", async () => {
+          try {
+            const response = await fetch(`${apiBase}/api/leads`);
+            const data = await response.json();
 
-        try {
-          const response = await fetch(`${apiBase}/api/leads`);
-          const data = await response.json();
+            updateDashboard(data);
 
-          updateDashboard(data);
-
-          const status = document.getElementById("status-msg");
-          status.style.opacity = 1;
-          setTimeout(() => (status.style.opacity = 0), 3000);
-        } catch (error) {
-          console.error("Failed to fetch leads:", error);
-        } finally {
-          btn.innerText = originalText;
-          btn.disabled = false;
-        }
+            const status = document.getElementById("status-msg");
+            status.style.opacity = 1;
+            setTimeout(() => (status.style.opacity = 0), 3000);
+          } catch (error) {
+            console.error("Failed to fetch leads:", error);
+          }
+        });
       }
 
       async function focusAgent(leadId, btn) {
         const leadName = btn.closest('tr').querySelector('.lead-name').innerText;
-        const originalText = btn.innerText;
-        btn.innerText = "Targeting...";
-          btn.disabled = true;
+        await uiAction(btn, "Targeting...", async () => {
+          try {
+            const response = await fetch(`${apiBase}/api/leads/${leadId}/convert`, {
+              method: 'POST'
+            });
+            const data = await response.json();
 
-        try {
-          const response = await fetch(`${apiBase}/api/leads/${leadId}/convert`, {
-            method: 'POST'
-          });
-          const data = await response.json();
-          
-          if (data.status === "success") {
-            showModal(leadName, data.strategy);
-            fetchLeads(); // Refresh to show "engaging" status
-          } else {
-            alert("Agent failed to engage: " + (data.detail || "Unknown error"));
+            if (data.status === "success") {
+              showModal(leadName, data.strategy);
+              fetchLeads(); // Refresh to show "engaging" status
+            } else {
+              alert("Agent failed to engage: " + (data.detail || "Unknown error"));
+            }
+          } catch (error) {
+            console.error("Focus failed:", error);
+            alert("Network error while deploying agent.");
           }
-        } catch (error) {
-          console.error("Focus failed:", error);
-          alert("Network error while deploying agent.");
-        } finally {
-          btn.innerText = originalText;
-          btn.disabled = false;
-        }
+        });
       }
 
       function showModal(name, strategy) {
@@ -921,7 +932,7 @@
                     <td><span class="badge ${badgeClass}">${escapeHTML(lead.status)}</span></td>
                     <td style="color: var(--text-muted); font-size: 0.8rem;">${date}</td>
                     <td>
-                        <button id="btn-${lead.id}" class="btn" style="padding: 8px 16px; font-size: 0.8rem;" onclick="focusAgent(${lead.id}, this)">Focus Agent</button>
+                        <button id="btn-${lead.id}" class="btn" style="padding: 8px 16px; font-size: 0.8rem;" aria-label="Focus Agent for ${escapeHTML(lead.name)}" onclick="focusAgent(${lead.id}, this)">Focus Agent</button>
                     </td>
                 `;
           body.appendChild(row);
@@ -974,13 +985,15 @@
         });
       }
 
-      async function refreshWorkflows() {
-        try {
-          await fetch(`${apiBase}/api/narcoguard/workflows/refresh`, { method: "POST" });
-          fetchWorkflows();
-        } catch (error) {
-          console.error("Failed to refresh workflows:", error);
-        }
+      async function refreshWorkflows(btn) {
+        await uiAction(btn, "Refreshing...", async () => {
+          try {
+            await fetch(`${apiBase}/api/narcoguard/workflows/refresh`, { method: "POST" });
+            await fetchWorkflows();
+          } catch (error) {
+            console.error("Failed to refresh workflows:", error);
+          }
+        });
       }
 
       async function fetchAgents() {
@@ -1197,20 +1210,24 @@
         }
       }
 
-      function refreshAutonomy() {
-        fetchTasks();
-        fetchCollabFeed();
-        fetchOperatorMessages();
-        fetchAutonomyStatus();
-        fetchPipelines();
-        fetchCampaigns();
-        fetchN8nWorkflows();
-        fetchTransparency();
-        fetchContentBriefs();
-        fetchGrants();
-        fetchPricingExperiments();
-        fetchAnomalies();
-        fetchWeeklyBrief();
+      async function refreshAutonomy(btn) {
+        await uiAction(btn, "Syncing...", async () => {
+          await Promise.all([
+            fetchTasks(),
+            fetchCollabFeed(),
+            fetchOperatorMessages(),
+            fetchAutonomyStatus(),
+            fetchPipelines(),
+            fetchCampaigns(),
+            fetchN8nWorkflows(),
+            fetchTransparency(),
+            fetchContentBriefs(),
+            fetchGrants(),
+            fetchPricingExperiments(),
+            fetchAnomalies(),
+            fetchWeeklyBrief()
+          ]);
+        });
       }
 
       async function fetchAutonomyStatus() {
@@ -1280,10 +1297,11 @@
           .join("");
       }
 
-      async function refreshPipelines() {
-        await fetch(`${apiBase}/api/pipelines/refresh`, { method: "POST" });
-        fetchPipelines();
-        fetchCollabFeed();
+      async function refreshPipelines(btn) {
+        await uiAction(btn, "Advancing...", async () => {
+          await fetch(`${apiBase}/api/pipelines/refresh`, { method: "POST" });
+          await Promise.all([fetchPipelines(), fetchCollabFeed()]);
+        });
       }
 
       async function fetchCampaigns() {
@@ -1412,9 +1430,11 @@
           .join("");
       }
 
-      async function refreshContentBriefs() {
-        await fetch(`${apiBase}/api/content/briefs/refresh`, { method: "POST" });
-        fetchContentBriefs();
+      async function refreshContentBriefs(btn) {
+        await uiAction(btn, "Refreshing...", async () => {
+          await fetch(`${apiBase}/api/content/briefs/refresh`, { method: "POST" });
+          await fetchContentBriefs();
+        });
       }
 
       async function fetchGrants() {
@@ -1538,6 +1558,10 @@
         }
       }
 
+      async function refreshAnomalies(btn) {
+        await uiAction(btn, "Refreshing...", fetchAnomalies);
+      }
+
       function renderAnomalies(items) {
         const list = document.getElementById("anomaly-list");
         if (!items.length) {
@@ -1559,6 +1583,10 @@
         } catch (error) {
           console.error("Failed to fetch weekly brief:", error);
         }
+      }
+
+      async function refreshWeeklyBrief(btn) {
+        await uiAction(btn, "Refreshing...", fetchWeeklyBrief);
       }
 
       function renderTransparency(items) {
