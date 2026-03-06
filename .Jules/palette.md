@@ -5,3 +5,7 @@
 ## 2026-02-05 - [Interactive Dashboard Polish]
 **Learning:** For multi-panel dashboards, a delegated 'Enter' key listener targeting the panel's primary button significantly reduces friction for power users. Additionally, providing 'Refreshing...' state on the primary refresh button prevents redundant clicks and confirms the system is active.
 **Action:** Implement delegated 'Enter' key handlers in complex command interfaces and always disable/label-swap async trigger buttons during network requests using a `finally` block for resilience.
+
+## 2026-02-09 - [Accessibility & Standardized Loading Feedback]
+**Learning:** Standardizing asynchronous feedback through a utility like `uiAction` not only reduces code duplication but also ensures a consistent user experience. Descriptive `aria-label`s on dynamically generated buttons (e.g., in data tables) are essential for providing context to assistive technologies that is otherwise lost.
+**Action:** Use centralized UI helpers for loading states and always include lead-specific context in ARIA labels for table actions.
