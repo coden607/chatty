@@ -20,6 +20,8 @@ from dataclasses import dataclass, field
 from enum import Enum
 
 import requests
+import ast
+import operator
 from pydantic import BaseModel, Field, validator, ValidationError
 from pydantic_ai import Agent, ModelRetry
 from pydantic_ai.models.test import TestModel
@@ -560,13 +562,47 @@ class PydanticN8NEngine:
     
     async def _calculate_task(self, **kwargs) -> Dict[str, Any]:
         """Built-in calculation task"""
-        expression = kwargs.get('expression', '0')
+        expression = str(kwargs.get('expression', '0'))
         try:
-            # Simple calculation (could be enhanced with proper expression parser)
-            result = eval(expression)
+            result = self._safe_eval(expression)
             return {'result': result, 'expression': expression}
         except Exception as e:
             return {'error': str(e), 'expression': expression}
+
+    def _safe_eval(self, expression: str):
+        """Safely evaluate a mathematical expression using AST"""
+        # Supported operators
+        operators = {
+            ast.Add: operator.add,
+            ast.Sub: operator.sub,
+            ast.Mult: operator.mul,
+            ast.Div: operator.truediv,
+            ast.BitXor: operator.xor,
+            ast.USub: operator.neg,
+            ast.UAdd: operator.pos,
+        }
+
+        def _eval(node):
+            if isinstance(node, ast.Num):  # <3.8
+                return node.n
+            elif isinstance(node, ast.Constant):  # >=3.8
+                if isinstance(node.value, (int, float, bool)):
+                    return node.value
+                raise TypeError(f"Unsupported constant type: {type(node.value)}")
+            elif isinstance(node, ast.BinOp):
+                if type(node.op) in operators:
+                    return operators[type(node.op)](_eval(node.left), _eval(node.right))
+            elif isinstance(node, ast.UnaryOp):
+                if type(node.op) in operators:
+                    return operators[type(node.op)](_eval(node.operand))
+
+            raise TypeError(f"Unsupported expression node: {type(node)}")
+
+        try:
+            tree = ast.parse(expression, mode='eval')
+            return _eval(tree.body)
+        except Exception as e:
+            raise ValueError(f"Failed to evaluate expression safely: {str(e)}")
 
 class AIWorkflowOptimizer:
     """AI-driven workflow optimization engine"""
