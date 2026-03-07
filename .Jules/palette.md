@@ -5,3 +5,7 @@
 ## 2026-02-05 - [Interactive Dashboard Polish]
 **Learning:** For multi-panel dashboards, a delegated 'Enter' key listener targeting the panel's primary button significantly reduces friction for power users. Additionally, providing 'Refreshing...' state on the primary refresh button prevents redundant clicks and confirms the system is active.
 **Action:** Implement delegated 'Enter' key handlers in complex command interfaces and always disable/label-swap async trigger buttons during network requests using a `finally` block for resilience.
+
+## 2026-02-15 - [Centralized Async UI Feedback]
+**Learning:** In dashboards with numerous manual refresh/sync triggers, local state management for each button leads to logic duplication and inconsistent UX. A centralized `uiAction(btn, text, action)` helper ensures uniform loading states, prevents redundant clicks via button disabling, and simplifies asynchronous error handling.
+**Action:** Abstract async button states into a reusable helper function; ensure the loading state persists by awaiting all relevant background fetches (using `Promise.all` where appropriate) before resetting the UI.
