@@ -649,7 +649,7 @@ async def get_chat_interface():
             const responseDiv = document.createElement('div');
             responseDiv.className = 'message agent-response';
             
-            const agentName = agentId.replace('_', ' ').replace(/\b\w/g, l => l.toUpperCase());
+            const agentName = agentId.replace('_', ' ').replace(/\\b\\w/g, l => l.toUpperCase());
             
             let html = `
                 <div class="agent-header">${agentName}</div>

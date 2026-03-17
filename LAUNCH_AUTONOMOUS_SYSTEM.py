@@ -469,7 +469,7 @@ class AutonomousSystemLauncher:
         except Exception as e:
             logger.error(f"Failed to restart process {name}: {e}")
     
-    def _restart_task(self, name: str):
+    async def _restart_task(self, name: str):
         """Restart a failed task"""
         try:
             if name == 'autonomous_system':
@@ -477,7 +477,7 @@ class AutonomousSystemLauncher:
                 autonomous_task = asyncio.create_task(autonomous_system.start())
                 self.processes['autonomous_system'] = autonomous_task
                 logger.info("✅ Autonomous system restarted")
-            
+
             elif name == 'complete_automation':
                 complete_automation = ChattyCompleteAutomation()
                 init_result = await complete_automation.initialize()

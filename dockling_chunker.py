@@ -24,8 +24,14 @@ import networkx as nx
 from sklearn.cluster import KMeans
 import numpy as np
 
-from server import db, Agent, Task, logger
-from learning_system import memory_system, adaptive_learning
+try:
+    from server import db, Agent, Task, logger
+    from learning_system import memory_system, adaptive_learning
+except ImportError:
+    db = Agent = Task = None
+    memory_system = adaptive_learning = None
+    import logging
+    logger = logging.getLogger(__name__)
 
 class DocklingChunker:
     """Advanced file chunking system inspired by Dockling's semantic analysis"""

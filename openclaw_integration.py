@@ -308,12 +308,22 @@ class FileChunker:
 # ── MultiLLMRouter ───────────────────────────────────────────────────────────
 
 class MultiLLMRouter:
-    """OpenClaw-style multi-LLM orchestration — delegates to revenue engine when available."""
+    """OpenClaw-style multi-LLM orchestration — uses FREE_LLM_ROUTER (real free models)."""
 
     def __init__(self, revenue_engine=None):
         self.revenue_engine = revenue_engine
         self.task_router = TaskRouter()
         self.response_aggregator = ResponseAggregator()
+        self._free_router = None
+
+    def _get_free_router(self):
+        if self._free_router is None:
+            try:
+                from FREE_LLM_ROUTER import get_router
+                self._free_router = get_router()
+            except ImportError:
+                pass
+        return self._free_router
 
     def route_task(self, task: Dict[str, Any]) -> Dict[str, Any]:
         try:
@@ -345,48 +355,56 @@ class MultiLLMRouter:
         return responses
 
     def _call_llm(self, llm_name: str, task: Dict[str, Any]) -> Dict[str, Any]:
-        """Call LLM — uses revenue engine when wired, otherwise returns a placeholder."""
-        if self.revenue_engine:
-            import asyncio
-            try:
-                loop = asyncio.get_running_loop()
-            except RuntimeError:
-                loop = None
+        """Call LLM — tries revenue_engine first, then FREE_LLM_ROUTER (real free models)."""
+        import asyncio
+        system_prompt = "You are a multi-purpose AI assistant helping with business automation."
+        user_prompt = task.get('description', json.dumps(task))
+        max_tokens = 512
 
-            system_prompt = "You are a multi-purpose AI assistant."
-            user_prompt = task.get('description', json.dumps(task))
+        async def _generate():
+            # Prefer revenue engine if available
+            if self.revenue_engine:
+                try:
+                    content = await self.revenue_engine.generate_ai_content(
+                        system_prompt, user_prompt, max_tokens=max_tokens
+                    )
+                    return content, llm_name, 0.85
+                except Exception as e:
+                    logger.debug(f"Revenue engine failed ({e}), falling back to free router")
 
-            if loop and loop.is_running():
-                # We're inside an async context — schedule and return a future placeholder
-                future = asyncio.ensure_future(
-                    self.revenue_engine.generate_ai_content(system_prompt, user_prompt, max_tokens=500)
+            # Use FREE_LLM_ROUTER (real free APIs)
+            router = self._get_free_router()
+            if router:
+                result = await router.generate(system_prompt, user_prompt, max_tokens=max_tokens)
+                return (
+                    result.get("text", ""),
+                    result.get("model", llm_name),
+                    0.80 if result.get("text") else 0.0,
                 )
-                # Synchronous callers cannot await; return what we have
-                return {
-                    'content': f"[async call scheduled for {llm_name}]",
-                    'model_used': llm_name,
-                    'tokens_used': 0,
-                    'confidence': 0.5,
-                }
-            else:
-                content = asyncio.run(
-                    self.revenue_engine.generate_ai_content(system_prompt, user_prompt, max_tokens=500)
-                )
-                return {
-                    'content': content,
-                    'model_used': llm_name,
-                    'tokens_used': 0,
-                    'confidence': 0.8,
-                }
+            return "", llm_name, 0.0
 
-        # No revenue engine — return honest placeholder
-        logger.warning(f"MultiLLMRouter: no revenue engine wired, returning placeholder for {llm_name}")
-        return {
-            'content': f"[no LLM configured — placeholder for {llm_name}]",
-            'model_used': llm_name,
-            'tokens_used': 0,
-            'confidence': 0.0,
-        }
+        try:
+            loop = asyncio.get_running_loop()
+        except RuntimeError:
+            loop = None
+
+        if loop and loop.is_running():
+            # Synchronous caller inside event loop: create task but return immediately
+            asyncio.ensure_future(_generate())
+            return {
+                'content': "[generation dispatched]",
+                'model_used': llm_name,
+                'tokens_used': 0,
+                'confidence': 0.5,
+            }
+        else:
+            content, model_used, confidence = asyncio.run(_generate())
+            return {
+                'content': content,
+                'model_used': model_used,
+                'tokens_used': 0,
+                'confidence': confidence,
+            }
 
 
 class TaskRouter:
