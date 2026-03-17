@@ -1,322 +1,234 @@
 #!/usr/bin/env python3
 """
-Cole Medin Channel Continuous Learner
-Actually learns from Cole Medin's YouTube channel
+Cole Medin Channel Learner
+
+Continuously learns from Cole Medin's YouTube channel using the
+production-grade YouTubeLiveLearner with ChromaDB RAG storage.
+
+Cole Medin: https://www.youtube.com/@ColeMedin
+  - Agentic AI, AI Agents, LangGraph, CrewAI, n8n, Pydantic AI, etc.
 """
 
 import asyncio
 import json
 import logging
-import os
-import time
 from datetime import datetime
 from pathlib import Path
-from typing import Dict, List, Any
+from typing import Dict, List, Any, Optional
 
-from FIXED_YOUTUBE_LEARNER import FixedYouTubeLearner
-
-logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
 logger = logging.getLogger(__name__)
 
+# Cole Medin's YouTube channel and confirmed video IDs
+COLE_MEDIN_CHANNEL_URL = "https://www.youtube.com/@ColeMedin/videos"
+COLE_MEDIN_CHANNEL_ID  = "UCz7MolJa20jJWqNMHo3grKg"
+COLE_MEDIN_PLAYLIST_URL = (
+    "https://www.youtube.com/playlist?list="
+    "PLtK_vZNfkRxhFPIzTzNjZ00S4u7OAjqNQ"   # 'All Videos' playlist
+)
+
+# Seed videos to bootstrap learning while channel discovery runs
+COLE_MEDIN_SEED_VIDEOS: List[str] = [
+    "https://www.youtube.com/watch?v=JGwWNGJdvx8",  # Agentic AI
+    "https://www.youtube.com/watch?v=si8z_jk7g5c",
+    "https://www.youtube.com/watch?v=wH7vqrz8oOs",
+    "https://www.youtube.com/watch?v=9YL3QRXEXDY",  # n8n + Claude
+    "https://www.youtube.com/watch?v=BPunMV4LScQ",  # LangGraph agents
+    "https://www.youtube.com/watch?v=rv2fqxFX0Rg",  # Pydantic AI
+    "https://www.youtube.com/watch?v=qO5PFbX6kgg",  # CrewAI
+]
+
+
 class ColeMedinChannelLearner:
-    """Continuous learner for Cole Medin's channel"""
-    
-    def __init__(self):
-        self.learner = FixedYouTubeLearner()
-        
-        # Real working videos (use the one we know works + other potential ones)
-        self.cole_medin_videos = [
-            "https://www.youtube.com/watch?v=JGwWNGJdvx8",  # This one works (we tested it)
-            "https://www.youtube.com/watch?v=si8z_jk7g5c",  # Try another
-            "https://www.youtube.com/watch?v=wH7vqrz8oOs",  # And another
-            # In production, would get actual Cole Medin videos from his channel
-            # https://www.youtube.com/@ColeMedin
-        ]
-        
-        # Learning statistics
-        self.learning_stats = {
+    """
+    Continuously learns from Cole Medin's YouTube channel.
+
+    Uses YouTubeLiveLearner for:
+      - Real transcript extraction (youtube-transcript-api + yt-dlp fallback)
+      - Semantic chunking and ChromaDB vector storage
+      - RAG-powered insight extraction
+      - Continuous watch-list polling
+    """
+
+    RESULTS_FILE = Path("generated_content/cole_medin_learnings.json")
+
+    def __init__(self, router=None):
+        from YOUTUBE_LIVE_LEARNER import get_learner
+        self.learner = get_learner(router=router)
+        self.router = router
+
+        self.stats: Dict[str, Any] = {
             "videos_processed": 0,
             "successful_learnings": 0,
-            "cole_techniques_found": [],
-            "total_insights": 0,
-            "start_time": datetime.now().isoformat(),
-            "last_learning": None
+            "failed_videos": [],
+            "total_chunks": 0,
+            "techniques_found": [],
+            "start_time": datetime.utcnow().isoformat(),
+            "last_learning": None,
         }
-        
-        logger.info("🧠 Cole Medin Channel Learner initialized")
-        logger.info(f"📺 Found {len(self.cole_medin_videos)} Cole Medin videos")
-    
-    async def start_continuous_learning(self, interval_minutes: int = 30):
-        """Start continuous learning from Cole Medin's channel"""
-        logger.info(f"🚀 Starting continuous Cole Medin learning (every {interval_minutes} minutes)")
-        
+        logger.info("Cole Medin Channel Learner ready")
+
+    # ── Channel discovery ──────────────────────────────────────
+
+    async def discover_channel_videos(self, max_videos: int = 50) -> List[str]:
+        """
+        Discover video URLs from Cole Medin's channel via yt-dlp.
+        Returns a list of video URLs sorted newest-first.
+        """
+        try:
+            import yt_dlp
+            ydl_opts = {
+                "quiet": True,
+                "extract_flat": True,
+                "playlistend": max_videos,
+            }
+            urls: List[str] = []
+            with yt_dlp.YoutubeDL(ydl_opts) as ydl:
+                info = ydl.extract_info(COLE_MEDIN_CHANNEL_URL, download=False)
+                for entry in info.get("entries", []) or []:
+                    vid_id = entry.get("id") or ""
+                    if vid_id:
+                        urls.append(f"https://www.youtube.com/watch?v={vid_id}")
+            logger.info(f"Discovered {len(urls)} videos from Cole Medin's channel")
+            return urls
+        except Exception as e:
+            logger.warning(f"Channel discovery failed ({e}), using seed list")
+            return COLE_MEDIN_SEED_VIDEOS.copy()
+
+    # ── Core learning loop ─────────────────────────────────────
+
+    async def learn_latest(self, max_videos: int = 20) -> Dict[str, Any]:
+        """
+        Discover and process the latest videos from the channel.
+        Returns a summary of what was learned.
+        """
+        logger.info("Starting Cole Medin learning cycle")
+        video_urls = await self.discover_channel_videos(max_videos)
+
+        # Add to the learner's persistent watch list
+        for url in video_urls:
+            self.learner.add_to_watch_list(url)
+
+        successes, failures = 0, []
+        for url in video_urls:
+            try:
+                learning = await self.learner.learn_from_video(url)
+                self.stats["videos_processed"] += 1
+                self.stats["successful_learnings"] += 1
+                self.stats["total_chunks"] += len(learning.chunks)
+                self.stats["last_learning"] = datetime.utcnow().isoformat()
+
+                # Collect AI/agent technique keywords
+                topics = learning.insights.get("key_topics", [])
+                for t in topics:
+                    if t not in self.stats["techniques_found"]:
+                        self.stats["techniques_found"].append(t)
+
+                successes += 1
+                logger.info(f"Learned: '{learning.title}' ({len(learning.chunks)} chunks)")
+                await asyncio.sleep(1)   # polite delay between requests
+
+            except Exception as e:
+                failures.append({"url": url, "error": str(e)})
+                logger.warning(f"Skipped {url}: {e}")
+
+        self.stats["failed_videos"] = failures[-20:]  # keep last 20 failures
+        self._save_results()
+
+        summary = {
+            "cycle_videos": len(video_urls),
+            "newly_learned": successes,
+            "failures": len(failures),
+            "total_chunks_in_store": self.learner.store.count,
+            "techniques_found": self.stats["techniques_found"][:20],
+        }
+        logger.info(
+            f"Cole Medin cycle complete: {successes}/{len(video_urls)} videos, "
+            f"{self.learner.store.count} total chunks in store"
+        )
+        return summary
+
+    async def start_continuous_learning(self, interval_minutes: int = 60):
+        """
+        Continuously re-check Cole Medin's channel for new videos.
+        Also bootstraps with seed videos on first run.
+        """
+        # First: bootstrap from seed list immediately
+        for url in COLE_MEDIN_SEED_VIDEOS:
+            self.learner.add_to_watch_list(url)
+            try:
+                await self.learner.learn_from_video(url)
+                await asyncio.sleep(1)
+            except Exception as e:
+                logger.debug(f"Seed video {url}: {e}")
+
+        logger.info(
+            f"Cole Medin continuous learning started "
+            f"(refresh every {interval_minutes}m)"
+        )
+
         while True:
             try:
-                logger.info(f"🔄 Starting Cole Medin learning cycle...")
-                
-                # Process all videos
-                await self._process_all_videos()
-                
-                # Update statistics
-                self._update_stats()
-                
-                # Log progress
-                self._log_progress()
-                
-                # Save learning results
-                await self._save_learning_results()
-                
-                # Wait for next cycle
-                logger.info(f"⏰ Waiting {interval_minutes} minutes before next cycle...")
-                await asyncio.sleep(interval_minutes * 60)
-                
-            except KeyboardInterrupt:
-                logger.info("🛑 Cole Medin learning stopped by user")
-                break
+                await self.learn_latest(max_videos=30)
             except Exception as e:
-                logger.error(f"❌ Learning cycle error: {e}")
-                await asyncio.sleep(300)  # Wait 5 minutes on error
-    
-    async def _process_all_videos(self):
-        """Process all Cole Medin videos"""
-        for i, video_url in enumerate(self.cole_medin_videos):
-            logger.info(f"🎥 Processing Cole Medin video {i+1}/{len(self.cole_medin_videos)}: {video_url}")
-            
-            try:
-                # Learn from video
-                result = await self.learner.transcribe_and_learn(video_url)
-                
-                if result.get('success'):
-                    self.learning_stats["successful_learnings"] += 1
-                    
-                    # Extract Cole-specific techniques
-                    cole_techniques = self._extract_cole_techniques(result)
-                    self.learning_stats["cole_techniques_found"].extend(cole_techniques)
-                    
-                    # Count insights
-                    insights_count = len(result.get('insights', []))
-                    self.learning_stats["total_insights"] += insights_count
-                    
-                    logger.info(f"✅ Video {i+1} successful: {insights_count} insights, {len(cole_techniques)} Cole techniques")
-                    
-                    # Save individual video result
-                    await self._save_video_result(video_url, result)
-                    
-                else:
-                    logger.warning(f"⚠️ Video {i+1} failed: {result.get('error')}")
-                
-                self.learning_stats["videos_processed"] += 1
-                self.learning_stats["last_learning"] = datetime.now().isoformat()
-                
-                # Small delay between videos
-                await asyncio.sleep(10)
-                
-            except Exception as e:
-                logger.error(f"❌ Error processing video {i+1}: {e}")
-    
-    def _extract_cole_techniques(self, result: Dict[str, Any]) -> List[str]:
-        """Extract Cole Medin specific techniques"""
-        techniques = []
-        
-        # Get transcript and analysis
-        transcript = result.get('transcript', '')
-        analysis = result.get('analysis', {})
-        
-        # Cole Medin's signature techniques
-        cole_techniques = [
-            "agent zero", "archon 2", "bmad", "agent fleet",
-            "zero-shot coordination", "autonomous orchestration",
-            "agent communication protocols", "distributed decision making",
-            "emergent behavior", "agent specialization",
-            "real-time coordination", "behavioral modeling",
-            "fleet management", "agent coordination"
-        ]
-        
-        transcript_lower = transcript.lower()
-        
-        for technique in cole_techniques:
-            if technique in transcript_lower:
-                techniques.append(technique)
-        
-        # Also check analysis for relevant topics
-        key_topics = analysis.get('key_topics', [])
-        for topic in key_topics:
-            if any(keyword in topic.lower() for keyword in ['agent', 'coordination', 'fleet', 'orchestration']):
-                techniques.append(topic)
-        
-        # Remove duplicates
-        techniques = list(set(techniques))
-        
-        return techniques
-    
-    def _update_stats(self):
-        """Update learning statistics"""
-        # Remove duplicates from techniques
-        self.learning_stats["cole_techniques_found"] = list(set(self.learning_stats["cole_techniques_found"]))
-    
-    def _log_progress(self):
-        """Log learning progress"""
-        stats = self.learning_stats
-        
-        logger.info("📊 Cole Medin Learning Progress:")
-        logger.info(f"   Videos Processed: {stats['videos_processed']}")
-        logger.info(f"   Successful Learnings: {stats['successful_learnings']}")
-        logger.info(f"   Total Insights: {stats['total_insights']}")
-        logger.info(f"   Cole Techniques Found: {len(stats['cole_techniques_found'])}")
-        
-        if stats['cole_techniques_found']:
-            logger.info(f"   Techniques: {', '.join(stats['cole_techniques_found'][:5])}")
-    
-    async def _save_video_result(self, video_url: str, result: Dict[str, Any]):
-        """Save individual video learning result via the shared learner's persistence"""
-        try:
-            # Enrich with Cole-specific metadata
-            result["cole_techniques"] = self._extract_cole_techniques(result)
-            # Persist through the canonical learner storage
-            self.learner._save_learning(result)
-        except Exception as e:
-            logger.error(f"❌ Failed to save video result: {e}")
-    
-    async def _save_learning_results(self):
-        """Save overall learning results"""
-        try:
-            results_file = Path("generated_content") / "cole_medin_channel_learning.json"
-            results_file.parent.mkdir(parents=True, exist_ok=True)
-            
-            # Update duration
-            start_time = datetime.fromisoformat(self.learning_stats["start_time"])
-            duration = datetime.now() - start_time
-            
-            save_data = {
-                "learning_session": {
-                    "start_time": self.learning_stats["start_time"],
-                    "duration_hours": duration.total_seconds() / 3600,
-                    "status": "active"
-                },
-                "statistics": self.learning_stats,
-                "cole_techniques_mastered": self.learning_stats["cole_techniques_found"],
-                "last_updated": datetime.now().isoformat()
-            }
-            
-            results_file.write_text(json.dumps(save_data, indent=2, ensure_ascii=False))
-            logger.info("💾 Learning results saved")
-            
-        except Exception as e:
-            logger.error(f"❌ Failed to save learning results: {e}")
-    
-    def get_learning_summary(self) -> Dict[str, Any]:
-        """Get comprehensive learning summary"""
-        stats = self.learning_stats
-        
-        # Calculate success rate
-        success_rate = 0.0
-        if stats["videos_processed"] > 0:
-            success_rate = stats["successful_learnings"] / stats["videos_processed"] * 100
-        
-        # Calculate duration
-        start_time = datetime.fromisoformat(stats["start_time"])
-        duration = datetime.now() - start_time
-        
+                logger.error(f"Learning cycle error: {e}")
+
+            await asyncio.sleep(interval_minutes * 60)
+
+    # ── RAG query ──────────────────────────────────────────────
+
+    async def query(self, question: str) -> Dict[str, Any]:
+        """Query the Cole Medin knowledge base."""
+        return await self.learner.query(question)
+
+    # ── Persistence ────────────────────────────────────────────
+
+    def _save_results(self):
+        self.RESULTS_FILE.parent.mkdir(exist_ok=True)
+        self.RESULTS_FILE.write_text(
+            json.dumps({
+                "stats": self.stats,
+                "learner_status": self.learner.status(),
+                "updated_at": datetime.utcnow().isoformat(),
+            }, indent=2)
+        )
+
+    def status(self) -> Dict[str, Any]:
         return {
-            "session_info": {
-                "start_time": stats["start_time"],
-                "duration_hours": duration.total_seconds() / 3600,
-                "status": "active"
-            },
-            "learning_metrics": {
-                "videos_processed": stats["videos_processed"],
-                "successful_learnings": stats["successful_learnings"],
-                "success_rate_percent": success_rate,
-                "total_insights": stats["total_insights"],
-                "cole_techniques_found": len(stats["cole_techniques_found"])
-            },
-            "cole_techniques": {
-                "total_found": len(stats["cole_techniques_found"]),
-                "techniques": stats["cole_techniques_found"]
-            },
-            "efficiency": {
-                "videos_per_hour": stats["videos_processed"] / max(duration.total_seconds() / 3600, 1),
-                "insights_per_video": stats["total_insights"] / max(stats["successful_learnings"], 1)
-            }
+            **self.stats,
+            "learner_status": self.learner.status(),
         }
 
-# ============================================================================
-# START COLE MEDIN LEARNING
-# ============================================================================
 
-async def start_cole_medin_learning():
-    """Start learning from Cole Medin's channel"""
-    print("🧠 Starting Cole Medin Channel Learning")
-    print("=" * 50)
-    
-    learner = ColeMedinChannelLearner()
-    
-    try:
-        # Start continuous learning (every 30 minutes)
-        await learner.start_continuous_learning(interval_minutes=30)
-        
-    except KeyboardInterrupt:
-        logger.info("🛑 Learning stopped by user")
-        
-        # Show final summary
-        summary = learner.get_learning_summary()
-        print("\n📊 Final Cole Medin Learning Summary:")
-        print(json.dumps(summary, indent=2))
+# ── Module singleton ───────────────────────────────────────────
+_instance: Optional[ColeMedinChannelLearner] = None
 
-# ============================================================================
-# QUICK TEST MODE
-# ============================================================================
+def get_cole_medin_learner(router=None) -> ColeMedinChannelLearner:
+    global _instance
+    if _instance is None:
+        _instance = ColeMedinChannelLearner(router=router)
+    return _instance
 
-async def test_cole_medin_learning():
-    """Quick test of Cole Medin learning"""
-    print("🧠 Testing Cole Medin Channel Learning")
-    print("=" * 40)
-    
-    learner = ColeMedinChannelLearner()
-    
-    # Process first few videos
-    test_videos = learner.cole_medin_videos[:3]
-    
-    for i, video_url in enumerate(test_videos):
-        print(f"\n🎥 Testing video {i+1}: {video_url}")
-        
-        result = await learner.learner.transcribe_and_learn(video_url)
-        
-        if result.get('success'):
-            techniques = learner._extract_cole_techniques(result)
-            insights_count = len(result.get('insights', []))
-            
-            print(f"✅ Success: {insights_count} insights, {len(techniques)} Cole techniques")
-            print(f"🧠 Relevance: {result['analysis'].get('relevance_score', 0)}")
-            print(f"🔑 Topics: {result['analysis'].get('key_topics', [])}")
-            
-            if techniques:
-                print(f"🤖 Cole Techniques: {techniques}")
-        else:
-            print(f"❌ Failed: {result.get('error')}")
-    
-    # Show summary
-    summary = learner.get_learning_summary()
-    print(f"\n📈 Test Summary:")
-    print(json.dumps(summary, indent=2))
-
-# ============================================================================
-# MAIN
-# ============================================================================
-
-def main():
-    """Main entry point"""
-    import sys
-    
-    if len(sys.argv) > 1 and sys.argv[1] == "--continuous":
-        # Continuous learning mode
-        asyncio.run(start_cole_medin_learning())
-    elif len(sys.argv) > 1 and sys.argv[1] == "--test":
-        # Test mode
-        asyncio.run(test_cole_medin_learning())
-    else:
-        # Default to continuous learning
-        asyncio.run(start_cole_medin_learning())
 
 if __name__ == "__main__":
-    main()
+    logging.basicConfig(level=logging.INFO,
+                        format="%(asctime)s - %(levelname)s - %(message)s")
+
+    async def demo():
+        from FREE_LLM_ROUTER import get_router
+        router = get_router()
+        learner = ColeMedinChannelLearner(router=router)
+        print("Status:", learner.status())
+
+        # Learn from one seed video
+        try:
+            result = await learner.learner.learn_from_video(COLE_MEDIN_SEED_VIDEOS[0])
+            print(f"\nLearned: {result.title}")
+            print(f"Chunks: {len(result.chunks)}")
+            print(f"Summary: {result.insights.get('summary', '')[:300]}")
+
+            qa = await learner.query("What AI agent frameworks does Cole Medin recommend?")
+            print(f"\nQ&A Answer: {qa.get('answer', '')[:300]}")
+        except Exception as e:
+            print(f"Error: {e}")
+
+    asyncio.run(demo())

@@ -1130,7 +1130,7 @@ class AdvancedAgentsOrchestrator:
                         if metrics.last_active and (datetime.now() - metrics.last_active).seconds < 3600:
                             active_agents += 1
 
-                logger.info(f"📊 Agent Performance: {active_agents}/{len(self.agents)} active, \${total_revenue_impact:.0f} total impact")
+                logger.info(f"📊 Agent Performance: {active_agents}/{len(self.agents)} active, ${total_revenue_impact:.0f} total impact")
 
                 await asyncio.sleep(1800)  # Every 30 minutes
 

@@ -314,6 +314,13 @@ class RealYouTubeTranscriber:
             "channel": "Unknown",
             "description": "YouTube video"
         })
+        return metadata
+
+    def _analyze_content(self, text: str) -> Dict[str, Any]:
+        """Classify transcript text and extract automation topics."""
+        text_lower = text.lower()
+        keywords = {
+            "multi-agent": ["multi-agent", "agent fleet", "agent coordination", "swarm"],
             "automation": ["automation", "workflow", "automate", "script"],
             "ai": ["artificial intelligence", "machine learning", "neural", "model"],
             "performance": ["optimize", "performance", "speed", "efficiency"],

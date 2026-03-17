@@ -207,7 +207,8 @@ class ContextWindowManager:
         """Generate concise context summary"""
         summary_parts = []
         
-        if self.project_goal := self._extract_project_goal():
+        self.project_goal = self._extract_project_goal()
+        if self.project_goal:
             summary_parts.append(f"Goal: {self.project_goal}")
         
         if current_phase := self._extract_current_phase():

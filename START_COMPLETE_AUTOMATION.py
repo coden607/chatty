@@ -49,6 +49,16 @@ class ChattyCompleteAutomation:
         self.viral_growth = None
         self.youtube_learner = None
         self.openclaw_system = None
+        # New intelligent systems
+        self.tokenspin_bridge = None
+        self.free_llm_router  = None
+        self.rag_engine       = None
+        self.youtube_live     = None
+        self.web_scraper      = None
+        self.yolo_executor    = None
+        self.task_queue       = None
+        self.rag_ingestor     = None
+        self.ollama_manager   = None
         self.is_running = False
         self.start_time = None
         self.offline_mode = os.getenv("CHATTY_OFFLINE_MODE", "false").lower() == "true"
@@ -91,8 +101,42 @@ class ChattyCompleteAutomation:
                 get_absolute_system_status
             )
 
-            from COLE_MEDIN_CHANNEL_LEARNER import ColeMedinChannelLearner
             from openclaw_integration import AutonomousLearningSystem
+
+            # New intelligent systems (non-fatal if unavailable)
+            try:
+                from TOKENSPIN_BRIDGE import get_bridge
+                from FREE_LLM_ROUTER import get_router
+                from FREE_WEB_SCRAPER import get_scraper
+                from CHATTY_RAG import get_rag
+                from YOUTUBE_LIVE_LEARNER import get_learner
+                from COLE_MEDIN_CHANNEL_LEARNER import get_cole_medin_learner
+                from YOLO_MODE import create_yolo_executor
+                self.tokenspin_bridge = get_bridge()
+                self.free_llm_router  = get_router()
+                self.web_scraper      = get_scraper()
+                self.rag_engine       = get_rag(router=self.free_llm_router)
+                self.youtube_live     = get_learner(router=self.free_llm_router)
+                self.yolo_executor    = create_yolo_executor("cautious")
+                from YOLO_TASK_QUEUE import get_queue
+                from RAG_AUTO_INGEST import get_ingestor
+                from OLLAMA_AUTO_PULL import get_ollama_manager
+                from WHISPER_TRANSCRIBER import patch_youtube_learner
+                self.task_queue     = get_queue(workers=2)
+                self.rag_ingestor   = get_ingestor(rag=self.rag_engine)
+                self.ollama_manager = get_ollama_manager()
+                patch_youtube_learner()   # add Whisper fallback to YouTube learner
+                # Cole Medin channel learner uses the same free_llm_router
+                self.youtube_learner = get_cole_medin_learner(router=self.free_llm_router)
+                logger.info("✅ New intelligent systems loaded")
+            except Exception as _e:
+                logger.warning(f"New systems partial load: {_e}")
+                # Hard fallback: bare ColeMedinChannelLearner without router
+                try:
+                    from COLE_MEDIN_CHANNEL_LEARNER import ColeMedinChannelLearner
+                    self.youtube_learner = ColeMedinChannelLearner()
+                except Exception:
+                    self.youtube_learner = None
 
             self.revenue_engine = revenue_engine
             self.acquisition_engine = acquisition_engine
@@ -100,7 +144,6 @@ class ChattyCompleteAutomation:
             self.investor_workflows = InvestorWorkflows()
             self.twitter_automation = twitter_automation
             self.viral_growth = ViralGrowthEngine(self.revenue_engine)
-            self.youtube_learner = ColeMedinChannelLearner()
             self.openclaw_system = AutonomousLearningSystem(revenue_engine=self.revenue_engine)
             self.absolute_enhancements = None
             self.absolute_ops = start_absolute_operations
@@ -215,6 +258,18 @@ class ChattyCompleteAutomation:
             self._register_task("youtube_learning", self.youtube_learner.start_continuous_learning)
         if self.openclaw_system:
             self._register_task("openclaw_system", self.openclaw_system.start_autonomous_system)
+        # New intelligent background systems
+        if self.tokenspin_bridge:
+            self._register_task("tokenspin_bridge", self._start_tokenspin_bridge, restartable=False)
+        if self.youtube_live:
+            self._register_task("youtube_live_learner", self._run_youtube_live_learner)
+        if self.task_queue:
+            self._register_task("yolo_task_queue", self.task_queue.start)
+        if self.rag_ingestor:
+            self._register_task("rag_auto_ingest", self._run_rag_ingestor)
+        if self.ollama_manager:
+            self._register_task("ollama_auto_pull", self.ollama_manager.run_daemon,
+                                restartable=False)
         
         logger.info("="*80)
         logger.info("✅ COMPLETE AUTOMATION SYSTEM RUNNING")
@@ -247,6 +302,46 @@ class ChattyCompleteAutomation:
             logger.info("\n🛑 Shutdown requested...")
             await self.stop()
     
+    async def _start_tokenspin_bridge(self):
+        """Start and verify tokenspin proxy connection."""
+        if self.tokenspin_bridge:
+            ok = await self.tokenspin_bridge._ensure_tokenspin()
+            logger.info(f"{'✅' if ok else 'ℹ️'} tokenspin bridge: {'active' if ok else 'using free router'}")
+            # Keep alive - check every 5 minutes
+            while self.is_running:
+                await asyncio.sleep(300)
+
+    async def _run_rag_ingestor(self):
+        """Start RAG auto-ingest watcher on the project directory."""
+        if self.rag_ingestor:
+            project_root = Path(__file__).parent
+            self.rag_ingestor.add_watch(project_root)
+            self.rag_ingestor.add_watch(project_root / "generated_content")
+            self.rag_ingestor._running = True
+            await self.rag_ingestor.start(initial_ingest=True)
+
+    async def _run_youtube_live_learner(self):
+        """Seed Cole Medin channel + continuously process YouTube watch list."""
+        import json
+        from COLE_MEDIN_CHANNEL_LEARNER import COLE_MEDIN_SEED_VIDEOS
+        watch_list_path = Path("generated_content/youtube_watch_list.json")
+
+        # Seed Cole Medin videos into the watch list on startup
+        if self.youtube_live:
+            for url in COLE_MEDIN_SEED_VIDEOS:
+                self.youtube_live.add_to_watch_list(url)
+
+        urls = COLE_MEDIN_SEED_VIDEOS.copy()
+        if watch_list_path.exists():
+            try:
+                extra = json.loads(watch_list_path.read_text())
+                urls = list(dict.fromkeys(urls + extra))
+            except Exception:
+                pass
+
+        if self.youtube_live:
+            await self.youtube_live.start_continuous_learning(urls, interval_minutes=90)
+
     async def report_status(self):
         """Report system status periodically (System Heartbeat)"""
         while self.is_running:

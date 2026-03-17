@@ -1808,6 +1808,293 @@ async def get_metrics():
         }
     }
 
+# ══════════════════════════════════════════════════════════════
+# INTELLIGENT SYSTEM ENDPOINTS (RAG / YOLO / LLM / Scraper)
+# ══════════════════════════════════════════════════════════════
+
+class RAGQueryRequest(BaseModel):
+    query: str
+    n_results: int = 5
+    collections: Optional[List[str]] = None
+    generate_answer: bool = True
+
+class RAGIngestRequest(BaseModel):
+    text: str
+    title: str = ""
+    source_path: str = "api"
+    collection: str = "memory"
+
+class YoloEnqueueRequest(BaseModel):
+    task: str
+    safety_level: str = "cautious"
+    priority: int = 3
+    depends_on: Optional[str] = None
+    metadata: Optional[Dict[str, Any]] = None
+
+class ContextCreateRequest(BaseModel):
+    model: str = "llama-3.1-8b-instant"
+    provider: str = "groq"
+    task_description: str = ""
+
+class LLMGenerateRequest(BaseModel):
+    system: str = "You are a helpful assistant."
+    user: str
+    max_tokens: int = 1024
+    use_tokenspin: bool = True
+
+class YouTubeLearnRequest(BaseModel):
+    url: str
+    force: bool = False
+
+# RAG ──────────────────────────────────────────────────────────
+
+@app.post("/api/rag/query")
+async def rag_query(req: RAGQueryRequest):
+    try:
+        from CHATTY_RAG import get_rag
+        from FREE_LLM_ROUTER import get_router
+        return await get_rag(router=get_router()).generate_with_rag(
+            req.query, n_results=req.n_results, collections=req.collections)
+    except Exception as e:
+        raise HTTPException(500, str(e))
+
+@app.get("/api/rag/status")
+def rag_status():
+    try:
+        from CHATTY_RAG import get_rag
+        return get_rag().status()
+    except Exception as e:
+        return {"error": str(e)}
+
+@app.post("/api/rag/ingest/text")
+def rag_ingest_text(req: RAGIngestRequest):
+    try:
+        from CHATTY_RAG import get_rag
+        n = get_rag().ingest_text(req.text, source_path=req.source_path,
+                                   title=req.title, collection=req.collection)
+        return {"chunks_ingested": n, "collection": req.collection}
+    except Exception as e:
+        raise HTTPException(500, str(e))
+
+@app.post("/api/rag/ingest/url")
+async def rag_ingest_url(request: dict):
+    url = request.get("url", "")
+    if not url:
+        raise HTTPException(400, "url required")
+    try:
+        from CHATTY_RAG import get_rag
+        return {"url": url, "chunks_ingested": await get_rag().ingest_web(url)}
+    except Exception as e:
+        raise HTTPException(500, str(e))
+
+@app.post("/api/rag/ingest/youtube")
+async def rag_ingest_youtube(req: YouTubeLearnRequest):
+    try:
+        from CHATTY_RAG import get_rag
+        from FREE_LLM_ROUTER import get_router
+        return {"url": req.url, "chunks_ingested": await get_rag(router=get_router()).ingest_youtube(req.url)}
+    except Exception as e:
+        raise HTTPException(500, str(e))
+
+@app.get("/api/rag/watcher/status")
+def rag_watcher_status():
+    try:
+        from RAG_AUTO_INGEST import get_ingestor
+        return get_ingestor().status()
+    except Exception as e:
+        return {"error": str(e)}
+
+# YOLO Task Queue ───────────────────────────────────────────────
+
+@app.post("/api/yolo/enqueue")
+def yolo_enqueue(req: YoloEnqueueRequest):
+    try:
+        from YOLO_TASK_QUEUE import get_queue
+        job_id = get_queue().enqueue(req.task, safety_level=req.safety_level,
+                                      priority=req.priority, depends_on=req.depends_on,
+                                      metadata=req.metadata or {})
+        return {"job_id": job_id, "status": "queued"}
+    except Exception as e:
+        raise HTTPException(500, str(e))
+
+@app.get("/api/yolo/jobs")
+def yolo_jobs(limit: int = 20):
+    try:
+        from YOLO_TASK_QUEUE import get_queue
+        q = get_queue()
+        return {"jobs": q.recent_jobs(limit), "stats": q.queue_stats()}
+    except Exception as e:
+        return {"error": str(e), "jobs": []}
+
+@app.get("/api/yolo/jobs/{job_id}")
+def yolo_job_status(job_id: str):
+    try:
+        from YOLO_TASK_QUEUE import get_queue
+        s = get_queue().get_status(job_id)
+        if not s:
+            raise HTTPException(404, "Job not found")
+        return s
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(500, str(e))
+
+@app.post("/api/yolo/jobs/{job_id}/cancel")
+def yolo_cancel(job_id: str):
+    try:
+        from YOLO_TASK_QUEUE import get_queue
+        return {"cancelled": get_queue().cancel(job_id)}
+    except Exception as e:
+        raise HTTPException(500, str(e))
+
+@app.post("/api/yolo/chain")
+def yolo_chain(request: dict):
+    tasks  = request.get("tasks", [])
+    safety = request.get("safety_level", "cautious")
+    if not tasks:
+        raise HTTPException(400, "tasks list required")
+    try:
+        from YOLO_TASK_QUEUE import get_queue
+        ids = get_queue().enqueue_chain(tasks, safety_level=safety)
+        return {"job_ids": ids, "count": len(ids)}
+    except Exception as e:
+        raise HTTPException(500, str(e))
+
+# Context management ────────────────────────────────────────────
+
+@app.post("/api/context/create")
+def context_create(req: ContextCreateRequest):
+    try:
+        from TOKEN_CONTEXT_MANAGER import get_manager
+        m = get_manager()
+        ctx = m.create_context(req.model, req.provider, req.task_description)
+        m.save_to_disk(ctx)
+        return {"context_id": ctx.id, "model": ctx.model,
+                "provider": ctx.provider, "token_limit": ctx.token_limit}
+    except Exception as e:
+        raise HTTPException(500, str(e))
+
+@app.get("/api/context/list")
+def context_list():
+    try:
+        from TOKEN_CONTEXT_MANAGER import get_manager
+        return {"contexts": get_manager().list_contexts()}
+    except Exception as e:
+        return {"error": str(e), "contexts": []}
+
+@app.get("/api/context/{context_id}")
+def context_get(context_id: str):
+    try:
+        from TOKEN_CONTEXT_MANAGER import get_manager
+        ctx = get_manager().get_context(context_id)
+        if not ctx:
+            raise HTTPException(404, "Context not found")
+        return {"id": ctx.id, "model": ctx.model, "provider": ctx.provider,
+                "task": ctx.task_description, "messages": len(ctx.messages),
+                "tokens": ctx.total_tokens, "usage_pct": round(ctx.usage_ratio * 100, 1),
+                "handoffs": ctx.handoff_count}
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(500, str(e))
+
+# Free LLM ──────────────────────────────────────────────────────
+
+@app.post("/api/llm/generate")
+async def llm_generate(req: LLMGenerateRequest):
+    try:
+        if req.use_tokenspin:
+            from TOKENSPIN_BRIDGE import get_bridge
+            return await get_bridge().generate(req.system, req.user, req.max_tokens)
+        from FREE_LLM_ROUTER import get_router
+        return await get_router().generate(req.system, req.user, req.max_tokens)
+    except Exception as e:
+        raise HTTPException(500, str(e))
+
+@app.get("/api/llm/status")
+def llm_status_new():
+    try:
+        from FREE_LLM_ROUTER import get_router
+        from TOKENSPIN_BRIDGE import get_bridge
+        from OLLAMA_AUTO_PULL import get_ollama_manager
+        return {"free_router": {"models": get_router().available_models()},
+                "tokenspin": get_bridge().status(),
+                "ollama": get_ollama_manager().status()}
+    except Exception as e:
+        return {"error": str(e)}
+
+@app.get("/api/llm/models")
+def llm_models():
+    try:
+        from FREE_LLM_ROUTER import get_router
+        return {"models": get_router().available_models()}
+    except Exception as e:
+        return {"error": str(e), "models": []}
+
+# Scraper / Search ──────────────────────────────────────────────
+
+@app.post("/api/scrape")
+async def scrape_url(request: dict):
+    url = request.get("url", "")
+    if not url:
+        raise HTTPException(400, "url required")
+    try:
+        from FREE_WEB_SCRAPER import get_scraper
+        page = await get_scraper().scrape(url)
+        return {"url": page.url, "title": page.title, "text": page.text[:5000],
+                "success": page.success, "strategy": page.strategy}
+    except Exception as e:
+        raise HTTPException(500, str(e))
+
+@app.post("/api/search")
+async def web_search(request: dict):
+    query = request.get("query", "")
+    n     = int(request.get("n_results", 10))
+    if not query:
+        raise HTTPException(400, "query required")
+    try:
+        from FREE_WEB_SCRAPER import get_scraper
+        results = await get_scraper().search(query, max_results=n)
+        return {"results": [{"title": r.title, "url": r.url, "snippet": r.snippet}
+                             for r in results]}
+    except Exception as e:
+        raise HTTPException(500, str(e))
+
+# YouTube ───────────────────────────────────────────────────────
+
+@app.post("/api/youtube/learn")
+async def youtube_learn(req: YouTubeLearnRequest):
+    try:
+        from YOUTUBE_LIVE_LEARNER import get_learner
+        from FREE_LLM_ROUTER import get_router
+        learning = await get_learner(router=get_router()).learn_from_video(req.url, force=req.force)
+        return {"video_id": learning.video_id, "title": learning.title,
+                "chunks": len(learning.chunks), "insights": learning.insights}
+    except Exception as e:
+        raise HTTPException(500, str(e))
+
+@app.post("/api/youtube/query")
+async def youtube_query(req: RAGQueryRequest):
+    try:
+        from YOUTUBE_LIVE_LEARNER import get_learner
+        from FREE_LLM_ROUTER import get_router
+        return await get_learner(router=get_router()).query(
+            req.query, n_results=req.n_results, generate_answer=req.generate_answer)
+    except Exception as e:
+        raise HTTPException(500, str(e))
+
+@app.post("/api/youtube/watchlist")
+def youtube_watchlist(request: dict):
+    url = request.get("url", "")
+    if not url:
+        raise HTTPException(400, "url required")
+    try:
+        from YOUTUBE_LIVE_LEARNER import get_learner
+        get_learner().add_to_watch_list(url)
+        return {"added": url}
+    except Exception as e:
+        raise HTTPException(500, str(e))
+
 if __name__ == "__main__":
     import uvicorn
     print("🚀 Starting CHATTY Automation API Server...")
