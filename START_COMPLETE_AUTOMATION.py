@@ -22,7 +22,7 @@ sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 load_dotenv(".env", override=False)
 _secrets_file = os.getenv("CHATTY_SECRETS_FILE")
 if _secrets_file:
-    load_dotenv(os.path.expanduser(_secrets_file), override=False)
+    load_dotenv(os.path.expanduser(_secrets_file), override=True)  # secrets always win
 
 _log_dir = Path(__file__).resolve().parent / "logs"
 _log_dir.mkdir(parents=True, exist_ok=True)

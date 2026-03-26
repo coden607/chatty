@@ -20,7 +20,7 @@ from dotenv import load_dotenv
 load_dotenv(".env", override=False)
 _secrets_file = os.getenv("CHATTY_SECRETS_FILE")
 if _secrets_file:
-    load_dotenv(os.path.expanduser(_secrets_file), override=False)
+    load_dotenv(os.path.expanduser(_secrets_file), override=True)  # secrets always win
 
 # Import model router for AI generation
 from CHATTY_MODEL_ROUTER import router, TaskType, generate_code, review_code, create_content

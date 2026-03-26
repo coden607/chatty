@@ -1,0 +1,62 @@
+name: Deploy CHATTY
+
+on:
+  push:
+    branches: [ main, master ]
+  workflow_dispatch:
+
+jobs:
+  build-and-deploy:
+    runs-on: ubuntu-latest
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+      
+    - name: Set up Docker Buildx
+      uses: docker/setup-buildx-action@v3
+      
+    - name: Build Docker image
+      run: |
+        docker build -t chatty:latest .
+        
+    - name: Deploy to Oracle Cloud (if configured)
+      if: secrets.ORACLE_SSH_KEY != ''
+      env:
+        ORACLE_HOST: ${{ secrets.ORACLE_HOST }}
+        ORACLE_USER: ${{ secrets.ORACLE_USER }}
+        ORACLE_SSH_KEY: ${{ secrets.ORACLE_SSH_KEY }}
+      run: |
+        # Setup SSH
+        mkdir -p ~/.ssh
+        echo "$ORACLE_SSH_KEY" > ~/.ssh/oracle_key
+        chmod 600 ~/.ssh/oracle_key
+        
+        # Add host to known hosts
+        ssh-keyscan -H $ORACLE_HOST >> ~/.ssh/known_hosts
+        
+        # Deploy via SSH
+        ssh -i ~/.ssh/oracle_key $ORACLE_USER@$ORACLE_HOST << 'EOF'
+          cd /opt/chatty
+          git pull origin main
+          docker-compose down
+          docker-compose build --no-cache
+          docker-compose up -d
+          docker system prune -f
+        EOF
+        
+    - name: Deploy to Railway (if configured)
+      if: secrets.RAILWAY_TOKEN != ''
+      env:
+        RAILWAY_TOKEN: ${{ secrets.RAILWAY_TOKEN }}
+      run: |
+        npm install -g @railway/cli
+        railway up --detach
+      
+    - name: Notify on success
+      if: success()
+      run: echo "✅ CHATTY deployment successful"
+      
+    - name: Notify on failure
+      if: failure()
+      run: echo "❌ CHATTY deployment failed"

@@ -57,7 +57,7 @@ class RealYouTubeLearner:
     """Real YouTube learning with actual transcription and code integration"""
     
     def __init__(self):
-        self.transcript_formatter = TextFormatter()
+        self.transcript_formatter = TextFormatter() if YOUTUBE_REAL else None
         self.learning_database = {}
         self.code_improvements = []
         self.api_keys = self._load_api_keys()

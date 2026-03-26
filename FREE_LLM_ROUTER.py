@@ -31,11 +31,11 @@ from pathlib import Path
 from typing import Any, Dict, List, Optional, Tuple
 
 from dotenv import load_dotenv
-load_dotenv()
+load_dotenv()  # project .env (non-secret settings)
 
 _secrets_file = os.getenv("CHATTY_SECRETS_FILE")
 if _secrets_file:
-    load_dotenv(os.path.expanduser(_secrets_file), override=False)
+    load_dotenv(os.path.expanduser(_secrets_file), override=True)  # secrets always win
 
 logger = logging.getLogger(__name__)
 
@@ -76,6 +76,15 @@ FREE_MODELS: List[ModelSpec] = [
                TaskType.LONG_CONTEXT, TaskType.CREATIVE],
               requires_key="NVIDIA_API_KEY", priority=1),
 
+    # ── xAI / Grok (paid — used as fallback when credits available) ──
+    ModelSpec("grok-3-mini", "xai", 131_072, 0,
+              [TaskType.REASONING, TaskType.ANALYSIS, TaskType.CODING,
+               TaskType.CREATIVE, TaskType.QUICK],
+              requires_key="XAI_API_KEY", priority=4),
+    ModelSpec("grok-3",      "xai", 131_072, 0,
+              [TaskType.REASONING, TaskType.LONG_CONTEXT, TaskType.ANALYSIS],
+              requires_key="XAI_API_KEY", priority=4),
+
     # ── Google Gemini free tier ───────────────────────────────────
     ModelSpec("gemini-2.0-flash",          "gemini", 1_048_576, 0,
               [TaskType.REASONING, TaskType.ANALYSIS, TaskType.LONG_CONTEXT,
@@ -102,25 +111,44 @@ FREE_MODELS: List[ModelSpec] = [
               [TaskType.QUICK, TaskType.CREATIVE],
               requires_key="GROQ_API_KEY", priority=4),
 
-    # ── OpenRouter free models (:free) ────────────────────────────
-    ModelSpec("meta-llama/llama-3.3-70b-instruct:free",      "openrouter", 131_072, 0,
+    # ── OpenRouter free models (verified live 2026-03) ────────────
+    # Ordered by capability; 429s/404s trigger automatic fallback to next
+    ModelSpec("nousresearch/hermes-3-llama-3.1-405b:free",          "openrouter", 131_072, 0,
+              [TaskType.REASONING, TaskType.ANALYSIS, TaskType.CREATIVE],
+              requires_key="OPENROUTER_API_KEY", priority=3),
+    ModelSpec("nvidia/nemotron-3-super-120b-a12b:free",             "openrouter", 262_144, 0,
+              [TaskType.REASONING, TaskType.CODING],
+              requires_key="OPENROUTER_API_KEY", priority=3),
+    ModelSpec("qwen/qwen3-coder:free",                              "openrouter", 262_000, 0,
+              [TaskType.CODING, TaskType.ANALYSIS],
+              requires_key="OPENROUTER_API_KEY", priority=3),
+    ModelSpec("qwen/qwen3-next-80b-a3b-instruct:free",              "openrouter", 262_144, 0,
+              [TaskType.REASONING, TaskType.ANALYSIS, TaskType.LONG_CONTEXT],
+              requires_key="OPENROUTER_API_KEY", priority=4),
+    ModelSpec("meta-llama/llama-3.3-70b-instruct:free",             "openrouter", 128_000, 0,
               [TaskType.REASONING, TaskType.ANALYSIS, TaskType.CREATIVE],
               requires_key="OPENROUTER_API_KEY", priority=4),
-    ModelSpec("meta-llama/llama-3.1-8b-instruct:free",       "openrouter", 131_072, 0,
-              [TaskType.QUICK, TaskType.SUMMARIZATION, TaskType.CODING],
+    ModelSpec("minimax/minimax-m2.5:free",                          "openrouter", 196_608, 0,
+              [TaskType.LONG_CONTEXT, TaskType.SUMMARIZATION],
               requires_key="OPENROUTER_API_KEY", priority=4),
-    ModelSpec("google/gemma-3-9b-it:free",                   "openrouter",   8_192, 0,
-              [TaskType.QUICK, TaskType.CREATIVE],
-              requires_key="OPENROUTER_API_KEY", priority=4),
-    ModelSpec("microsoft/phi-4-mini-instruct:free",          "openrouter", 131_072, 0,
-              [TaskType.LONG_CONTEXT, TaskType.SUMMARIZATION, TaskType.CODING],
-              requires_key="OPENROUTER_API_KEY", priority=4),
-    ModelSpec("mistralai/mistral-7b-instruct:free",          "openrouter",  32_768, 0,
+    ModelSpec("mistralai/mistral-small-3.1-24b-instruct:free",      "openrouter", 128_000, 0,
               [TaskType.CODING, TaskType.REASONING],
               requires_key="OPENROUTER_API_KEY", priority=4),
-    ModelSpec("qwen/qwen3-8b:free",                          "openrouter",  40_000, 0,
-              [TaskType.CODING, TaskType.ANALYSIS],
+    ModelSpec("google/gemma-3-27b-it:free",                         "openrouter", 131_072, 0,
+              [TaskType.CREATIVE, TaskType.SUMMARIZATION],
               requires_key="OPENROUTER_API_KEY", priority=4),
+    ModelSpec("arcee-ai/trinity-large-preview:free",                "openrouter", 131_000, 0,
+              [TaskType.QUICK, TaskType.CREATIVE],
+              requires_key="OPENROUTER_API_KEY", priority=5),
+    ModelSpec("stepfun/step-3.5-flash:free",                        "openrouter", 256_000, 0,
+              [TaskType.QUICK, TaskType.LONG_CONTEXT],
+              requires_key="OPENROUTER_API_KEY", priority=5),
+    ModelSpec("z-ai/glm-4.5-air:free",                              "openrouter", 131_072, 0,
+              [TaskType.QUICK, TaskType.SUMMARIZATION],
+              requires_key="OPENROUTER_API_KEY", priority=5),
+    ModelSpec("meta-llama/llama-3.2-3b-instruct:free",              "openrouter", 131_072, 0,
+              [TaskType.QUICK, TaskType.SUMMARIZATION],
+              requires_key="OPENROUTER_API_KEY", priority=5),
 
     # ── Ollama (fully local, unlimited) ──────────────────────────
     ModelSpec("llama3.2",   "ollama", 128_000, 0,
@@ -188,9 +216,33 @@ class FreeLLMRouter:
         self.nvidia_key      = os.getenv("NVIDIA_API_KEY", "")
         self.google_key      = os.getenv("GOOGLE_API_KEY", "") or os.getenv("GEMINI_API_KEY", "")
         self.groq_key        = os.getenv("GROQ_API_KEY", "")
-        self.openrouter_key  = os.getenv("OPENROUTER_API_KEY", "")
-        self.hf_key          = os.getenv("HUGGINGFACE_API_KEY", "")
+        # HuggingFace accepts both env var names
+        self.hf_key          = os.getenv("HUGGINGFACE_API_KEY", "") or os.getenv("HUGGINGFACE_TOKEN", "")
         self.ollama_base     = os.getenv("OLLAMA_BASE_URL", "http://localhost:11434")
+        # OpenRouter: rotate through up to 5 keys
+        _or_keys = [
+            k for k in [
+                os.getenv("OPENROUTER_API_KEY", ""),
+                os.getenv("OPENROUTER_API_KEY_2", ""),
+                os.getenv("OPENROUTER_API_KEY_3", ""),
+                os.getenv("OPENROUTER_API_KEY_4", ""),
+                os.getenv("OPENROUTER_API_KEY_5", ""),
+            ] if k
+        ]
+        self.openrouter_keys = _or_keys
+        self.openrouter_key  = _or_keys[0] if _or_keys else ""
+        self._or_key_idx     = 0  # round-robin index
+        # xAI: rotate through up to 4 keys
+        _xai_keys = [
+            k for k in [
+                os.getenv("XAI_API_KEY", ""),
+                os.getenv("XAI_API_KEY_2", ""),
+                os.getenv("XAI_API_KEY_3", ""),
+                os.getenv("XAI_API_KEY_4", ""),
+            ] if k
+        ]
+        self.xai_keys = _xai_keys
+        self._xai_key_idx  = 0  # round-robin index
 
         self._states: Dict[str, ProviderState] = {}
         self._available_models: List[ModelSpec] = []
@@ -205,6 +257,7 @@ class FreeLLMRouter:
     def _init_available_models(self):
         key_map = {
             "nvidia":      self.nvidia_key,
+            "xai":         self.xai_keys[0] if self.xai_keys else "",
             "gemini":      self.google_key,
             "groq":        self.groq_key,
             "openrouter":  self.openrouter_key,
@@ -225,10 +278,12 @@ class FreeLLMRouter:
                 "Set NVIDIA_API_KEY, GOOGLE_API_KEY, or GROQ_API_KEY."
             )
 
-    def _state(self, provider: str) -> ProviderState:
-        if provider not in self._states:
-            self._states[provider] = ProviderState()
-        return self._states[provider]
+    def _state(self, model_key: str) -> ProviderState:
+        """State is tracked per-model (not per-provider) so one bad model
+        doesn't block all others from the same provider."""
+        if model_key not in self._states:
+            self._states[model_key] = ProviderState()
+        return self._states[model_key]
 
     async def _ollama_ok(self) -> bool:
         if self._ollama_available is not None:
@@ -284,6 +339,8 @@ class FreeLLMRouter:
             score += 1.5
         if model.provider == "nvidia":
             score += 2.0   # Kimi K2.5 is excellent
+        if model.provider == "xai":
+            score += 1.9   # Grok-3 is very capable
         if model.provider == "gemini":
             score += 1.8
         if model.provider == "ollama":
@@ -302,7 +359,7 @@ class FreeLLMRouter:
                 continue
             if model.provider == "ollama" and not ollama_ok:
                 continue
-            state = self._state(model.provider)
+            state = self._state(model.id)
             score = self._score_model(model, task, needed_tokens, state)
             if score > best_score:
                 best_score, best_model = score, model
@@ -310,9 +367,45 @@ class FreeLLMRouter:
 
     # ── Provider call implementations ─────────────────────────
 
+    def _next_xai_key(self) -> str:
+        """Round-robin through available xAI keys."""
+        if not self.xai_keys:
+            raise ValueError("No XAI_API_KEY configured")
+        key = self.xai_keys[self._xai_key_idx % len(self.xai_keys)]
+        self._xai_key_idx += 1
+        return key
+
+    async def _call_xai(self, model: ModelSpec, system: str, user: str,
+                        max_tokens: int) -> str:
+        """xAI / Grok via OpenAI-compatible API with key rotation."""
+        import openai
+        key = self._next_xai_key()
+        client = openai.AsyncOpenAI(
+            api_key=key,
+            base_url="https://api.x.ai/v1",
+        )
+        response = await client.chat.completions.create(
+            model=model.id,
+            messages=[
+                {"role": "system", "content": system},
+                {"role": "user",   "content": user},
+            ],
+            max_tokens=max_tokens,
+            temperature=0.7,
+        )
+        content = response.choices[0].message.content
+        if not content:
+            raise ValueError(f"Empty response from xAI/{model.id}")
+        return content
+
     async def _call_nvidia(self, model: ModelSpec, system: str, user: str,
                            max_tokens: int) -> str:
-        """NVIDIA Build API - hosts Kimi K2.5 and other premium models."""
+        """NVIDIA Build API — hosts Kimi K2.5 and other premium models.
+
+        Kimi K2.5 is a reasoning model: it fills `reasoning_content` first,
+        then the final answer goes in `content`.  We need enough tokens for
+        both; we also fall back to `reasoning_content` if `content` is None.
+        """
         import httpx
         headers = {
             "Authorization": f"Bearer {self.nvidia_key}",
@@ -322,10 +415,12 @@ class FreeLLMRouter:
         if system:
             messages.append({"role": "system", "content": system})
         messages.append({"role": "user", "content": user})
+        # Reasoning models need extra budget for internal chain-of-thought
+        effective_max = max(max_tokens, 512)
         payload = {
             "model": model.id,
             "messages": messages,
-            "max_tokens": max_tokens,
+            "max_tokens": effective_max,
             "temperature": 0.7,
             "stream": False,
         }
@@ -334,9 +429,22 @@ class FreeLLMRouter:
                 "https://integrate.api.nvidia.com/v1/chat/completions",
                 headers=headers, json=payload,
             )
+            if r.status_code == 403:
+                # Key unauthorized — disable nvidia provider until restart
+                nvidia_state = self._state("nvidia")
+                nvidia_state.cooldown_until = float("inf")
+                raise ValueError(
+                    "NVIDIA API key unauthorized (403). "
+                    "Get a free key at https://build.nvidia.com"
+                )
             r.raise_for_status()
             data = r.json()
-            return data["choices"][0]["message"]["content"]
+            msg = data["choices"][0]["message"]
+            # Prefer final answer; fall back to reasoning content if available
+            content = msg.get("content") or msg.get("reasoning_content") or ""
+            if not content:
+                raise ValueError(f"Empty/null response from NVIDIA/{model.id}")
+            return content
 
     async def _call_gemini(self, model: ModelSpec, system: str, user: str,
                            max_tokens: int) -> str:
@@ -391,11 +499,20 @@ class FreeLLMRouter:
         )
         return response.choices[0].message.content
 
+    def _next_openrouter_key(self) -> str:
+        """Round-robin through available OpenRouter keys."""
+        if not self.openrouter_keys:
+            raise ValueError("No OPENROUTER_API_KEY configured")
+        key = self.openrouter_keys[self._or_key_idx % len(self.openrouter_keys)]
+        self._or_key_idx += 1
+        return key
+
     async def _call_openrouter(self, model: ModelSpec, system: str, user: str,
                                max_tokens: int) -> str:
         import openai
+        key = self._next_openrouter_key()
         client = openai.AsyncOpenAI(
-            api_key=self.openrouter_key,
+            api_key=key,
             base_url="https://openrouter.ai/api/v1",
             default_headers={
                 "HTTP-Referer": "https://chatty.ai",
@@ -411,7 +528,10 @@ class FreeLLMRouter:
             max_tokens=max_tokens,
             temperature=0.7,
         )
-        return response.choices[0].message.content
+        content = response.choices[0].message.content
+        if not content:
+            raise ValueError(f"Empty response from {model.id}")
+        return content
 
     async def _call_ollama(self, model: ModelSpec, system: str, user: str,
                            max_tokens: int) -> str:
@@ -454,6 +574,7 @@ class FreeLLMRouter:
                         max_tokens: int) -> str:
         dispatch = {
             "nvidia":      self._call_nvidia,
+            "xai":         self._call_xai,
             "gemini":      self._call_gemini,
             "groq":        self._call_groq,
             "openrouter":  self._call_openrouter,
@@ -500,10 +621,14 @@ class FreeLLMRouter:
                 "provider": None,
             }
 
-        state = self._state(model.provider)
+        state = self._state(model.id)
         t0 = time.time()
         try:
-            text = await self._dispatch(model, system_prompt, user_prompt, max_tokens)
+            call_timeout = 90 if model.provider == "ollama" else 25
+            text = await asyncio.wait_for(
+                self._dispatch(model, system_prompt, user_prompt, max_tokens),
+                timeout=call_timeout,
+            )
             latency = int((time.time() - t0) * 1000)
             state.record_success()
             state.tokens_used_this_minute += needed_tokens
@@ -540,13 +665,12 @@ class FreeLLMRouter:
 
     def status(self) -> Dict[str, Any]:
         out = {}
-        for provider, state in self._states.items():
+        for model_id, state in self._states.items():
             state.reset_if_new_minute()
-            out[provider] = {
+            out[model_id] = {
                 "available": state.is_cooled_down(),
                 "tokens_used_this_min": state.tokens_used_this_minute,
                 "errors": state.consecutive_errors,
-                "cooldown_until": state.cooldown_until,
             }
         return out
 

@@ -1,0 +1,159 @@
+#!/bin/bash
+# CHATTY Control Script - Easy management of CHATTY continuous mode
+
+CHATTY_ROOT="$(cd "$(dirname "$0")" && pwd)"
+
+case "$1" in
+    start)
+        echo "🚀 Starting CHATTY Continuous Mode..."
+        systemctl --user start chatty-continuous
+        sleep 2
+        systemctl --user status chatty-continuous --no-pager
+        ;;
+    stop)
+        echo "🛑 Stopping CHATTY Continuous Mode..."
+        systemctl --user stop chatty-continuous
+        echo "✅ CHATTY stopped"
+        ;;
+    restart)
+        echo "🔄 Restarting CHATTY Continuous Mode..."
+        systemctl --user restart chatty-continuous
+        sleep 2
+        systemctl --user status chatty-continuous --no-pager
+        ;;
+    status)
+        "$CHATTY_ROOT/chattystatus"
+        ;;
+    logs)
+        echo "📜 Showing CHATTY logs (Ctrl+C to exit)..."
+        journalctl --user -u chatty-continuous -f
+        ;;
+    enable)
+        echo "🔧 Enabling CHATTY auto-start on boot..."
+        systemctl --user enable chatty-continuous
+        systemctl --user enable chatty-key-rotation.timer
+        systemctl --user enable chatty-metrics.timer
+        echo "✅ CHATTY will auto-start on boot"
+        ;;
+    disable)
+        echo "🔧 Disabling CHATTY auto-start..."
+        systemctl --user disable chatty-continuous
+        systemctl --user disable chatty-key-rotation.timer
+        systemctl --user disable chatty-metrics.timer
+        echo "✅ CHATTY auto-start disabled"
+        ;;
+    check-keys)
+        echo "🔑 Running API key health check..."
+        cd "$CHATTY_ROOT"
+        source .venv/bin/activate
+        python3 ENHANCED_AUTO_SETUP.py --check-keys
+        ;;
+    key-status)
+        echo "🔑 API Key Status:"
+        cd "$CHATTY_ROOT"
+        source .venv/bin/activate
+        python3 ENHANCED_AUTO_SETUP.py --status
+        ;;
+    metrics)
+        echo "📊 Latest Metrics:"
+        if [ -f "$CHATTY_ROOT/generated_content/continuous_metrics.json" ]; then
+            cat "$CHATTY_ROOT/generated_content/continuous_metrics.json" | python3 -m json.tool
+        else
+            echo "No metrics file yet. Waiting for first collection..."
+        fi
+        ;;
+    assistant|chat)
+        echo "🤖 Starting CHATTY Interactive Assistant..."
+        "$CHATTY_ROOT/chatty-assistant"
+        ;;
+    ask)
+        shift
+        if [ -z "$1" ]; then
+            echo "Usage: chattyctl ask <your question>"
+            echo "Example: chattyctl ask 'Generate a Python API'"
+        else
+            "$CHATTY_ROOT/chatty-assistant" --task "$@"
+        fi
+        ;;
+    code)
+        shift
+        if [ -z "$1" ]; then
+            echo "Usage: chattyctl code <description>"
+            echo "Example: chattyctl code 'Create a fibonacci function'"
+        else
+            "$CHATTY_ROOT/chatty-assistant" --code --task "$@"
+        fi
+        ;;
+    setup)
+        echo "🔧 Running CHATTY Continuous Mode setup..."
+        "$CHATTY_ROOT/setup_continuous_mode.sh"
+        ;;
+    jarvis|j)
+        echo "🤖 Starting JARVIS - Your Personal AI Assistant..."
+        "$CHATTY_ROOT/chatty-jarvis"
+        ;;
+    jarvis-task)
+        shift
+        if [ -z "$1" ]; then
+            echo "Usage: chattyctl jarvis-task <your task>"
+            echo "Example: chattyctl jarvis-task 'Create a Python API'"
+        else
+            "$CHATTY_ROOT/chatty-jarvis" --task "$@"
+        fi
+        ;;
+    jarvis-code)
+        shift
+        if [ -z "$1" ]; then
+            echo "Usage: chattyctl jarvis-code <description>"
+            echo "Example: chattyctl jarvis-code 'Create a fibonacci function'"
+        else
+            "$CHATTY_ROOT/chatty-jarvis" --code --task "$@"
+        fi
+        ;;
+    jarvis-file)
+        shift
+        if [ -z "$1" ]; then
+            echo "Usage: chattyctl jarvis-file <path>"
+            echo "Example: chattyctl jarvis-file ./myscript.py"
+        else
+            "$CHATTY_ROOT/chatty-jarvis" --file "$1"
+        fi
+        ;;
+    *)
+        echo "CHATTY Control Script"
+        echo ""
+        echo "Usage: chattyctl <command>"
+        echo ""
+        echo "Commands:"
+        echo "  start        Start CHATTY continuous mode"
+        echo "  stop         Stop CHATTY continuous mode"
+        echo "  restart      Restart CHATTY continuous mode"
+        echo "  status       Show detailed status"
+        echo "  logs         View live logs"
+        echo "  enable       Enable auto-start on boot"
+        echo "  disable      Disable auto-start on boot"
+        echo "  check-keys   Run API key health check"
+        echo "  key-status   Show API key configuration"
+        echo "  metrics      Show collected metrics"
+        echo "  assistant    Start interactive chat (like Claude Code)"
+        echo "  ask <q>      Ask a one-shot question"
+        echo "  code <desc>  Generate code one-shot"
+        echo "  setup        Run full setup"
+        echo ""
+        echo "🤖 JARVIS Commands (Personal AI Assistant):"
+        echo "  jarvis, j           Start JARVIS interactive mode"
+        echo "  jarvis-task <t>     Execute one-shot task"
+        echo "  jarvis-code <c>     Generate code with JARVIS"
+        echo "  jarvis-file <f>     Learn from file with JARVIS"
+        echo ""
+        echo "Examples:"
+        echo "  chattyctl start                    # Start background automation"
+        echo "  chattyctl assistant                # Start interactive chat"
+        echo "  chattyctl jarvis                   # Start JARVIS personal assistant"
+        echo "  chattyctl ask 'Generate a Python API'"
+        echo "  chattyctl code 'Create a fibonacci function'"
+        echo "  chattyctl jarvis-code 'Create a REST API'"
+        echo "  chattyctl status"
+        echo "  chattyctl logs"
+        ;;
+esac
