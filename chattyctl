@@ -88,35 +88,35 @@ case "$1" in
         echo "🔧 Running CHATTY Continuous Mode setup..."
         "$CHATTY_ROOT/setup_continuous_mode.sh"
         ;;
-    jarvis|j)
-        echo "🤖 Starting JARVIS - Your Personal AI Assistant..."
-        "$CHATTY_ROOT/chatty-jarvis"
+    chatty|j)
+        echo "🤖 Starting CHATTY - Your Personal AI Assistant..."
+        "$CHATTY_ROOT/chatty-assistant"
         ;;
-    jarvis-task)
+    chatty-task)
         shift
         if [ -z "$1" ]; then
-            echo "Usage: chattyctl jarvis-task <your task>"
-            echo "Example: chattyctl jarvis-task 'Create a Python API'"
+            echo "Usage: chattyctl chatty-task <your task>"
+            echo "Example: chattyctl chatty-task 'Create a Python API'"
         else
-            "$CHATTY_ROOT/chatty-jarvis" --task "$@"
+            "$CHATTY_ROOT/chatty-assistant" --task "$@"
         fi
         ;;
-    jarvis-code)
+    chatty-code)
         shift
         if [ -z "$1" ]; then
-            echo "Usage: chattyctl jarvis-code <description>"
-            echo "Example: chattyctl jarvis-code 'Create a fibonacci function'"
+            echo "Usage: chattyctl chatty-code <description>"
+            echo "Example: chattyctl chatty-code 'Create a fibonacci function'"
         else
-            "$CHATTY_ROOT/chatty-jarvis" --code --task "$@"
+            "$CHATTY_ROOT/chatty-assistant" --code --task "$@"
         fi
         ;;
-    jarvis-file)
+    chatty-file)
         shift
         if [ -z "$1" ]; then
-            echo "Usage: chattyctl jarvis-file <path>"
-            echo "Example: chattyctl jarvis-file ./myscript.py"
+            echo "Usage: chattyctl chatty-file <path>"
+            echo "Example: chattyctl chatty-file ./myscript.py"
         else
-            "$CHATTY_ROOT/chatty-jarvis" --file "$1"
+            "$CHATTY_ROOT/chatty-assistant" --file "$1"
         fi
         ;;
     *)
@@ -140,19 +140,19 @@ case "$1" in
         echo "  code <desc>  Generate code one-shot"
         echo "  setup        Run full setup"
         echo ""
-        echo "🤖 JARVIS Commands (Personal AI Assistant):"
-        echo "  jarvis, j           Start JARVIS interactive mode"
-        echo "  jarvis-task <t>     Execute one-shot task"
-        echo "  jarvis-code <c>     Generate code with JARVIS"
-        echo "  jarvis-file <f>     Learn from file with JARVIS"
+        echo "🤖 CHATTY Commands (Personal AI Assistant):"
+        echo "  chatty, j           Start CHATTY interactive mode"
+        echo "  chatty-task <t>     Execute one-shot task"
+        echo "  chatty-code <c>     Generate code with CHATTY"
+        echo "  chatty-file <f>     Learn from file with CHATTY"
         echo ""
         echo "Examples:"
         echo "  chattyctl start                    # Start background automation"
         echo "  chattyctl assistant                # Start interactive chat"
-        echo "  chattyctl jarvis                   # Start JARVIS personal assistant"
+        echo "  chattyctl chatty                   # Start CHATTY personal assistant"
         echo "  chattyctl ask 'Generate a Python API'"
         echo "  chattyctl code 'Create a fibonacci function'"
-        echo "  chattyctl jarvis-code 'Create a REST API'"
+        echo "  chattyctl chatty-code 'Create a REST API'"
         echo "  chattyctl status"
         echo "  chattyctl logs"
         ;;

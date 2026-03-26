@@ -1,6 +1,6 @@
 #!/bin/bash
-# CHATTY JARVIS Launcher
-# Just A Rather Very Intelligent System
+# CHATTY Personal AI Assistant Launcher
+# Your complete AI assistant for coding, file operations, and system management
 
 CHATTY_ROOT="$(cd "$(dirname "$0")" && pwd)"
 cd "$CHATTY_ROOT"

@@ -20,7 +20,7 @@
 | Metric | Value |
 |--------|-------|
 | Branch | `main` |
-| Latest Commit | `06c263f` - Add CHATTY JARVIS |
+| Latest Commit | `06c263f` - Add CHATTY CHATTY |
 | Files Changed | 42 |
 | Lines Added | 7,073 |
 | Status | ✅ Pushed to GitHub |
@@ -38,15 +38,15 @@
 
 ---
 
-## 🤖 JARVIS - Personal AI Assistant
+## 🤖 CHATTY - Personal AI Assistant
 
 **Status:** Ready for Production
 
 ### Available Commands
 ```bash
-./chatty-jarvis              # Interactive mode
-./chattyctl jarvis           # Via controller
-./jarvis                     # Shortcut
+./chatty-chatty              # Interactive mode
+./chattyctl chatty           # Via controller
+./chatty                     # Shortcut
 ```
 
 ### Features Active
@@ -113,10 +113,10 @@
 ./chattyctl stop            # Stop continuous mode
 ./chattyctl restart         # Restart services
 
-# JARVIS
-./chattyctl jarvis          # Launch JARVIS
-./chattyctl jarvis-task     # One-shot task
-./chattyctl jarvis-code     # Generate code
+# CHATTY
+./chattyctl chatty          # Launch CHATTY
+./chattyctl chatty-task     # One-shot task
+./chattyctl chatty-code     # Generate code
 
 # Monitoring
 ./chattyctl metrics         # System metrics
@@ -128,7 +128,7 @@
 ## 📝 Recent Changes
 
 ### Latest Commit (06c263f)
-- Added CHATTY JARVIS - Complete AI assistant
+- Added CHATTY CHATTY - Complete AI assistant
 - Integrated OpenClaw features
 - Added voice support infrastructure
 - Created cloud deployment scripts
@@ -147,7 +147,7 @@
 - ✅ API keys configured
 - ✅ Systemd services active
 - ✅ Docker images ready
-- ✅ JARVIS operational
+- ✅ CHATTY operational
 - ✅ Documentation complete
 
 ---
@@ -165,4 +165,4 @@ System will automatically:
 
 **CHATTY is now LIVE in production!** 🚀
 
-*JARVIS is standing by to assist you, sir.*
+*CHATTY is standing by to assist you, sir.*
