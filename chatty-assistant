@@ -1,0 +1,19 @@
+#!/bin/bash
+# CHATTY Interactive Assistant Launcher
+# Chat with CHATTY like Kimi Code / Claude Code
+
+CHATTY_ROOT="$(cd "$(dirname "$0")" && pwd)"
+cd "$CHATTY_ROOT"
+
+# Check if virtual environment exists
+if [ ! -d ".venv" ]; then
+    echo "❌ Virtual environment not found at $CHATTY_ROOT/.venv"
+    exit 1
+fi
+
+# Load environment
+export $(cat .env | grep -v "^#" | xargs) 2>/dev/null
+
+# Activate and run
+source .venv/bin/activate
+exec python3 CHATTY_INTERACTIVE_ASSISTANT.py "$@"

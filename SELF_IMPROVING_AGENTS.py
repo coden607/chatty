@@ -34,7 +34,7 @@ LANGCHAIN_AVAILABLE = False
 load_dotenv(".env", override=False)
 _secrets_file = os.getenv("CHATTY_SECRETS_FILE")
 if _secrets_file:
-    load_dotenv(os.path.expanduser(_secrets_file), override=False)
+    load_dotenv(os.path.expanduser(_secrets_file), override=True)  # secrets always win
 
 def _lazy_import():
     global ChatAnthropic, ChatOpenAI, ChatGoogleGenerativeAI, Agent, Task, Crew, Process, GOOGLE_GENAI_AVAILABLE

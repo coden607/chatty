@@ -1,0 +1,22 @@
+#!/bin/bash
+# CHATTY JARVIS Launcher
+# Just A Rather Very Intelligent System
+
+CHATTY_ROOT="$(cd "$(dirname "$0")" && pwd)"
+cd "$CHATTY_ROOT"
+
+# Check virtual environment
+if [ ! -d ".venv" ]; then
+    echo "❌ Virtual environment not found"
+    echo "Please run: python3 -m venv .venv && source .venv/bin/activate && pip install -r requirements.txt"
+    exit 1
+fi
+
+# Load environment
+if [ -f .env ]; then
+    export $(cat .env | grep -v "^#" | xargs) 2>/dev/null
+fi
+
+# Activate and run
+source .venv/bin/activate
+exec python3 CHATTY_JARVIS.py "$@"

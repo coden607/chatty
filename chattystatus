@@ -1,0 +1,64 @@
+#!/bin/bash
+# CHATTY Status Dashboard
+# Quick command to check CHATTY continuous mode status
+
+echo "================================================================================"
+echo "🚀 CHATTY CONTINUOUS MODE STATUS"
+echo "================================================================================"
+echo ""
+
+# Main service status
+echo "📊 Main Service (chatty-continuous):"
+echo "--------------------------------------------------------------------------------"
+systemctl --user status chatty-continuous --no-pager 2>&1 | head -10
+echo ""
+
+# Process info
+echo "🖥️  Process Information:"
+echo "--------------------------------------------------------------------------------"
+ps aux | grep -E "CHATTY_CONTINUOUS" | grep -v grep | awk '{
+    printf "  PID: %s\n", $2
+    printf "  CPU: %s%%\n", $3
+    printf "  Memory: %s%%\n", $4
+    printf "  Runtime: %s\n", $10
+}'
+echo ""
+
+# Timers
+echo "⏰ Active Timers:"
+echo "--------------------------------------------------------------------------------"
+systemctl --user list-timers --all 2>&1 | grep chatty | awk '{
+    printf "  %s: %s\n", $8, $4
+}'
+echo ""
+
+# API Keys status
+echo "🔑 API Key Status:"
+echo "--------------------------------------------------------------------------------"
+cd "$(dirname "$0")"
+source .venv/bin/activate 2>/dev/null && python3 ENHANCED_AUTO_SETUP.py --status 2>&1 | grep -E "(SUMMARY|PRIORITY|ROTATION)" | head -20
+echo ""
+
+# Recent logs
+echo "📝 Recent Log Entries:"
+echo "--------------------------------------------------------------------------------"
+journalctl --user -u chatty-continuous -n 5 --no-pager 2>&1 | tail -6
+echo ""
+
+# Metrics file
+echo "📈 Latest Metrics:"
+echo "--------------------------------------------------------------------------------"
+if [ -f "generated_content/continuous_metrics.json" ]; then
+    cat generated_content/continuous_metrics.json 2>/dev/null | python3 -m json.tool 2>/dev/null | head -20 || echo "  (Metrics being collected...)"
+else
+    echo "  (Metrics file not yet created - waiting for first collection cycle)"
+fi
+echo ""
+
+echo "================================================================================"
+echo "📋 Quick Commands:"
+echo "  View logs:    journalctl --user -u chatty-continuous -f"
+echo "  Stop:         systemctl --user stop chatty-continuous"
+echo "  Restart:      systemctl --user restart chatty-continuous"
+echo "  Full status:  systemctl --user status chatty-continuous"
+echo "================================================================================"

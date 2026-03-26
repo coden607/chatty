@@ -1,0 +1,95 @@
+version: '3.8'
+
+services:
+  # Main CHATTY continuous automation service
+  chatty-continuous:
+    build: .
+    container_name: chatty-continuous
+    restart: unless-stopped
+    env_file:
+      - .env
+    environment:
+      - DATABASE_URL=sqlite:///data/chatty.db
+      - CHATTY_REAL_DATA_MODE=true
+      - CHATTY_AUTO_INTEGRATE=true
+    volumes:
+      - chatty_data:/app/data
+      - chatty_logs:/app/logs
+      - chatty_chroma:/app/chroma_db
+      - ./generated_content:/app/generated_content
+    networks:
+      - chatty_network
+    deploy:
+      resources:
+        limits:
+          memory: 4G
+        reservations:
+          memory: 1G
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "100m"
+        max-file: "5"
+
+  # API Server for external control
+  chatty-api:
+    build: .
+    container_name: chatty-api
+    restart: unless-stopped
+    command: python3 -m uvicorn AUTOMATION_API_SERVER:app --host 0.0.0.0 --port 8000 --reload
+    env_file:
+      - .env
+    environment:
+      - DATABASE_URL=sqlite:///data/chatty.db
+    ports:
+      - "8000:8000"
+    volumes:
+      - chatty_data:/app/data
+      - chatty_logs:/app/logs
+    networks:
+      - chatty_network
+    depends_on:
+      - chatty-continuous
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+
+  # Redis for caching and message queue (optional but recommended)
+  redis:
+    image: redis:7-alpine
+    container_name: chatty-redis
+    restart: unless-stopped
+    volumes:
+      - redis_data:/data
+    networks:
+      - chatty_network
+    command: redis-server --appendonly yes
+
+  # Watchtower for automatic container updates
+  watchtower:
+    image: containrrr/watchtower
+    container_name: chatty-watchtower
+    restart: unless-stopped
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
+    environment:
+      - WATCHTOWER_CLEANUP=true
+      - WATCHTOWER_POLL_INTERVAL=3600
+    command: chatty-continuous chatty-api
+
+volumes:
+  chatty_data:
+    driver: local
+  chatty_logs:
+    driver: local
+  chatty_chroma:
+    driver: local
+  redis_data:
+    driver: local
+
+networks:
+  chatty_network:
+    driver: bridge
