@@ -1,9 +1,9 @@
 #!/usr/bin/env python3
 """
-CHATTY JARVIS Integration with Continuous Mode
+CHATTY Integration with Continuous Mode
 ===============================================
-Integrates JARVIS with the 24/7 continuous automation system.
-JARVIS can now:
+Integrates CHATTY with the 24/7 continuous automation system.
+CHATTY can now:
 - Monitor system status in real-time
 - Dispatch tasks to Agent Zero fleet
 - Trigger autonomous workflows
@@ -30,12 +30,12 @@ class SystemStatus:
 
 
 class JarvisContinuousBridge:
-    """Bridge between JARVIS and CHATTY Continuous Mode"""
+    """Bridge between CHATTY and CHATTY Continuous Mode"""
     
     def __init__(self):
         self.chatty_root = Path(__file__).parent
         self.metrics_file = self.chatty_root / "generated_content" / "continuous_metrics.json"
-        self.session_file = self.chatty_root / "generated_content" / "jarvis_session.json"
+        self.session_file = self.chatty_root / "generated_content" / "chatty_session.json"
         self.last_metrics = None
         self.alert_handlers = []
     
@@ -140,7 +140,7 @@ class JarvisContinuousBridge:
         return status.components.get(component_name)
     
     def format_status_for_display(self, status: SystemStatus) -> str:
-        """Format system status for JARVIS display"""
+        """Format system status for CHATTY display"""
         lines = []
         lines.append("📊 CHATTY Continuous Mode Status")
         lines.append("═" * 60)
@@ -166,7 +166,7 @@ class JarvisContinuousBridge:
 
 
 class JarvisAutonomousController:
-    """Allows JARVIS to control autonomous operations"""
+    """Allows CHATTY to control autonomous operations"""
     
     def __init__(self, bridge: JarvisContinuousBridge):
         self.bridge = bridge
@@ -176,7 +176,7 @@ class JarvisAutonomousController:
     async def start_autonomous_monitoring(self):
         """Start monitoring system autonomously"""
         self.running = True
-        print("🤖 JARVIS autonomous monitoring started")
+        print("🤖 CHATTY autonomous monitoring started")
         
         while self.running:
             try:
@@ -199,7 +199,7 @@ class JarvisAutonomousController:
     def stop_autonomous_monitoring(self):
         """Stop autonomous monitoring"""
         self.running = False
-        print("🛑 JARVIS autonomous monitoring stopped")
+        print("🛑 CHATTY autonomous monitoring stopped")
     
     async def execute_workflow(self, workflow_name: str, params: Dict = None):
         """Execute a predefined workflow"""
@@ -273,17 +273,17 @@ class JarvisAutonomousController:
         return await self.bridge.dispatch_to_agents(task)
 
 
-# Integration with CHATTY_JARVIS.py
+# Integration with CHATTY_CHATTY.py
 
 class JarvisSystemIntegration:
-    """Integrates JARVIS with all CHATTY systems"""
+    """Integrates CHATTY with all CHATTY systems"""
     
     def __init__(self):
         self.bridge = JarvisContinuousBridge()
         self.controller = JarvisAutonomousController(self.bridge)
     
     async def get_comprehensive_status(self) -> str:
-        """Get full system status for JARVIS display"""
+        """Get full system status for CHATTY display"""
         lines = []
         
         # Continuous mode status
@@ -316,12 +316,12 @@ class JarvisSystemIntegration:
 
 # Utility functions for easy integration
 
-async def get_jarvis_bridge() -> JarvisContinuousBridge:
+async def get_chatty_bridge() -> JarvisContinuousBridge:
     """Get configured bridge instance"""
     return JarvisContinuousBridge()
 
 
-async def get_jarvis_integration() -> JarvisSystemIntegration:
+async def get_chatty_integration() -> JarvisSystemIntegration:
     """Get full integration instance"""
     return JarvisSystemIntegration()
 
@@ -329,7 +329,7 @@ async def get_jarvis_integration() -> JarvisSystemIntegration:
 if __name__ == "__main__":
     # Test integration
     async def test():
-        integration = await get_jarvis_integration()
+        integration = await get_chatty_integration()
         status = await integration.get_comprehensive_status()
         print(status)
     

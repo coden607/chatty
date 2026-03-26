@@ -1,14 +1,14 @@
 #!/usr/bin/env python3
 """
-CHATTY JARVIS Voice Module
+CHATTY Voice Module
 ==========================
-Voice recognition and text-to-speech for JARVIS
-Makes JARVIS truly like Iron Man's JARVIS - you can talk to it!
+Voice recognition and text-to-speech for CHATTY
+Makes CHATTY truly like Iron Man's CHATTY - you can talk to it!
 
 Features:
 - Voice command recognition (speech-to-text)
-- JARVIS voice responses (text-to-speech)
-- Wake word detection ("Hey JARVIS")
+- CHATTY voice responses (text-to-speech)
+- Wake word detection ("Hey CHATTY")
 - Voice-activated commands
 """
 
@@ -24,7 +24,7 @@ from dataclasses import dataclass
 @dataclass
 class VoiceConfig:
     """Voice configuration"""
-    wake_word: str = "hey jarvis"
+    wake_word: str = "hey chatty"
     language: str = "en-US"
     speech_rate: int = 175  # Words per minute
     voice_id: Optional[str] = None  # System-specific voice ID
@@ -32,7 +32,7 @@ class VoiceConfig:
 
 
 class JarvisVoice:
-    """JARVIS Voice System - Speech recognition and synthesis"""
+    """CHATTY Voice System - Speech recognition and synthesis"""
     
     def __init__(self, config: VoiceConfig = None):
         self.config = config or VoiceConfig()
@@ -76,7 +76,7 @@ class JarvisVoice:
                 # List available voices
                 voices = self.tts_engine.getProperty('voices')
                 if voices:
-                    # Try to find a male voice (JARVIS-like)
+                    # Try to find a male voice (CHATTY-like)
                     for voice in voices:
                         if 'male' in voice.name.lower() or 'david' in voice.name.lower():
                             self.tts_engine.setProperty('voice', voice.id)
@@ -160,7 +160,7 @@ class JarvisVoice:
                             self.on_wake_word()
                         
                         # Greet and listen for command
-                        self.speak("Yes, sir?")
+                        self.speak("Yes,?")
                         
                         command = self.listen_once(timeout=10.0)
                         if command:
@@ -183,10 +183,10 @@ class JarvisVoice:
 
 
 class JarvisVoiceCommands:
-    """Predefined voice commands for JARVIS"""
+    """Predefined voice commands for CHATTY"""
     
-    def __init__(self, jarvis_assistant):
-        self.jarvis = jarvis_assistant
+    def __init__(self, chatty_assistant):
+        self.chatty = chatty_assistant
         self.commands = {
             "status": self._cmd_status,
             "help": self._cmd_help,
@@ -207,11 +207,11 @@ class JarvisVoiceCommands:
                 return await handler(text)
         
         # Default: treat as chat
-        return await self.jarvis._generate_response(text)
+        return await self.chatty._generate_response(text)
     
     async def _cmd_status(self, text: str) -> str:
         """Handle status command"""
-        return "All systems are operational, sir."
+        return "All systems are operational."
     
     async def _cmd_help(self, text: str) -> str:
         """Handle help command"""
@@ -222,8 +222,8 @@ class JarvisVoiceCommands:
         # Extract what to code
         parts = text.replace("code", "").strip()
         if parts:
-            return await self.jarvis._generate_code(parts)
-        return "What would you like me to code, sir?"
+            return await self.chatty._generate_code(parts)
+        return "What would you like me to code,?"
     
     async def _cmd_analyze(self, text: str) -> str:
         """Handle analyze command"""
@@ -235,18 +235,18 @@ class JarvisVoiceCommands:
     
     async def _cmd_exit(self, text: str) -> str:
         """Handle exit command"""
-        return "Goodbye, sir. JARVIS standing by."
+        return "Goodbye. CHATTY standing by."
 
 
-# Voice-enabled JARVIS wrapper
+# Voice-enabled CHATTY wrapper
 
 class JarvisWithVoice:
-    """JARVIS with voice capabilities"""
+    """CHATTY with voice capabilities"""
     
-    def __init__(self, jarvis_assistant):
-        self.jarvis = jarvis_assistant
+    def __init__(self, chatty_assistant):
+        self.chatty = chatty_assistant
         self.voice = JarvisVoice()
-        self.voice_commands = JarvisVoiceCommands(jarvis_assistant)
+        self.voice_commands = JarvisVoiceCommands(chatty_assistant)
         self.voice_enabled = False
     
     def enable_voice(self) -> bool:
@@ -262,7 +262,7 @@ class JarvisWithVoice:
             self.voice.start_listening_loop()
             
             # Greeting
-            self.voice.speak("JARVIS online and ready, sir.")
+            self.voice.speak("CHATTY online and ready.")
             
             return True
         return False
@@ -284,7 +284,7 @@ class JarvisWithVoice:
         """Process voice command and speak response"""
         try:
             response = await self.voice_commands.process_voice_command(command)
-            print(f"🤖 JARVIS: {response}")
+            print(f"🤖 CHATTY: {response}")
             
             if self.voice_enabled:
                 self.voice.speak(response[:200])  # Limit response length for TTS
@@ -302,14 +302,14 @@ class JarvisWithVoice:
 # Simple voice test
 
 if __name__ == "__main__":
-    print("Testing JARVIS Voice Module")
+    print("Testing CHATTY Voice Module")
     print("=" * 40)
     
     voice = JarvisVoice()
     
     if voice.initialize():
         print("\nTesting text-to-speech...")
-        voice.speak("JARVIS online and ready, sir.", block=True)
+        voice.speak("CHATTY online and ready.", block=True)
         
         print("\nTesting speech recognition...")
         print("Say something:")

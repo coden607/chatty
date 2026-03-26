@@ -1,14 +1,14 @@
-# CHATTY JARVIS - Your Personal AI Assistant
+# CHATTY CHATTY - Your Personal AI Assistant
 
-**Just A Rather Very Intelligent System**
+**Complete Heuristic Assistant for Technical Tasks Yielding Results**
 
-Like JARVIS from Iron Man, but for your codebase and systems. A unified AI assistant that combines the best of Claude Code, Kimi CLI, and OpenClaw - working 24/7 autonomously or interactively at your command.
+Like CHATTY from Iron Man, but for your codebase and systems. A unified AI assistant that combines the best of Claude Code, Kimi CLI, and OpenClaw - working 24/7 autonomously or interactively at your command.
 
 ---
 
-## What is JARVIS?
+## What is CHATTY?
 
-JARVIS is the ultimate evolution of CHATTY - a personal AI assistant that:
+CHATTY is the ultimate evolution of CHATTY - a personal AI assistant that:
 
 - 💻 **Writes and edits code** like Claude Code
 - 🎯 **Executes commands** like Kimi CLI  
@@ -23,32 +23,32 @@ JARVIS is the ultimate evolution of CHATTY - a personal AI assistant that:
 
 ## Quick Start
 
-### Start JARVIS Interactive Mode
+### Start CHATTY Interactive Mode
 ```bash
-./chatty-jarvis
+./chatty-chatty
 # or
-./chattyctl jarvis
+./chattyctl chatty
 # or
-./jarvis
+./chatty
 ```
 
 ### One-Shot Tasks
 ```bash
-# Ask JARVIS anything
-./chattyctl jarvis-task "Create a Python REST API"
+# Ask CHATTY anything
+./chattyctl chatty-task "Create a Python REST API"
 
 # Generate code
-./chattyctl jarvis-code "Create a fibonacci function"
+./chattyctl chatty-code "Create a fibonacci function"
 
 # Learn from a file
-./chattyctl jarvis-file ./myscript.py
+./chattyctl chatty-file ./myscript.py
 ```
 
 ---
 
-## JARVIS Commands
+## CHATTY Commands
 
-Once in JARVIS interactive mode, you can use these commands:
+Once in CHATTY interactive mode, you can use these commands:
 
 ### 📁 File Operations (Like Claude Code)
 ```
@@ -88,7 +88,7 @@ Once in JARVIS interactive mode, you can use these commands:
 /voice             - Toggle voice mode (if available)
 /autonomous        - Toggle autonomous monitoring
 /help              - Show all commands
-/exit, /quit       - Exit JARVIS
+/exit, /quit       - Exit CHATTY
 ```
 
 ---
@@ -97,10 +97,10 @@ Once in JARVIS interactive mode, you can use these commands:
 
 ```
 ┌─────────────────────────────────────────────────────────────┐
-│                      JARVIS INTERFACE                        │
+│                      CHATTY INTERFACE                        │
 │              (Interactive Chat / Voice / CLI)               │
 ├─────────────────────────────────────────────────────────────┤
-│                    JARVIS CORE                              │
+│                    CHATTY CORE                              │
 │  ┌─────────────┐ ┌─────────────┐ ┌─────────────────────┐   │
 │  │ File Ops    │ │ Code Gen    │ │ System Control      │   │
 │  │ (Claude)    │ │ (Multi-LLM) │ │ (Continuous Mode)   │   │
@@ -123,14 +123,14 @@ Once in JARVIS interactive mode, you can use these commands:
 
 ### 1. File Learning (OpenClaw Integration)
 ```bash
-# JARVIS can deeply learn from any file
+# CHATTY can deeply learn from any file
 /learn ./my_project.py
 
 # Or naturally ask
 "Please read and analyze the main.py file"
 ```
 
-JARVIS will:
+CHATTY will:
 - Chunk the file semantically
 - Store in memory
 - Create embeddings for search
@@ -158,7 +158,7 @@ JARVIS will:
 ```
 
 ### 4. Continuous Mode Bridge
-JARVIS connects to the 24/7 continuous automation:
+CHATTY connects to the 24/7 continuous automation:
 - View real-time metrics
 - Dispatch tasks to agents
 - Control continuous mode
@@ -170,9 +170,9 @@ JARVIS connects to the 24/7 continuous automation:
 ```
 
 With voice enabled:
-- Say "Hey JARVIS" to wake
+- Say "Hey CHATTY" to wake
 - Speak commands naturally
-- JARVIS responds verbally
+- CHATTY responds verbally
 
 Requires: `pip install SpeechRecognition pyttsx3`
 
@@ -182,11 +182,11 @@ Requires: `pip install SpeechRecognition pyttsx3`
 
 | File | Purpose |
 |------|---------|
-| `CHATTY_JARVIS.py` | Main JARVIS assistant (38KB) |
-| `CHATTY_JARVIS_INTEGRATION.py` | Continuous mode bridge |
-| `CHATTY_JARVIS_VOICE.py` | Voice recognition/synthesis |
-| `chatty-jarvis` | Launcher script |
-| `jarvis` | Shortcut symlink |
+| `CHATTY_CHATTY.py` | Main CHATTY assistant (38KB) |
+| `CHATTY_CHATTY_INTEGRATION.py` | Continuous mode bridge |
+| `CHATTY_CHATTY_VOICE.py` | Voice recognition/synthesis |
+| `chatty-chatty` | Launcher script |
+| `chatty` | Shortcut symlink |
 
 ---
 
@@ -195,7 +195,7 @@ Requires: `pip install SpeechRecognition pyttsx3`
 ### Example 1: Code Review
 ```
 💬 [chatty]> /file ./main.py
-🤖 JARVIS: 📁 **main.py**
+🤖 CHATTY: 📁 **main.py**
 
 This is a Python web application using Flask. It contains:
 - Route definitions
@@ -205,7 +205,7 @@ This is a Python web application using Flask. It contains:
 _File loaded into context. You can now ask questions about it._
 
 💬 [chatty]> What's the authentication flow?
-🤖 JARVIS: The authentication flow in main.py works as follows:
+🤖 CHATTY: The authentication flow in main.py works as follows:
 1. User submits credentials via /login endpoint
 2. Password is hashed using bcrypt
 3. Session token is generated and stored
@@ -215,7 +215,7 @@ _File loaded into context. You can now ask questions about it._
 ### Example 2: Generate Code
 ```
 💬 [chatty]> /code "Create a decorator for logging function calls"
-🤖 JARVIS: Here's a Python decorator for logging function calls:
+🤖 CHATTY: Here's a Python decorator for logging function calls:
 
 ```python
 import functools
@@ -257,7 +257,7 @@ Filename: log_decorator.py
 ### Example 3: System Control
 ```
 💬 [chatty]> /status
-📊 JARVIS SYSTEM STATUS
+📊 CHATTY SYSTEM STATUS
 ══════════════════════════════════════════════════════════
 
 🖥️  Working Directory: /home/user/projects/chatty
@@ -283,13 +283,13 @@ Filename: log_decorator.py
 
 ## Integration with Continuous Mode
 
-JARVIS works alongside the 24/7 continuous automation:
+CHATTY works alongside the 24/7 continuous automation:
 
 ```python
 # In your code
-from CHATTY_JARVIS_INTEGRATION import get_jarvis_integration
+from CHATTY_CHATTY_INTEGRATION import get_chatty_integration
 
-integration = await get_jarvis_integration()
+integration = await get_chatty_integration()
 
 # Check continuous mode status
 status = await integration.get_comprehensive_status()
@@ -308,7 +308,7 @@ result = await integration.bridge.dispatch_to_agents({
 
 ## Configuration
 
-JARVIS uses your existing `.env` file with all API keys:
+CHATTY uses your existing `.env` file with all API keys:
 - `NVIDIA_API_KEY` - Primary (Kimi K2.5)
 - `OPENROUTER_API_KEY` - Secondary
 - `XAI_API_KEY` - Tertiary
@@ -320,9 +320,9 @@ No additional configuration needed!
 
 ## Tips
 
-1. **Natural Language**: JARVIS understands natural requests like "read the config file" or "analyze this code"
+1. **Natural Language**: CHATTY understands natural requests like "read the config file" or "analyze this code"
 
-2. **File Context**: Once you `/learn` a file, JARVIS remembers it for the session
+2. **File Context**: Once you `/learn` a file, CHATTY remembers it for the session
 
 3. **Tab Completion**: Press TAB for command completion in interactive mode
 
@@ -345,11 +345,11 @@ No additional configuration needed!
 
 ## Next Steps
 
-1. **Try JARVIS**: `./chatty-jarvis`
+1. **Try CHATTY**: `./chatty-chatty`
 2. **Learn your codebase**: `/learn ./your_project`
 3. **Generate code**: `/code "Create a web scraper"`
 4. **Check systems**: `/status`
 
 ---
 
-**Welcome to the future of AI assistance. JARVIS is ready, sir.** 🤖
+**Welcome to the future of AI assistance. CHATTY is ready, sir.** 🤖

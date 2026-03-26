@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-CHATTY JARVIS - Just A Rather Very Intelligent System
+CHATTY - Complete Heuristic Assistant for Technical Tasks Yielding Results
 ======================================================
 The ultimate personal AI assistant that combines:
 - OpenClaw (file learning, chunking, self-repair)
@@ -12,15 +12,15 @@ The ultimate personal AI assistant that combines:
 - Voice commands (optional)
 - 24/7 autonomous operation
 
-Like JARVIS from Iron Man - your personal AI assistant that works
+Like CHATTY - your personal AI assistant that works
 around the clock, manages your systems, writes code, and learns.
 
 Usage:
-    ./chatty-jarvis                    # Start interactive mode
-    ./chatty-jarvis --task "..."       # One-shot task
-    ./chatty-jarvis --code "..."       # Code generation
-    ./chatty-jarvis --file <path>      # Learn from file
-    ./chatty-jarvis --watch <dir>      # Watch directory
+    ./chatty                    # Start interactive mode
+    ./chatty --task "..."       # One-shot task
+    ./chatty --code "..."       # Code generation
+    ./chatty --file <path>      # Learn from file
+    ./chatty --watch <dir>      # Watch directory
 """
 
 import os
@@ -62,7 +62,7 @@ class FileContext:
 
 
 class JarvisCore:
-    """Core JARVIS intelligence system"""
+    """Core CHATTY intelligence system"""
     
     def __init__(self):
         self.history: List[JarvisMessage] = []
@@ -78,9 +78,9 @@ class JarvisCore:
         self.nvidia_orchestrator = None
         
         # Paths
-        self.history_file = Path.home() / ".jarvis_history"
-        self.session_file = Path.home() / ".jarvis_session"
-        self.memory_dir = Path.home() / ".jarvis_memory"
+        self.history_file = Path.home() / ".chatty_history"
+        self.session_file = Path.home() / ".chatty_session"
+        self.memory_dir = Path.home() / ".chatty_memory"
         self.memory_dir.mkdir(exist_ok=True)
         
         # Settings
@@ -149,8 +149,8 @@ class JarvisCore:
             print(f"⚠️  Could not save session: {e}")
     
     async def initialize(self):
-        """Initialize all JARVIS systems"""
-        print("🔧 Initializing JARVIS systems...")
+        """Initialize all CHATTY systems"""
+        print("🔧 Initializing CHATTY systems...")
         
         # 1. Model Router
         try:
@@ -206,11 +206,11 @@ class JarvisCore:
         except Exception as e:
             print(f"   ℹ️  NVIDIA Nemoclaw: {e}")
         
-        print("\n🚀 JARVIS is online and ready to assist you, sir.")
+        print("\n🚀 CHATTY is online and ready to assist you.")
         print("   Type /help for commands or just start chatting.\n")
     
     def print_banner(self):
-        """Print JARVIS welcome banner"""
+        """Print CHATTY welcome banner"""
         print("""
 ╔═══════════════════════════════════════════════════════════════════════╗
 ║                                                                       ║
@@ -221,7 +221,7 @@ class JarvisCore:
 ║     ██║██║  ██║██║  ██║ ╚████╔╝ ██║███████║    ██║  ██║              ║
 ║     ╚═╝╚═╝  ╚═╝╚═╝  ╚═╝  ╚═══╝  ╚═╝╚══════╝    ╚═╝  ╚═╝              ║
 ║                                                                       ║
-║     Just A Rather Very Intelligent System                             ║
+║     Complete Heuristic Assistant for Technical Tasks Yielding Results                             ║
 ╠═══════════════════════════════════════════════════════════════════════╣
 ║  💻 File Operations    🤖 Multi-Agent     🧠 Self-Repair             ║
 ║  📁 Code Analysis      🎯 Task Routing    🔄 Continuous Learning     ║
@@ -231,7 +231,7 @@ class JarvisCore:
 
 
 class JarvisAssistant(JarvisCore):
-    """Interactive JARVIS assistant with file operations"""
+    """Interactive CHATTY assistant with file operations"""
     
     def __init__(self):
         super().__init__()
@@ -303,13 +303,13 @@ class JarvisAssistant(JarvisCore):
                 self._add_message("assistant", response)
                 
                 # Print response
-                print(f"\n🤖 JARVIS: {response}")
+                print(f"\n🤖 CHATTY: {response}")
                 
                 # Save session
                 self._save_session()
                 
             except KeyboardInterrupt:
-                print("\n\n👋 Goodbye, sir.")
+                print("\n\n👋 Goodbye.")
                 break
             except EOFError:
                 break
@@ -414,7 +414,7 @@ class JarvisAssistant(JarvisCore):
             # Build context from history and file contexts
             context_parts = []
             for m in self.history[-8:]:
-                prefix = "User" if m.role == "user" else "JARVIS"
+                prefix = "User" if m.role == "user" else "CHATTY"
                 context_parts.append(f"{prefix}: {m.content}")
             
             # Add file context if relevant
@@ -438,7 +438,7 @@ class JarvisAssistant(JarvisCore):
             # Generate response
             result = await self.model_router.generate(
                 prompt=user_input,
-                system_prompt=f"""You are JARVIS (Just A Rather Very Intelligent System), an advanced AI assistant.
+                system_prompt=f"""You are CHATTY (Complete Heuristic Assistant for Technical Tasks Yielding Results), an advanced AI assistant.
 You help with coding, file analysis, system management, and general tasks.
 Be concise, helpful, and professional.
 
@@ -460,14 +460,14 @@ Previous conversation:
     async def _cmd_help(self, args: str) -> bool:
         """Show help"""
         print("""
-📋 JARVIS Commands
+📋 CHATTY Commands
 ═══════════════════════════════════════════════════════════
 
 🎮 General:
   /help              Show this help
   /status            Show system status
   /clear             Clear chat history
-  /exit, /quit       Exit JARVIS
+  /exit, /quit       Exit CHATTY
 
 📁 File Operations (like Claude Code):
   /file <path>       Load and analyze a file
@@ -504,7 +504,7 @@ You can also:
     
     async def _cmd_status(self, args: str) -> bool:
         """Show system status"""
-        print("\n📊 JARVIS SYSTEM STATUS")
+        print("\n📊 CHATTY SYSTEM STATUS")
         print("═" * 60)
         
         print(f"\n🖥️  Working Directory: {self.working_directory}")
@@ -545,7 +545,7 @@ You can also:
     
     async def _cmd_exit(self, args: str) -> bool:
         """Exit"""
-        print("\n👋 Goodbye, sir. JARVIS standing by.")
+        print("\n👋 Goodbye. CHATTY standing by.")
         return False
     
     async def _cmd_code(self, args: str) -> bool:
@@ -951,7 +951,7 @@ Include:
     
     async def _cmd_memory(self, args: str) -> bool:
         """Show memory info"""
-        print("\n🧠 JARVIS Memory")
+        print("\n🧠 CHATTY Memory")
         print("═" * 60)
         print(f"Messages in session: {len(self.history)}")
         print(f"Files in context: {len(self.file_contexts)}")
@@ -999,43 +999,43 @@ Include:
         status = "enabled" if self.autonomous_mode else "disabled"
         print(f"🤖 Autonomous mode {status}")
         if self.autonomous_mode:
-            print("   JARVIS will now work proactively in the background")
+            print("   CHATTY will now work proactively in the background")
         return True
 
 
 # Entry points
 
 async def interactive_mode():
-    """Run JARVIS in interactive mode"""
-    jarvis = JarvisAssistant()
-    await jarvis.chat_loop()
+    """Run CHATTY in interactive mode"""
+    chatty = JarvisAssistant()
+    await chatty.chat_loop()
 
 
 async def one_shot_task(task: str, mode: str = "chat"):
     """Execute a one-shot task"""
-    jarvis = JarvisAssistant()
-    await jarvis.initialize()
+    chatty = JarvisAssistant()
+    await chatty.initialize()
     
     if mode == "code":
-        result = await jarvis._generate_code(task)
+        result = await chatty._generate_code(task)
     else:
-        result = await jarvis._generate_response(task)
+        result = await chatty._generate_response(task)
     
     print(result)
 
 
 async def learn_file(file_path: str):
     """Learn from a file"""
-    jarvis = JarvisAssistant()
-    await jarvis.initialize()
-    await jarvis._cmd_learn(file_path)
+    chatty = JarvisAssistant()
+    await chatty.initialize()
+    await chatty._cmd_learn(file_path)
 
 
 async def main():
     """Main entry point"""
     import argparse
     
-    parser = argparse.ArgumentParser(description="CHATTY JARVIS - Your Personal AI Assistant")
+    parser = argparse.ArgumentParser(description="CHATTY - Your Personal AI Assistant")
     parser.add_argument("--task", type=str, help="One-shot task to execute")
     parser.add_argument("--code", action="store_true", help="Code generation mode")
     parser.add_argument("--file", type=str, help="Learn from file")
@@ -1045,13 +1045,13 @@ async def main():
     args = parser.parse_args()
     
     if args.status:
-        jarvis = JarvisAssistant()
-        await jarvis.initialize()
-        await jarvis._cmd_status("")
+        chatty = JarvisAssistant()
+        await chatty.initialize()
+        await chatty._cmd_status("")
     elif args.execute:
-        jarvis = JarvisAssistant()
-        await jarvis.initialize()
-        await jarvis._cmd_exec(args.execute)
+        chatty = JarvisAssistant()
+        await chatty.initialize()
+        await chatty._cmd_exec(args.execute)
     elif args.file:
         await learn_file(args.file)
     elif args.task:
@@ -1064,5 +1064,5 @@ if __name__ == "__main__":
     try:
         asyncio.run(main())
     except KeyboardInterrupt:
-        print("\n\n👋 Goodbye, sir.")
+        print("\n\n👋 Goodbye.")
         sys.exit(0)
