@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-CHATTY - Complete Heuristic Assistant for Technical Tasks Yielding Results
+CHATTY - Your Personal AI Assistant
 ======================================================
 The ultimate personal AI assistant that combines:
 - OpenClaw (file learning, chunking, self-repair)
@@ -221,7 +221,7 @@ class JarvisCore:
 ║     ██║██║  ██║██║  ██║ ╚████╔╝ ██║███████║    ██║  ██║              ║
 ║     ╚═╝╚═╝  ╚═╝╚═╝  ╚═╝  ╚═══╝  ╚═╝╚══════╝    ╚═╝  ╚═╝              ║
 ║                                                                       ║
-║     Complete Heuristic Assistant for Technical Tasks Yielding Results                             ║
+║     Your Personal AI Assistant                             ║
 ╠═══════════════════════════════════════════════════════════════════════╣
 ║  💻 File Operations    🤖 Multi-Agent     🧠 Self-Repair             ║
 ║  📁 Code Analysis      🎯 Task Routing    🔄 Continuous Learning     ║
@@ -438,7 +438,7 @@ class JarvisAssistant(JarvisCore):
             # Generate response
             result = await self.model_router.generate(
                 prompt=user_input,
-                system_prompt=f"""You are CHATTY (Complete Heuristic Assistant for Technical Tasks Yielding Results), an advanced AI assistant.
+                system_prompt=f"""You are CHATTY (Your Personal AI Assistant), an advanced AI assistant.
 You help with coding, file analysis, system management, and general tasks.
 Be concise, helpful, and professional.
 
