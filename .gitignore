@@ -13,4 +13,4 @@ sendgrid.env
 runtime/chatty.out*
 runtime/*.pid
 runtime/*.out
-~/.config/chatty/secrets.env
+~/.config/chatty/secrets.envvenv/
