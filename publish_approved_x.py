@@ -49,13 +49,16 @@ def confirm_from_terminal() -> bool:
     print(POST)
     print("\nThis is an external communication from the official account.")
     try:
-        with open("/dev/tty", "r+", encoding="utf-8") as terminal:
-            terminal.write("Type PUBLISH to send this one post: ")
-            terminal.flush()
-            return terminal.readline().strip() == "PUBLISH"
-    except OSError:
-        print("A real interactive terminal is required.")
-        return False
+        return input("Type PUBLISH to send this one post: ").strip() == "PUBLISH"
+    except (EOFError, OSError):
+        try:
+            with open("/dev/tty", "r+", encoding="utf-8") as terminal:
+                terminal.write("Type PUBLISH to send this one post: ")
+                terminal.flush()
+                return terminal.readline().strip() == "PUBLISH"
+        except OSError:
+            print("A real interactive terminal is required.")
+            return False
 
 
 def main() -> int:
