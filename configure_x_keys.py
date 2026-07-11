@@ -5,11 +5,13 @@ from __future__ import annotations
 
 import getpass
 import os
+import subprocess
 import tempfile
 from pathlib import Path
 
 
 SECRETS_FILE = Path.home() / ".config" / "chatty" / "secrets.env"
+X_DEVELOPER_PORTAL = "https://developer.x.com/en/portal/dashboard"
 X_KEYS = (
     "X_BEARER_TOKEN",
     "X_CONSUMER_KEY",
@@ -78,6 +80,23 @@ def atomic_write(lines: list[str]) -> None:
             os.unlink(temp_name)
 
 
+def open_developer_portal() -> None:
+    """Open X's developer portal using Termux when available."""
+    print("Opening the X Developer Portal in your browser...")
+    try:
+        result = subprocess.run(
+            ["termux-open-url", X_DEVELOPER_PORTAL],
+            check=False,
+            stdout=subprocess.DEVNULL,
+            stderr=subprocess.DEVNULL,
+        )
+        if result.returncode == 0:
+            return
+    except FileNotFoundError:
+        pass
+    print(f"Open this URL manually: {X_DEVELOPER_PORTAL}")
+
+
 def main() -> int:
     lines = load_lines()
     existing = configured_keys(lines)
@@ -86,6 +105,12 @@ def main() -> int:
     print("Chatty X credential setup")
     print("Values are hidden and will not be printed.")
     print("Press Enter to preserve an existing value or skip a missing one.\n")
+
+    open_developer_portal()
+    print("Sign in, select the official NarcoGuard app, and regenerate its keys and tokens.")
+    print("Regeneration invalidates the old exposed credentials.")
+    getpass.getpass("Press Enter here after the new credentials are visible in the portal: ")
+    print()
 
     for key in X_KEYS:
         status = "configured" if key in existing else "missing"
