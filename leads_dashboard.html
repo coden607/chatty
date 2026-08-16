@@ -833,6 +833,30 @@
         finally { btn.innerText = originalText; btn.disabled = false; }
       }
 
+      async function copyToClipboard(elementId, btn) {
+        const element = document.getElementById(elementId);
+        const text = element.innerText || element.textContent;
+        try {
+          await navigator.clipboard.writeText(text);
+          if (btn._copyTimeout) clearTimeout(btn._copyTimeout);
+          const originalText = btn.getAttribute('data-original') || btn.innerText;
+          if (!btn.getAttribute('data-original')) btn.setAttribute('data-original', originalText);
+
+          btn.innerText = "Copied!";
+          btn.style.color = "var(--success)";
+          btn.style.borderColor = "var(--success)";
+
+          btn._copyTimeout = setTimeout(() => {
+            btn.innerText = originalText;
+            btn.style.color = "var(--text-muted)";
+            btn.style.borderColor = "var(--border)";
+            btn._copyTimeout = null;
+          }, 2000);
+        } catch (err) {
+          console.error("Failed to copy:", err);
+        }
+      }
+
       function escapeHTML(str) {
         if (!str) return '';
         return str.toString()
