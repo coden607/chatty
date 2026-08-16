@@ -233,11 +233,17 @@
         color: #000;
         font-weight: 600;
         cursor: pointer;
-        transition: opacity 0.3s ease;
+        transition: opacity 0.3s ease, transform 0.2s ease, box-shadow 0.3s ease;
       }
 
       .btn:hover {
         opacity: 0.9;
+        transform: translateY(-1px);
+        box-shadow: 0 4px 15px rgba(0, 242, 254, 0.3);
+      }
+
+      .btn:active {
+        transform: scale(0.98);
       }
 
       .btn:focus-visible,
