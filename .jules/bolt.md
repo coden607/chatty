@@ -17,3 +17,7 @@
 ## 2026-02-21 - [In-memory caching for async LLM endpoints]
 **Learning:** For expensive and frequently polled AI content generation endpoints, implementing a simple in-memory cache with an 'asyncio.Lock' prevents redundant LLM calls and avoids race conditions ('cache stampedes') while drastically improving response times for subsequent requests.
 **Action:** Identify endpoints that poll slow external services and apply time-based in-memory caching with proper concurrency locks.
+
+## 2025-05-14 - [Cache expensive AI summary calls]
+**Learning:** Endpoints that trigger AI content generation (like weekly briefs) can take 5-30 seconds per request, creating a massive bottleneck and unnecessary cost if polled frequently by a dashboard.
+**Action:** Implement in-memory caching with a reasonable TTL (e.g., 120s) and use an asyncio.Lock to prevent race conditions where multiple requests trigger simultaneous AI calls for the same data.
