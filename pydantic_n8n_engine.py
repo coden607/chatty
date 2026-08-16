@@ -304,6 +304,8 @@ class PydanticN8NEngine:
                     completed_tasks.add(task['id'])
                     del pending_tasks[task['id']]
                     
+                    completed_tasks.add(task_id)
+                    del pending_tasks[task_id]
                     execution.tasks_executed += 1
                     execution.tasks_completed += 1
                     logger.info(f"✅ Task completed: {task['name']}")
@@ -399,7 +401,10 @@ class PydanticN8NEngine:
             
             # Execute function
             function = self.task_registry[function_name]
-            result = await asyncio.to_thread(function, **function_args)
+            if asyncio.iscoroutinefunction(function):
+                result = await function(**function_args)
+            else:
+                result = await asyncio.to_thread(function, **function_args)
             
             return {'result': result}
             
