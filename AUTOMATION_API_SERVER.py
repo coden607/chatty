@@ -10,6 +10,7 @@ from fastapi.responses import FileResponse
 from pydantic import BaseModel
 from typing import Dict, List, Any, Optional
 import asyncio
+import time
 import logging
 import time
 from datetime import datetime
@@ -169,6 +170,13 @@ system_status = {
     "total_revenue": 0.0,
     "start_time": None
 }
+
+# In-memory cache for expensive AI-generated summaries
+_weekly_brief_cache = {
+    "data": None,
+    "timestamp": 0
+}
+WEEKLY_BRIEF_CACHE_TTL = 600 # 10 minutes
 
 automation_instance: Optional[Any] = None
 automation_task: Optional[asyncio.Task] = None
@@ -769,6 +777,7 @@ async def api_root():
             "grants": "/api/grants",
             "experiments": "/api/experiments/pricing",
             "crm": "/api/crm/notes",
+            "dashboard-all": "/api/dashboard/all",
             "kpi": "/api/kpi/anomalies",
             "viral": "/api/viral/status",
             "investor": "/api/investor/status",
@@ -1615,6 +1624,27 @@ async def ingest_metric(payload: MetricIngestRequest):
 async def get_kpi_anomalies():
     """Get KPI anomaly log"""
     return {"anomalies": anomaly_log[:10]}
+
+@app.get("/api/dashboard/all")
+async def get_dashboard_all():
+    """Aggregated endpoint for the dashboard to reduce network overhead (parallelized)"""
+    keys = [
+        "status", "revenue", "leads", "workflows", "agents", "tasks",
+        "collab", "messages", "autonomy", "pipelines", "campaigns",
+        "n8n", "transparency", "content", "grants", "experiments",
+        "anomalies", "brief", "viral"
+    ]
+
+    results = await asyncio.gather(
+        get_status(), get_revenue(), get_leads(), get_narcoguard_workflows(),
+        get_agents(), get_tasks(), get_collab_feed(), get_user_messages(),
+        get_autonomy_status(), get_pipelines(), get_campaigns(),
+        get_n8n_workflows(), get_transparency_report(), get_content_briefs(),
+        get_grants(), get_pricing_experiments(), get_kpi_anomalies(),
+        weekly_brief(), get_viral_status()
+    )
+
+    return dict(zip(keys, results))
 
 @app.get("/api/weekly/brief")
 async def weekly_brief():
