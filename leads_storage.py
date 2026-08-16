@@ -3,6 +3,7 @@ import os
 import time
 from datetime import datetime
 from typing import List, Dict, Any
+from pathlib import Path
 
 # Resolve LEADS_FILE dynamically relative to the script location
 LEADS_FILE = os.path.join(os.path.dirname(os.path.abspath(__file__)), "leads.json")
@@ -25,6 +26,7 @@ def _update_cache(leads):
 
 def save_lead(lead_data: Dict[str, Any]):
     """Save a lead to the JSON storage (dedupe by email)."""
+    global _leads_cache, _last_mtime
     leads = get_all_leads()
     email = (lead_data.get("email") or "").strip().lower()
 
@@ -96,6 +98,7 @@ def get_all_leads() -> List[Dict[str, Any]]:
 
 def update_lead_status(lead_id: int, status: str):
     """Update a lead's status"""
+    global _leads_cache, _last_mtime
     leads = get_all_leads()
     updated = False
     for lead in leads:
@@ -120,8 +123,13 @@ def update_lead_status(lead_id: int, status: str):
     _leads_cache = leads
     _last_mtime = os.path.getmtime(LEADS_FILE)
 
+    # Update cache after write
+    _leads_cache = leads
+    _last_mtime = os.path.getmtime(LEADS_FILE)
+
 def update_lead_follow_up(lead_id: int, follow_up_payload: Dict[str, Any]):
     """Update a lead's follow-up metadata"""
+    global _leads_cache, _last_mtime
     leads = get_all_leads()
     updated = False
     for lead in leads:
@@ -142,6 +150,10 @@ def update_lead_follow_up(lead_id: int, follow_up_payload: Dict[str, Any]):
     _last_mtime = os.path.getmtime(LEADS_FILE)
 
     global _leads_cache, _last_mtime
+    _leads_cache = leads
+    _last_mtime = os.path.getmtime(LEADS_FILE)
+
+    # Update cache after write
     _leads_cache = leads
     _last_mtime = os.path.getmtime(LEADS_FILE)
 
