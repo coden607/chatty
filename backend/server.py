@@ -68,7 +68,7 @@ app.config.update(
     JWT_SECRET_KEY=os.environ.get('JWT_SECRET_KEY', os.urandom(32).hex()),
     JWT_ACCESS_TOKEN_EXPIRES=timedelta(hours=1),
     JWT_REFRESH_TOKEN_EXPIRES=timedelta(days=30),
-    SQLALCHEMY_DATABASE_URI=os.environ.get('DATABASE_URL', 'postgresql://chatty:password@localhost:5432/chatty'),
+    SQLALCHEMY_DATABASE_URI=os.environ.get('DATABASE_URL', 'sqlite:///chatty.db'),
     SQLALCHEMY_TRACK_MODIFICATIONS=False,
     SQLALCHEMY_ENGINE_OPTIONS={
         'pool_pre_ping': True,
@@ -182,7 +182,6 @@ class UserSchema(Schema):
     username = fields.Str(required=True, validate=validate.Length(min=3, max=80))
     email = fields.Email(required=True)
     password = fields.Str(required=True, validate=validate.Length(min=8))
-    role = fields.Str(validate=validate.OneOf(['user', 'admin']), missing='user')
 
 class AgentSchema(Schema):
     name = fields.Str(required=True, validate=validate.Length(min=1, max=100))
@@ -360,11 +359,12 @@ def register():
                 raise APIError("Username already taken", 409)
 
             # Create user
+            # Role is forced to 'user' to prevent privilege escalation via mass assignment
             user = User(
                 username=data['username'],
                 email=data['email'],
                 password_hash=bcrypt.hashpw(data['password'].encode(), bcrypt.gensalt()).decode(),
-                role=data.get('role', 'user')
+                role='user'
             )
             session.add(user)
 
