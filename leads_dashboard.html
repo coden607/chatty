@@ -371,6 +371,19 @@
       textarea.prompt-textarea {
         min-height: 120px;
         resize: vertical;
+        transition: border-color 0.3s ease, box-shadow 0.3s ease;
+      }
+
+      input.prompt-textarea {
+        min-height: 50px;
+        height: 50px;
+        resize: none;
+      }
+
+      .prompt-textarea:focus, .message-input:focus, .btn:focus-visible {
+        outline: none;
+        border-color: var(--primary);
+        box-shadow: 0 0 0 2px rgba(0, 242, 254, 0.2);
       }
 
       input.prompt-textarea, select.prompt-textarea {
@@ -441,6 +454,7 @@
         color: var(--text);
         padding: 14px;
         resize: vertical;
+        transition: border-color 0.3s ease, box-shadow 0.3s ease;
       }
 
       .pipeline-card {
