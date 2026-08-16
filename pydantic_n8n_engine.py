@@ -348,6 +348,17 @@ class PydanticN8NEngine:
         if task_type == 'http_request':
             return await self._execute_http_request(task_config, context)
         elif task_type == 'function_call':
+            # Check if it's a built-in task that is async
+            function_name = task_config.get('function')
+            if function_name == 'calculate':
+                return await self._calculate_task(**task_config.get('args', {}))
+            elif function_name == 'send_email':
+                return await self._send_email_task(**task_config.get('args', {}))
+            elif function_name == 'log_message':
+                return await self._log_message_task(**task_config.get('args', {}))
+            elif function_name == 'get_time':
+                return await self._get_time_task(**task_config.get('args', {}))
+
             return await self._execute_function_call(task_config, context)
         elif task_type == 'conditional':
             return await self._execute_conditional(task_config, context)
