@@ -29,14 +29,24 @@ try:
 except ImportError:
     revenue_engine = None
 
+logging.basicConfig(level=logging.INFO)
+logger = logging.getLogger(__name__)
+
+# Heavy imports moved to module level to avoid initialization overhead during request handling
+try:
+    from AUTOMATED_REVENUE_ENGINE import revenue_engine
+    from AUTOMATED_CUSTOMER_ACQUISITION import acquisition_engine
+    from START_COMPLETE_AUTOMATION import ChattyCompleteAutomation
+except ImportError as e:
+    logger.warning(f"Could not perform early import of automation engines: {e}")
+    revenue_engine = None
+    acquisition_engine = None
+    ChattyCompleteAutomation = None
+
 load_dotenv(".env", override=False)
 _secrets_file = os.getenv("CHATTY_SECRETS_FILE")
 if _secrets_file:
     load_dotenv(os.path.expanduser(_secrets_file), override=True)  # secrets always win
-
-
-logging.basicConfig(level=logging.INFO)
-logger = logging.getLogger(__name__)
 
 app = FastAPI(
     title="CHATTY Automation API",
@@ -656,7 +666,8 @@ def _sync_system_status_from_instance() -> None:
 
 async def _launch_automation_system() -> None:
     global automation_instance, automation_task
-    from START_COMPLETE_AUTOMATION import ChattyCompleteAutomation
+    if ChattyCompleteAutomation is None:
+        raise RuntimeError("ChattyCompleteAutomation not available")
 
     automation_instance = ChattyCompleteAutomation()
     ok = await automation_instance.initialize()
@@ -971,7 +982,8 @@ async def capture_lead(payload: LeadCaptureRequest):
 async def convert_lead(lead_id: int):
     """Trigger AI conversion agent for a specific lead"""
     try:
-        from AUTOMATED_CUSTOMER_ACQUISITION import acquisition_engine
+        if acquisition_engine is None:
+             raise HTTPException(status_code=503, detail="Acquisition engine not available")
         result = await acquisition_engine.convert_lead(lead_id)
         if "error" in result:
             raise HTTPException(status_code=400, detail=result["error"])
