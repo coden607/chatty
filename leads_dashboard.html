@@ -968,6 +968,10 @@
         await copyToClipboard("modal-content", btn);
       }
 
+      function copyStrategy() {
+        copyToClipboard("modal-content", "copy-strategy-btn");
+      }
+
       function updateDashboard(data) {
         document.getElementById("count-total").innerText = data.total;
         document.getElementById("count-new").innerText = data.new;
