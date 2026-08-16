@@ -9,3 +9,7 @@
 ## 2026-02-24 - [Cache expensive AI generation]
 **Learning:** AI-powered API endpoints are a major performance bottleneck due to high latency and cost. Implementing an in-memory cache with an `asyncio.Lock` (using double-checked locking) provides a massive responsiveness boost (~125x) and protects against thundering herd problems.
 **Action:** Identify endpoints polled by the UI and apply time-based caching with concurrency controls to redundant LLM calls.
+
+## 2026-02-20 - [Thundering herd prevention with asyncio.Lock]
+**Learning:** When implementing an in-memory cache for an expensive async operation (like AI generation), simply checking the cache before the logic is not enough to prevent redundant calls under high concurrency.
+**Action:** Wrap the entire cache-check and generation logic in an `asyncio.Lock` to ensure only one request triggers the expensive logic while others wait for the cached result.
