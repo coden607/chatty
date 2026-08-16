@@ -848,6 +848,58 @@ async def get_status():
         "systems": system_status["systems"]
     }
 
+async def _safe_call(coro):
+    """Safely execute a coroutine for batching"""
+    try:
+        return await coro
+    except Exception as exc:
+        logger.error(f"Batch component failed: {exc}")
+        return {"error": str(exc)}
+
+@app.get("/api/dashboard/all")
+async def get_dashboard_all():
+    """Batch endpoint for all dashboard data to optimize frontend polling"""
+    results = await asyncio.gather(
+        _safe_call(get_status()),
+        _safe_call(get_leads()),
+        _safe_call(get_narcoguard_workflows()),
+        _safe_call(get_agents()),
+        _safe_call(get_tasks()),
+        _safe_call(get_collab_feed()),
+        _safe_call(get_user_messages()),
+        _safe_call(get_autonomy_status()),
+        _safe_call(get_pipelines()),
+        _safe_call(get_campaigns()),
+        _safe_call(get_n8n_workflows()),
+        _safe_call(get_transparency_report()),
+        _safe_call(get_content_briefs()),
+        _safe_call(get_grants()),
+        _safe_call(get_pricing_experiments()),
+        _safe_call(get_kpi_anomalies()),
+        _safe_call(weekly_brief())
+    )
+
+    return {
+        "status": results[0],
+        "leads": results[1],
+        "workflows": results[2],
+        "agents": results[3],
+        "tasks": results[4],
+        "collab": results[5],
+        "messages": results[6],
+        "autonomy": results[7],
+        "pipelines": results[8],
+        "campaigns": results[9],
+        "n8n": results[10],
+        "transparency": results[11],
+        "briefs": results[12],
+        "grants": results[13],
+        "experiments": results[14],
+        "anomalies": results[15],
+        "weekly_brief": results[16],
+        "timestamp": datetime.now().isoformat()
+    }
+
 @app.post("/api/start")
 async def start_systems(background_tasks: BackgroundTasks):
     """Start all automation systems"""
