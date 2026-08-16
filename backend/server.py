@@ -191,17 +191,17 @@ class UserSchema(Schema):
 class AgentSchema(Schema):
     name = fields.Str(required=True, validate=validate.Length(min=1, max=100))
     description = fields.Str()
-    autonomy_level = fields.Str(validate=validate.OneOf(['supervised', 'semi_autonomous', 'autonomous']), missing='supervised')
-    capabilities = fields.List(fields.Str(), missing=[])
-    tools = fields.List(fields.Str(), missing=[])
-    config = fields.Dict(missing={})
+    autonomy_level = fields.Str(validate=validate.OneOf(['supervised', 'semi_autonomous', 'autonomous']), load_default='supervised')
+    capabilities = fields.List(fields.Str(), load_default=[])
+    tools = fields.List(fields.Str(), load_default=[])
+    config = fields.Dict(load_default={})
 
 class TaskSchema(Schema):
     title = fields.Str(required=True, validate=validate.Length(min=1, max=200))
     description = fields.Str()
-    priority = fields.Str(validate=validate.OneOf(['low', 'medium', 'high', 'critical']), missing='medium')
+    priority = fields.Str(validate=validate.OneOf(['low', 'medium', 'high', 'critical']), load_default='medium')
     task_type = fields.Str()
-    parameters = fields.Dict(missing={})
+    parameters = fields.Dict(load_default={})
     agent_id = fields.Str()
 
 # Error Handling
