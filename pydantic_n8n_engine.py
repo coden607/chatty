@@ -42,6 +42,9 @@ except ImportError:
     memory_system = adaptive_learning = None
 from openclaw_integration import MultiLLMRouter
 
+# Regex for efficient variable replacement in templates
+_VAR_PATTERN = re.compile(r'\{\{([^{}]+)\}\}')
+
 class WorkflowStatus(str, Enum):
     """Workflow status enumeration"""
     PENDING = "pending"
