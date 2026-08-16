@@ -16,8 +16,9 @@ import tweepy
 from transparency_log import log_transparency
 
 # Setup logging
-LOG_DIR = Path("/home/coden809/CHATTY/logs")
+LOG_DIR = Path(__file__).resolve().parent / "logs"
 LOG_DIR.mkdir(parents=True, exist_ok=True)
+PROJECT_ROOT = Path(__file__).resolve().parent
 
 logging.basicConfig(
     level=logging.DEBUG,
@@ -39,11 +40,11 @@ class TwitterAutomation:
         self.total_posts = 0
         self.total_engagements = 0
         self.log_file = LOG_DIR / 'twitter_automation.log'
-        self.action_log_file = Path("/home/coden809/CHATTY/generated_content") / "twitter_actions.jsonl"
+        self.action_log_file = PROJECT_ROOT / "generated_content" / "twitter_actions.jsonl"
         
     def _load_secrets(self):
         """Load Twitter/X credentials from secrets file and export as env vars"""
-        secrets_path = os.environ.get('CHATTY_SECRETS_FILE', '/home/coden809/.config/chatty/secrets.env')
+        secrets_path = os.environ.get('CHATTY_SECRETS_FILE', '~/.config/chatty/secrets.env')
         secrets_path = os.path.expanduser(secrets_path)
         secrets = {}
         if os.path.exists(secrets_path):
@@ -232,7 +233,7 @@ class TwitterAutomation:
         content_themes = [
             "NarcoGuard AI life-saving technology",
             "Automated overdose prevention",
-            "Harm reduction innovation",
+"Harm reduction innovation",
             "AI for good",
             "Community impact stories"
         ]

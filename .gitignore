@@ -13,4 +13,13 @@ sendgrid.env
 runtime/chatty.out*
 runtime/*.pid
 runtime/*.out
-~/.config/chatty/secrets.envvenv/
+~/.config/chatty/secrets.env
+
+# Local Python environments
+.venv/
+venv/
+backend/.venv/
+
+# Runtime outputs
+*.log
+*.pid

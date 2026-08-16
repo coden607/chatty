@@ -125,6 +125,19 @@ class RAGAutoIngestor:
             self._rag = get_rag()
         return self._rag
 
+    def _should_process_path(self, path: str | Path) -> bool:
+        p = Path(path)
+        if p.suffix not in WATCH_EXTENSIONS:
+            return False
+        if any(part in IGNORE_DIRS for part in p.parts):
+            return False
+        try:
+            if p.stat().st_size > MAX_FILE_SIZE_MB * 1024 * 1024:
+                return False
+        except Exception:
+            return False
+        return True
+
     # ── Watch management ───────────────────────────────────────
 
     def add_watch(self, directory: str | Path, recursive: bool = True):
@@ -191,12 +204,11 @@ class RAGAutoIngestor:
         for directory in dirs:
             logger.info(f"🚀 Initial ingest: {directory}")
             try:
-                n = rag.ingest_directory(
-                    directory,
-                    extensions=list(WATCH_EXTENSIONS),
-                    recursive=True,
-                )
-                total += n
+                for path in directory.rglob("*"):
+                    if not path.is_file() or not self._should_process_path(path):
+                        continue
+                    total += rag.ingest_file(path)
+                    await asyncio.sleep(0)
             except Exception as e:
                 logger.warning(f"Initial ingest failed for {directory}: {e}")
 
@@ -259,8 +271,7 @@ class RAGAutoIngestor:
             for directory in self._watched_dirs:
                 for ext in WATCH_EXTENSIONS:
                     for p in Path(directory).rglob(f"*{ext}"):
-                        # Skip ignored dirs
-                        if any(part in IGNORE_DIRS for part in p.parts):
+                        if not self._should_process_path(p):
                             continue
                         try:
                             mtime = p.stat().st_mtime
