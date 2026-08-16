@@ -1703,6 +1703,11 @@
         finally { btn.innerText = originalText; btn.disabled = false; }
       }
 
+      async function refreshAnomalies(btn) {
+        btn.disabled = true; const t = btn.innerText; btn.innerText = "Refreshing...";
+        try { await fetchAnomalies(); } finally { btn.disabled = false; btn.innerText = t; }
+      }
+
       async function fetchAnomalies() {
         try {
           const response = await fetch(`${apiBase}/api/kpi/anomalies`);
