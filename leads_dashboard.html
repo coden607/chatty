@@ -766,7 +766,7 @@
             <h2 id="modal-title" style="margin-bottom: 20px; background: linear-gradient(to right, var(--primary), var(--secondary)); background-clip: text; -webkit-background-clip: text; -webkit-text-fill-color: transparent;">AI Conversion Strategy</h2>
             <div id="modal-content" style="white-space: pre-wrap; line-height: 1.6; color: var(--text);"></div>
             <div style="margin-top: 30px; display: flex; justify-content: flex-end;">
-              <button id="copy-strategy-btn" class="btn" style="background: transparent; color: var(--text-muted); border: 1px solid var(--border);" onclick="copyStrategy()">Copy Strategy</button>
+              <button id="copy-strategy-btn" class="btn" style="background: transparent; color: var(--text-muted); border: 1px solid var(--border);" onclick="copyToClipboard('modal-content', this)">Copy Strategy</button>
             </div>
         </div>
       </div>
@@ -1683,6 +1683,16 @@
 
       async function refreshWeeklyBrief(btn) {
         const originalText = btn ? btn.innerText : "Refresh Brief";
+        if (btn) { btn.innerText = "Refreshing..."; btn.disabled = true; }
+        try {
+          await fetchWeeklyBrief();
+        } finally {
+          if (btn) { btn.innerText = originalText; btn.disabled = false; }
+        }
+      }
+
+      async function refreshWeeklyBrief(btn) {
+        const originalText = btn?.innerText;
         if (btn) { btn.innerText = "Refreshing..."; btn.disabled = true; }
         try {
           await fetchWeeklyBrief();
