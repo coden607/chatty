@@ -845,7 +845,7 @@
           
           if (data.status === "success") {
             showModal(leadName, data.strategy);
-            fetchLeads(); // Refresh to show "engaging" status
+            refreshDashboard(); // Refresh to show "engaging" status
           } else {
             alert("Agent failed to engage: " + (data.detail || "Unknown error"));
           }

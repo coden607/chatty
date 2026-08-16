@@ -58,7 +58,12 @@ def save_lead(lead_data: Dict[str, Any]):
         target_lead = lead_data
 
     with open(LEADS_FILE, "w") as f:
-        json.dump(leads, f, indent=4)
+        json.dump(leads, f)
+
+    # Immediately update cache to avoid redundant re-read on next call
+    global _leads_cache, _last_mtime
+    _leads_cache = leads
+    _last_mtime = os.path.getmtime(LEADS_FILE)
 
     # Immediately update cache to prevent redundant read on next call
     global _leads_cache, _last_mtime
@@ -98,7 +103,11 @@ def update_lead_status(lead_id: int, status: str):
             break
     
     with open(LEADS_FILE, "w") as f:
-        json.dump(leads, f, indent=4)
+        json.dump(leads, f)
+
+    global _leads_cache, _last_mtime
+    _leads_cache = leads
+    _last_mtime = os.path.getmtime(LEADS_FILE)
 
     global _leads_cache, _last_mtime
     _leads_cache = leads
@@ -113,7 +122,11 @@ def update_lead_follow_up(lead_id: int, follow_up_payload: Dict[str, Any]):
             lead["updated_at"] = datetime.now().isoformat()
             break
     with open(LEADS_FILE, "w") as f:
-        json.dump(leads, f, indent=4)
+        json.dump(leads, f)
+
+    global _leads_cache, _last_mtime
+    _leads_cache = leads
+    _last_mtime = os.path.getmtime(LEADS_FILE)
 
     global _leads_cache, _last_mtime
     _leads_cache = leads
