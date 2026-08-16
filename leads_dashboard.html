@@ -486,6 +486,15 @@
         color: var(--text-muted);
         white-space: pre-wrap;
       }
+
+      /* Accessibility: Clear focus indicators for keyboard navigation */
+      button:focus-visible,
+      input:focus-visible,
+      select:focus-visible,
+      textarea:focus-visible {
+        outline: 2px solid var(--primary);
+        outline-offset: 2px;
+      }
     </style>
   </head>
   <body>
@@ -1623,6 +1632,11 @@
         }
       }
 
+      async function refreshAnomalies() {
+        const btn = document.querySelector('button[onclick="refreshAnomalies()"]');
+        return uiAction(btn, "Refreshing...", fetchAnomalies);
+      }
+
       function renderAnomalies(items) {
         const list = document.getElementById("anomaly-list");
         if (!items.length) {
@@ -1702,6 +1716,11 @@
         } finally {
           if (btn) { btn.innerText = originalText; btn.disabled = false; }
         }
+      }
+
+      async function refreshWeeklyBrief() {
+        const btn = document.querySelector('button[onclick="refreshWeeklyBrief()"]');
+        return uiAction(btn, "Refreshing...", fetchWeeklyBrief);
       }
 
       function renderTransparency(items) {
