@@ -229,6 +229,12 @@ okr_state = {
 okr_history: List[Dict[str, Any]] = []
 
 content_briefs: List[Dict[str, Any]] = []
+
+# Caching for expensive AI endpoints
+_brief_cache = None
+_brief_cache_time = 0
+_brief_lock = None
+
 grant_tracker: List[Dict[str, Any]] = []
 pricing_experiments: List[Dict[str, Any]] = []
 crm_notes: List[Dict[str, Any]] = []
@@ -1856,6 +1862,56 @@ async def get_automation(automation_name: str):
         raise HTTPException(status_code=404, detail="Automation not found")
     
     return automations[automation_name]
+
+async def _safe_call(coro):
+    """Helper to safely call an async function for the batch dashboard"""
+    try:
+        return await coro
+    except Exception as e:
+        logger.error(f"Dashboard sub-call failed: {e}")
+        return None
+
+@app.get("/api/dashboard/all")
+async def get_dashboard_all():
+    """Batch endpoint for all dashboard data to minimize network requests"""
+    results = await asyncio.gather(
+        _safe_call(get_leads()),
+        _safe_call(get_narcoguard_workflows()),
+        _safe_call(get_agents()),
+        _safe_call(get_tasks()),
+        _safe_call(get_collab_feed()),
+        _safe_call(get_user_messages()),
+        _safe_call(get_autonomy_status()),
+        _safe_call(get_pipelines()),
+        _safe_call(get_campaigns()),
+        _safe_call(get_n8n_workflows()),
+        _safe_call(get_transparency_report()),
+        _safe_call(get_content_briefs()),
+        _safe_call(get_grants()),
+        _safe_call(get_pricing_experiments()),
+        _safe_call(get_kpi_anomalies()),
+        _safe_call(weekly_brief()),
+        return_exceptions=True
+    )
+
+    return {
+        "leads": results[0],
+        "workflows": results[1],
+        "agents": results[2],
+        "tasks": results[3],
+        "collab": results[4],
+        "messages": results[5],
+        "autonomy": results[6],
+        "pipelines": results[7],
+        "campaigns": results[8],
+        "n8n": results[9],
+        "transparency": results[10],
+        "briefs": results[11],
+        "grants": results[12],
+        "experiments": results[13],
+        "anomalies": results[14],
+        "weekly": results[15]
+    }
 
 @app.get("/api/health")
 async def health_check():
