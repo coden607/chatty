@@ -776,6 +776,15 @@
       const apiBase = "http://localhost:8080";
       let selectedAgent = null;
 
+      async function uiAction(btn, text, action) {
+        if (!btn) return await action();
+        const originalText = btn.innerText;
+        btn.innerText = text;
+        btn.disabled = true;
+        try { return await action(); }
+        finally { btn.innerText = originalText; btn.disabled = false; }
+      }
+
       function escapeHTML(str) {
         if (!str) return '';
         return str.toString()
@@ -859,13 +868,7 @@
           } else {
             alert("Agent failed to engage: " + (data.detail || "Unknown error"));
           }
-        } catch (error) {
-          console.error("Focus failed:", error);
-          alert("Network error while deploying agent.");
-        } finally {
-          btn.innerText = originalText;
-          btn.disabled = false;
-        }
+        });
       }
 
       function showModal(name, strategy) {
@@ -971,7 +974,7 @@
                     <td><span class="badge ${badgeClass}">${escapeHTML(lead.status)}</span></td>
                     <td style="color: var(--text-muted); font-size: 0.8rem;">${date}</td>
                     <td>
-                        <button id="btn-${lead.id}" class="btn" style="padding: 8px 16px; font-size: 0.8rem;" onclick="focusAgent(${lead.id}, this)">Focus Agent</button>
+                        <button id="btn-${lead.id}" class="btn" style="padding: 8px 16px; font-size: 0.8rem;" aria-label="Focus Agent for ${escapeHTML(lead.name)}" onclick="focusAgent(${lead.id}, this)">Focus Agent</button>
                     </td>
                 `;
           body.appendChild(row);
