@@ -271,6 +271,12 @@ fail_safe_state = {
     "threshold": 5
 }
 
+# Cache for expensive AI-generated weekly brief
+_brief_cache = {
+    "data": None,
+    "timestamp": 0
+}
+
 autonomy_state = {
     "running": False,
     "mode": "autopilot",
@@ -527,6 +533,16 @@ def _slugify(value: str) -> str:
     value = value.strip().lower()
     value = re.sub(r"[^a-z0-9]+", "-", value)
     return value.strip("-") or "workflow"
+
+async def _safe_call(func, *args, **kwargs):
+    """Execution helper to prevent single-agent failure from crashing batch response"""
+    try:
+        if asyncio.iscoroutinefunction(func):
+            return await func(*args, **kwargs)
+        return func(*args, **kwargs)
+    except Exception as e:
+        logger.error(f"Batch call error in {func.__name__ if hasattr(func, '__name__') else 'unknown'}: {e}")
+        return {"error": str(e)}
 
 def _read_viral_outputs(limit: int = 10, include_content: bool = False) -> List[Dict[str, Any]]:
     outputs: List[Dict[str, Any]] = []
