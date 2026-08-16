@@ -102,7 +102,12 @@ limiter = Limiter(
 redis_client = redis.Redis.from_url(app.config['REDIS_URL'])
 
 # Import agents after app initialization
-from youtube_agent import register_youtube_routes
+try:
+    from youtube_agent import register_youtube_routes
+except ImportError:
+    logger.warning("youtube_agent not found, skipping registration")
+    def register_youtube_routes(app): pass
+
 from learning_system import memory_system, adaptive_learning
 from agent_factory import agent_factory
 from code_executor import code_executor
