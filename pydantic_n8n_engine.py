@@ -248,9 +248,6 @@ class PydanticN8NEngine:
             'execution_order': []
         }
         
-        # Build execution graph
-        execution_graph = self._build_execution_graph(workflow)
-        
         # Execute tasks based on dependencies
         completed_tasks = set()
         pending_tasks = {task['id']: task for task in workflow.tasks}
@@ -327,7 +324,6 @@ class PydanticN8NEngine:
     
     async def _execute_task(self, task: Dict[str, Any], context: Dict[str, Any]) -> Dict[str, Any]:
         """Execute a single task"""
-        task_id = task['id']
         task_type = task['type']
         task_config = task.get('config', {})
         
