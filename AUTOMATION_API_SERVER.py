@@ -1824,6 +1824,34 @@ async def get_dashboard_all():
         "weekly_brief": results[15]
     }
 
+@app.get("/api/dashboard/all")
+async def get_dashboard_all():
+    """Aggregated endpoint for dashboard to reduce network overhead and latency"""
+    res = await asyncio.gather(
+        _safe_call(get_leads()),
+        _safe_call(get_narcoguard_workflows()),
+        _safe_call(get_agents()),
+        _safe_call(get_tasks()),
+        _safe_call(get_collab_feed()),
+        _safe_call(get_user_messages()),
+        _safe_call(get_autonomy_status()),
+        _safe_call(get_pipelines()),
+        _safe_call(get_campaigns()),
+        _safe_call(get_n8n_workflows()),
+        _safe_call(get_transparency_report()),
+        _safe_call(get_content_briefs()),
+        _safe_call(get_grants()),
+        _safe_call(get_pricing_experiments()),
+        _safe_call(get_kpi_anomalies()),
+        _safe_call(weekly_brief())
+    )
+    return {
+        "leads": res[0], "workflows": res[1], "agents": res[2], "tasks": res[3],
+        "collab": res[4], "messages": res[5], "autonomy": res[6], "pipelines": res[7],
+        "campaigns": res[8], "n8n": res[9], "transparency": res[10], "briefs": res[11],
+        "grants": res[12], "experiments": res[13], "anomalies": res[14], "weekly_brief": res[15]
+    }
+
 @app.get("/api/tasks")
 async def get_tasks():
     """Get the autonomy task queue"""
