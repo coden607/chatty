@@ -353,13 +353,21 @@
 
       .prompt-textarea {
         width: 100%;
-        min-height: 120px;
         background: rgba(255, 255, 255, 0.02);
         border: 1px solid rgba(255, 255, 255, 0.1);
         border-radius: 16px;
         color: var(--text);
         padding: 14px;
+      }
+
+      textarea.prompt-textarea {
+        min-height: 120px;
         resize: vertical;
+      }
+
+      input.prompt-textarea, select.prompt-textarea {
+        height: 48px;
+        min-height: 48px;
       }
 
       .prompt-row {
@@ -536,7 +544,7 @@
       <div class="lead-section" style="margin-top: 32px;">
         <div class="section-header">
           <h2>NarcoGuard Transparent Workflows</h2>
-          <button class="btn" onclick="refreshWorkflows()">Refresh Workflows</button>
+          <button class="btn" onclick="refreshWorkflows(this)">Refresh Workflows</button>
         </div>
         <div id="workflow-grid" class="workflow-grid">
           <div class="loading">Syncing workflow telemetry...</div>
@@ -644,7 +652,7 @@
               <div class="pipeline-card">Loading pipelines...</div>
             </div>
             <div class="prompt-row">
-              <button class="btn" onclick="refreshPipelines()">Advance Pipelines</button>
+              <button class="btn" onclick="refreshPipelines(this)">Advance Pipelines</button>
             </div>
           </div>
           <div class="panel">
@@ -695,7 +703,7 @@
               <div class="log-entry">No briefs yet.</div>
             </div>
             <div class="prompt-row">
-              <button class="btn" onclick="refreshContentBriefs()">Refresh Briefs</button>
+              <button class="btn" onclick="refreshContentBriefs(this)">Refresh Briefs</button>
             </div>
           </div>
           <div class="panel">
@@ -739,7 +747,7 @@
               <div class="log-entry">No anomalies detected.</div>
             </div>
             <div class="prompt-row">
-              <button class="btn" onclick="refreshAnomalies()">Refresh</button>
+              <button class="btn" onclick="refreshAnomalies(this)">Refresh</button>
             </div>
           </div>
           <div class="panel">
@@ -897,6 +905,9 @@
         try {
           await navigator.clipboard.writeText(content);
           const originalText = btn.innerText;
+          const originalColor = btn.style.color;
+          const originalBorder = btn.style.borderColor;
+
           btn.innerText = "Copied!";
           btn.style.color = btn.style.borderColor = "var(--success)";
           setTimeout(() => {
@@ -913,6 +924,11 @@
 
       async function copyStrategy() {
         await copyToClipboard("modal-content", document.getElementById("copy-strategy-btn"));
+      }
+
+      async function copyStrategy() {
+        const btn = document.getElementById("copy-strategy-btn");
+        await copyToClipboard("modal-content", btn);
       }
 
       function updateDashboard(data) {
@@ -1008,12 +1024,16 @@
         });
       }
 
-      async function refreshWorkflows() {
+      async function refreshWorkflows(btn) {
+        const originalText = btn ? btn.innerText : "Refresh Workflows";
+        if (btn) { btn.innerText = "Refreshing..."; btn.disabled = true; }
         try {
           await fetch(`${apiBase}/api/narcoguard/workflows/refresh`, { method: "POST" });
-          fetchWorkflows();
+          await fetchWorkflows();
         } catch (error) {
           console.error("Failed to refresh workflows:", error);
+        } finally {
+          if (btn) { btn.innerText = originalText; btn.disabled = false; }
         }
       }
 
@@ -1343,10 +1363,16 @@
           .join("");
       }
 
-      async function refreshPipelines() {
-        await fetch(`${apiBase}/api/pipelines/refresh`, { method: "POST" });
-        fetchPipelines();
-        fetchCollabFeed();
+      async function refreshPipelines(btn) {
+        const originalText = btn ? btn.innerText : "Advance Pipelines";
+        if (btn) { btn.innerText = "Advancing..."; btn.disabled = true; }
+        try {
+          await fetch(`${apiBase}/api/pipelines/refresh`, { method: "POST" });
+          await fetchPipelines();
+          await fetchCollabFeed();
+        } finally {
+          if (btn) { btn.innerText = originalText; btn.disabled = false; }
+        }
       }
 
       async function fetchCampaigns() {
@@ -1475,9 +1501,15 @@
           .join("");
       }
 
-      async function refreshContentBriefs() {
-        await fetch(`${apiBase}/api/content/briefs/refresh`, { method: "POST" });
-        fetchContentBriefs();
+      async function refreshContentBriefs(btn) {
+        const originalText = btn ? btn.innerText : "Refresh Briefs";
+        if (btn) { btn.innerText = "Refreshing..."; btn.disabled = true; }
+        try {
+          await fetch(`${apiBase}/api/content/briefs/refresh`, { method: "POST" });
+          await fetchContentBriefs();
+        } finally {
+          if (btn) { btn.innerText = originalText; btn.disabled = false; }
+        }
       }
 
       async function fetchGrants() {
@@ -1633,6 +1665,26 @@
           console.log("Dashboard consolidated heartbeat successful");
         } catch (error) {
           console.error("Failed to fetch consolidated dashboard data:", error);
+        }
+      }
+
+      async function refreshAnomalies(btn) {
+        const originalText = btn ? btn.innerText : "Refresh";
+        if (btn) { btn.innerText = "Refreshing..."; btn.disabled = true; }
+        try {
+          await fetchAnomalies();
+        } finally {
+          if (btn) { btn.innerText = originalText; btn.disabled = false; }
+        }
+      }
+
+      async function refreshWeeklyBrief(btn) {
+        const originalText = btn ? btn.innerText : "Refresh Brief";
+        if (btn) { btn.innerText = "Refreshing..."; btn.disabled = true; }
+        try {
+          await fetchWeeklyBrief();
+        } finally {
+          if (btn) { btn.innerText = originalText; btn.disabled = false; }
         }
       }
 
