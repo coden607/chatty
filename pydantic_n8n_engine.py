@@ -777,6 +777,41 @@ class PydanticN8NEngine:
             logger.error(f"Expression evaluation failed: {e}")
             raise ValueError(f"Invalid expression: {e}")
 
+    def _safe_eval(self, expression: str):
+        """Safely evaluate a mathematical expression using AST"""
+        # Supported operators
+        operators = {
+            ast.Add: operator.add,
+            ast.Sub: operator.sub,
+            ast.Mult: operator.mul,
+            ast.Div: operator.truediv,
+            ast.BitXor: operator.xor,
+            ast.USub: operator.neg,
+            ast.UAdd: operator.pos,
+        }
+
+        def _eval(node):
+            if isinstance(node, ast.Num):  # <3.8
+                return node.n
+            elif isinstance(node, ast.Constant):  # >=3.8
+                if isinstance(node.value, (int, float, bool)):
+                    return node.value
+                raise TypeError(f"Unsupported constant type: {type(node.value)}")
+            elif isinstance(node, ast.BinOp):
+                if type(node.op) in operators:
+                    return operators[type(node.op)](_eval(node.left), _eval(node.right))
+            elif isinstance(node, ast.UnaryOp):
+                if type(node.op) in operators:
+                    return operators[type(node.op)](_eval(node.operand))
+
+            raise TypeError(f"Unsupported expression node: {type(node)}")
+
+        try:
+            tree = ast.parse(expression, mode='eval')
+            return _eval(tree.body)
+        except Exception as e:
+            raise ValueError(f"Failed to evaluate expression safely: {str(e)}")
+
 class AIWorkflowOptimizer:
     """AI-driven workflow optimization engine"""
     
