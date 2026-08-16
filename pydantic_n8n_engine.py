@@ -733,6 +733,12 @@ class PydanticN8NEngine:
     async def _calculate_task(self, **kwargs) -> Dict[str, Any]:
         """Built-in calculation task with security-focused safe evaluation"""
         expression = kwargs.get('expression', '0')
+
+        # Security: Validate expression against whitelist to prevent RCE
+        if not re.match(r'^[0-9+\-*/().\s]+$', expression):
+            logger.warning(f"⚠️ Blocked potential RCE attempt in calculation: {expression}")
+            return {'error': 'Invalid expression: only numbers and basic operators are allowed', 'expression': expression}
+
         try:
             # Use safe_eval instead of raw eval() to prevent RCE
             result = self._safe_eval(expression)
