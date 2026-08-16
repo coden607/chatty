@@ -22,7 +22,7 @@ echo "===================================================="
 echo ""
 
 # Start the complete automation system
-./python3 START_COMPLETE_AUTOMATION.py
+source venv/bin/activate && python3 START_COMPLETE_AUTOMATION.py
 
 echo ""
 echo "===================================================="

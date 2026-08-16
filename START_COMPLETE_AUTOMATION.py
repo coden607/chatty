@@ -316,7 +316,6 @@ class ChattyCompleteAutomation:
         if self.rag_ingestor:
             project_root = Path(__file__).parent
             self.rag_ingestor.add_watch(project_root)
-            self.rag_ingestor.add_watch(project_root / "generated_content")
             self.rag_ingestor._running = True
             await self.rag_ingestor.start(initial_ingest=True)
 

@@ -215,7 +215,7 @@
         "name": "Dr. Mia Chen",
         "email": "mia.chen@healthbridge.org",
         "role": "Harm Reduction Director",
-        "source": "Automated Social Scraper",
+        "source": "Hospital Partnerships",
         "company": "Healthbridge Medical",
         "lead_score": 100,
         "metadata": {
@@ -225,8 +225,7 @@
             "qualification_reasons": [
                 "org_email_domain",
                 "org_domain",
-                "curated_source",
-                "strong_interest_match"
+                "decision_maker_role"
             ],
             "prospect_tier": "A",
             "icp_summary": "Public health agencies and overdose-response organizations with funding to pilot harm-reduction tech.",
@@ -242,13 +241,13 @@
             "last_sent": "2026-03-13T03:00:53.905165",
             "next_run": "2026-03-16T03:00:53.905165"
         },
-        "updated_at": "2026-03-13T07:08:00.272670"
+        "updated_at": "2026-04-15T00:10:44.137697"
     },
     {
         "name": "Councilwoman Lena Ortiz",
         "email": "lena.ortiz@cityhall.gov",
         "role": "Community Safety Chair",
-        "source": "Automated Social Scraper",
+        "source": "City Council",
         "company": "City Hall",
         "lead_score": 100,
         "metadata": {
@@ -257,8 +256,7 @@
             "role": "Community Safety Chair",
             "qualification_reasons": [
                 "org_email_domain",
-                "gov_domain",
-                "curated_source"
+                "gov_domain"
             ],
             "prospect_tier": "A",
             "icp_summary": "Public health agencies and overdose-response organizations with funding to pilot harm-reduction tech.",
@@ -274,13 +272,13 @@
             "last_sent": "2026-03-13T03:00:53.905165",
             "next_run": "2026-03-16T03:00:53.905165"
         },
-        "updated_at": "2026-03-13T07:08:00.446744"
+        "updated_at": "2026-04-15T00:10:44.150930"
     },
     {
         "name": "Director Harvey Patel",
         "email": "harvey.patel@health.gov",
         "role": "Public Health Director",
-        "source": "Automated Social Scraper",
+        "source": "State Health",
         "company": "State DOH",
         "lead_score": 100,
         "metadata": {
@@ -290,8 +288,8 @@
             "qualification_reasons": [
                 "org_email_domain",
                 "gov_domain",
-                "curated_source",
-                "strong_interest_match"
+                "decision_maker_role",
+                "mission_fit_org"
             ],
             "prospect_tier": "A",
             "icp_summary": "Public health agencies and overdose-response organizations with funding to pilot harm-reduction tech.",
@@ -307,13 +305,13 @@
             "last_sent": "2026-03-13T03:00:53.905165",
             "next_run": "2026-03-16T03:00:53.905165"
         },
-        "updated_at": "2026-03-13T07:08:00.587216"
+        "updated_at": "2026-04-15T00:10:44.162267"
     },
     {
         "name": "Rural Outreach Lead Ana Kim",
         "email": "ana.kim@communityfirst.net",
         "role": "Outreach Lead",
-        "source": "Automated Social Scraper",
+        "source": "Community Outreach",
         "company": "Community First Coalition",
         "lead_score": 100,
         "metadata": {
@@ -322,6 +320,7 @@
             "role": "Outreach Lead",
             "qualification_reasons": [
                 "org_email_domain",
+                "decision_maker_role",
                 "curated_source"
             ],
             "prospect_tier": "A",
@@ -338,13 +337,13 @@
             "last_sent": "2026-03-13T03:00:53.905165",
             "next_run": "2026-03-16T03:00:53.905165"
         },
-        "updated_at": "2026-03-13T07:08:00.713792"
+        "updated_at": "2026-04-15T00:10:44.175215"
     },
     {
         "name": "Sara Liu",
         "email": "sara.liu@communitycare.org",
         "role": "Digital Programs Manager",
-        "source": "Automated Social Scraper",
+        "source": "Nonprofit",
         "company": "Community Care Alliance",
         "lead_score": 100,
         "metadata": {
@@ -354,8 +353,7 @@
             "qualification_reasons": [
                 "org_email_domain",
                 "org_domain",
-                "curated_source",
-                "strong_interest_match"
+                "decision_maker_role"
             ],
             "prospect_tier": "A",
             "icp_summary": "Public health agencies and overdose-response organizations with funding to pilot harm-reduction tech.",
@@ -371,13 +369,13 @@
             "last_sent": "2026-03-13T03:00:53.905165",
             "next_run": "2026-03-16T03:00:53.905165"
         },
-        "updated_at": "2026-03-13T07:08:00.832598"
+        "updated_at": "2026-04-15T00:10:44.196209"
     },
     {
         "name": "Dr. Priya Shah",
         "email": "priya.shah@healthnetwork.org",
         "role": "Clinical Trials Lead",
-        "source": "Automated Social Scraper",
+        "source": "Clinical",
         "company": "Health Network",
         "lead_score": 100,
         "metadata": {
@@ -387,7 +385,7 @@
             "qualification_reasons": [
                 "org_email_domain",
                 "org_domain",
-                "curated_source"
+                "decision_maker_role"
             ],
             "prospect_tier": "A",
             "icp_summary": "Public health agencies and overdose-response organizations with funding to pilot harm-reduction tech.",
@@ -403,13 +401,13 @@
             "last_sent": "2026-03-13T03:00:53.905165",
             "next_run": "2026-03-16T03:00:53.905165"
         },
-        "updated_at": "2026-03-13T07:08:00.948751"
+        "updated_at": "2026-04-15T00:10:44.212613"
     },
     {
         "name": "Elliot Ruiz",
         "email": "elliot.ruiz@citypublicsafety.gov",
         "role": "Crisis Coordinator",
-        "source": "Automated Social Scraper",
+        "source": "Municipal Safety",
         "company": "Public Safety Office",
         "lead_score": 100,
         "metadata": {
@@ -419,8 +417,7 @@
             "qualification_reasons": [
                 "org_email_domain",
                 "gov_domain",
-                "curated_source",
-                "strong_interest_match"
+                "decision_maker_role"
             ],
             "prospect_tier": "A",
             "icp_summary": "Public health agencies and overdose-response organizations with funding to pilot harm-reduction tech.",
@@ -436,13 +433,13 @@
             "last_sent": "2026-03-13T03:00:53.905165",
             "next_run": "2026-03-16T03:00:53.905165"
         },
-        "updated_at": "2026-03-13T07:08:01.075049"
+        "updated_at": "2026-04-15T00:10:44.228918"
     },
     {
         "name": "Ash Patel",
         "email": "ash.patel@council.gov",
         "role": "Community Resilience Leader",
-        "source": "Automated Social Scraper",
+        "source": "Policy",
         "company": "City Council",
         "lead_score": 100,
         "metadata": {
@@ -452,7 +449,7 @@
             "qualification_reasons": [
                 "org_email_domain",
                 "gov_domain",
-                "curated_source"
+                "decision_maker_role"
             ],
             "prospect_tier": "A",
             "icp_summary": "Public health agencies and overdose-response organizations with funding to pilot harm-reduction tech.",
@@ -468,13 +465,13 @@
             "last_sent": "2026-03-13T03:00:53.905165",
             "next_run": "2026-03-16T03:00:53.905165"
         },
-        "updated_at": "2026-03-13T07:08:01.207326"
+        "updated_at": "2026-04-15T00:10:44.240256"
     },
     {
         "name": "Elena Brooks",
         "email": "elena.brooks@nonprofit.org",
         "role": "Peer Recovery Director",
-        "source": "Automated Social Scraper",
+        "source": "Recovery",
         "company": "People First",
         "lead_score": 100,
         "metadata": {
@@ -484,7 +481,7 @@
             "qualification_reasons": [
                 "org_email_domain",
                 "org_domain",
-                "curated_source"
+                "decision_maker_role"
             ],
             "prospect_tier": "A",
             "icp_summary": "Public health agencies and overdose-response organizations with funding to pilot harm-reduction tech.",
@@ -500,13 +497,13 @@
             "last_sent": "2026-03-13T03:00:53.905165",
             "next_run": "2026-03-16T03:00:53.905165"
         },
-        "updated_at": "2026-03-13T07:08:01.270187"
+        "updated_at": "2026-04-15T00:10:44.251423"
     },
     {
         "name": "Marcus Lee",
         "email": "marcus.lee@metrohealth.city",
         "role": "Technology Officer",
-        "source": "Automated Social Scraper",
+        "source": "Government Health",
         "company": "Metro Health",
         "lead_score": 100,
         "metadata": {
@@ -515,7 +512,7 @@
             "role": "Technology Officer",
             "qualification_reasons": [
                 "org_email_domain",
-                "curated_source"
+                "decision_maker_role"
             ],
             "prospect_tier": "A",
             "icp_summary": "Public health agencies and overdose-response organizations with funding to pilot harm-reduction tech.",
@@ -531,6 +528,6 @@
             "last_sent": "2026-03-13T03:00:53.905165",
             "next_run": "2026-03-16T03:00:53.905165"
         },
-        "updated_at": "2026-03-13T07:08:01.324799"
+        "updated_at": "2026-04-15T00:10:44.262865"
     }
 ]
