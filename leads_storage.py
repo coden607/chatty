@@ -63,15 +63,7 @@ def save_lead(lead_data: Dict[str, Any]):
     with open(LEADS_FILE, "w") as f:
         json.dump(leads, f)
 
-    # Immediately update cache to avoid redundant re-read on next call
-    global _leads_cache, _last_mtime
-    _leads_cache = leads
-    _last_mtime = os.path.getmtime(LEADS_FILE)
-
-    # Immediately update cache to prevent redundant read on next call
-    global _leads_cache, _last_mtime
-    _leads_cache = leads
-    _last_mtime = os.path.getmtime(LEADS_FILE)
+    _update_cache(leads)
 
     return target_lead
 
@@ -111,22 +103,6 @@ def update_lead_status(lead_id: int, status: str):
     with open(LEADS_FILE, "w") as f:
         json.dump(leads, f)
 
-    global _leads_cache, _last_mtime
-    _leads_cache = leads
-    _last_mtime = os.path.getmtime(LEADS_FILE)
-
-    global _leads_cache, _last_mtime
-    _leads_cache = leads
-    _last_mtime = os.path.getmtime(LEADS_FILE)
-
-    global _leads_cache, _last_mtime
-    _leads_cache = leads
-    _last_mtime = os.path.getmtime(LEADS_FILE)
-
-    # Update cache after write
-    _leads_cache = leads
-    _last_mtime = os.path.getmtime(LEADS_FILE)
-
     _update_cache(leads)
 
 def update_lead_follow_up(lead_id: int, follow_up_payload: Dict[str, Any]):
@@ -142,22 +118,6 @@ def update_lead_follow_up(lead_id: int, follow_up_payload: Dict[str, Any]):
             break
     with open(LEADS_FILE, "w") as f:
         json.dump(leads, f)
-
-    global _leads_cache, _last_mtime
-    _leads_cache = leads
-    _last_mtime = os.path.getmtime(LEADS_FILE)
-
-    global _leads_cache, _last_mtime
-    _leads_cache = leads
-    _last_mtime = os.path.getmtime(LEADS_FILE)
-
-    global _leads_cache, _last_mtime
-    _leads_cache = leads
-    _last_mtime = os.path.getmtime(LEADS_FILE)
-
-    # Update cache after write
-    _leads_cache = leads
-    _last_mtime = os.path.getmtime(LEADS_FILE)
 
     _update_cache(leads)
 
