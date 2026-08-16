@@ -254,6 +254,10 @@
         box-shadow: 0 0 0 2px rgba(0, 242, 254, 0.2);
       }
 
+      .btn:active {
+        transform: scale(0.98);
+      }
+
       .loading {
         text-align: center;
         padding: 40px;
@@ -395,6 +399,11 @@
       input.prompt-textarea, select.prompt-textarea {
         height: 48px;
         min-height: 48px;
+      }
+
+      input.prompt-textarea,
+      select.prompt-textarea {
+        height: 48px;
       }
 
       .prompt-row {
@@ -916,6 +925,7 @@
         });
       }
 
+      let lastFocusedElement = null;
       function showModal(name, strategy) {
         lastFocusedElement = document.activeElement;
         document.getElementById("modal-title").innerText = `AI Conversion Strategy for ${name}`;
