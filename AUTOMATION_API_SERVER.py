@@ -1754,6 +1754,48 @@ async def get_dashboard_all():
     results = await asyncio.gather(*tasks.values())
     return dict(zip(keys, results))
 
+@app.get("/api/dashboard/all")
+async def get_dashboard_all():
+    """Batch endpoint to fetch all dashboard data in a single concurrent request"""
+    # Gather data from all relevant endpoints concurrently to minimize total latency
+    results = await asyncio.gather(
+        get_leads(),
+        get_narcoguard_workflows(),
+        get_agents(),
+        get_tasks(),
+        get_collab_feed(),
+        get_user_messages(),
+        get_autonomy_status(),
+        get_pipelines(),
+        get_campaigns(),
+        get_n8n_workflows(),
+        get_transparency_report(),
+        get_content_briefs(),
+        get_grants(),
+        get_pricing_experiments(),
+        get_kpi_anomalies(),
+        weekly_brief()
+    )
+
+    return {
+        "leads": results[0],
+        "workflows": results[1],
+        "agents": results[2],
+        "tasks": results[3],
+        "collab": results[4],
+        "messages": results[5],
+        "autonomy": results[6],
+        "pipelines": results[7],
+        "campaigns": results[8],
+        "n8n": results[9],
+        "transparency": results[10],
+        "briefs": results[11],
+        "grants": results[12],
+        "experiments": results[13],
+        "anomalies": results[14],
+        "weekly_brief": results[15]
+    }
+
 @app.get("/api/tasks")
 async def get_tasks():
     """Get the autonomy task queue"""
