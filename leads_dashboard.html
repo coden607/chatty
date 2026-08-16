@@ -857,6 +857,19 @@
         }
       }
 
+      async function uiAction(btn, text, action) {
+        if (!btn) return action();
+        const originalText = btn.innerText;
+        btn.innerText = text;
+        btn.disabled = true;
+        try {
+          return await action();
+        } finally {
+          btn.innerText = originalText;
+          btn.disabled = false;
+        }
+      }
+
       function escapeHTML(str) {
         if (!str) return '';
         return str.toString()
