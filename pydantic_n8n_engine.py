@@ -705,7 +705,8 @@ class PydanticN8NEngine:
             result = self._safe_eval(expression)
             return {'result': result, 'expression': expression}
         except Exception as e:
-            return {'error': str(e), 'expression': expression}
+            logger.error(f"Calculation failed for expression '{expression}': {e}")
+            return {'error': "Calculation failed", 'expression': expression}
 
     def _safe_eval(self, expression: str) -> Any:
         """Safely evaluate a mathematical expression using AST"""
