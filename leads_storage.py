@@ -10,6 +10,18 @@ LEADS_FILE = os.path.join(os.path.dirname(os.path.abspath(__file__)), "leads.jso
 _leads_cache = None
 _last_mtime = 0
 
+def _update_cache(leads):
+    """Helper to update the in-memory cache and mtime"""
+    global _leads_cache, _last_mtime
+    _leads_cache = leads
+    try:
+        if os.path.exists(LEADS_FILE):
+            _last_mtime = os.path.getmtime(LEADS_FILE)
+        else:
+            _last_mtime = 0
+    except (OSError, FileNotFoundError):
+        _last_mtime = 0
+
 def save_lead(lead_data: Dict[str, Any]):
     """Save a lead to the JSON storage (dedupe by email)."""
     leads = get_all_leads()
