@@ -9,6 +9,8 @@ import ast
 import json
 import time
 import asyncio
+import ast
+import operator
 import logging
 import re
 import uuid
@@ -612,6 +614,47 @@ class PydanticN8NEngine:
         self.register_task('log_message', self._log_message_task)
         self.register_task('get_time', self._get_time_task)
         self.register_task('calculate', self._calculate_task)
+
+    def _safe_eval(self, expression: str):
+        """
+        Hardened expression evaluator using AST.
+        Only allows basic arithmetic and numeric/boolean constants.
+        Excludes functions and dangerous operators like Pow (**) to prevent DoS.
+        """
+        operators = {
+            ast.Add: operator.add,
+            ast.Sub: operator.sub,
+            ast.Mult: operator.mul,
+            ast.Div: operator.truediv,
+            ast.BitXor: operator.xor,
+            ast.USub: operator.neg,
+            ast.UAdd: operator.pos,
+        }
+
+        def eval_node(node):
+            if isinstance(node, ast.Num):  # < Python 3.8
+                return node.n
+            elif isinstance(node, ast.Constant):  # >= Python 3.8
+                return node.value
+            elif isinstance(node, ast.BinOp):
+                left = eval_node(node.left)
+                right = eval_node(node.right)
+                if type(node.op) in operators:
+                    return operators[type(node.op)](left, right)
+                raise TypeError(f"Unsupported binary operator: {type(node.op)}")
+            elif isinstance(node, ast.UnaryOp):
+                operand = eval_node(node.operand)
+                if type(node.op) in operators:
+                    return operators[type(node.op)](operand)
+                raise TypeError(f"Unsupported unary operator: {type(node.op)}")
+            else:
+                raise TypeError(f"Unsupported AST node: {type(node)}")
+
+        try:
+            tree = ast.parse(expression, mode='eval')
+            return eval_node(tree.body)
+        except Exception as e:
+            raise ValueError(f"Safe eval failed: {str(e)}")
     
     async def _send_email_task(self, **kwargs) -> Dict[str, Any]:
         """Built-in email sending task"""
