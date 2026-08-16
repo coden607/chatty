@@ -1,5 +1,6 @@
 import json
 import os
+import time
 from datetime import datetime
 from typing import List, Dict, Any
 
@@ -96,10 +97,12 @@ def get_all_leads() -> List[Dict[str, Any]]:
 def update_lead_status(lead_id: int, status: str):
     """Update a lead's status"""
     leads = get_all_leads()
+    updated = False
     for lead in leads:
         if lead.get("id") == lead_id:
             lead["status"] = status
             lead["updated_at"] = datetime.now().isoformat()
+            updated = True
             break
     
     with open(LEADS_FILE, "w") as f:
@@ -116,10 +119,12 @@ def update_lead_status(lead_id: int, status: str):
 def update_lead_follow_up(lead_id: int, follow_up_payload: Dict[str, Any]):
     """Update a lead's follow-up metadata"""
     leads = get_all_leads()
+    updated = False
     for lead in leads:
         if lead.get("id") == lead_id:
             lead["follow_up"] = follow_up_payload
             lead["updated_at"] = datetime.now().isoformat()
+            updated = True
             break
     with open(LEADS_FILE, "w") as f:
         json.dump(leads, f)
