@@ -248,42 +248,54 @@ class PydanticN8NEngine:
         
         # Execute tasks based on dependencies
         completed_tasks = set()
-        pending_tasks = set(workflow.tasks)
+        pending_tasks = {task['id']: task for task in workflow.tasks}
         
         while pending_tasks:
             # Find tasks ready to execute
-            ready_tasks = self._get_ready_tasks(pending_tasks, completed_tasks, execution.dependencies)
+            ready_tasks = self._get_ready_tasks(pending_tasks, completed_tasks, workflow.dependencies)
             
             if not ready_tasks:
                 # Check for circular dependencies
                 raise ValueError("Circular dependency detected in workflow")
             
             # Execute ready tasks
-            for task in ready_tasks:
-                try:
-                    result = await self._execute_task(task, context)
+            if workflow.parallel_execution:
+                # Execute all ready tasks in parallel
+                results = await asyncio.gather(
+                    *[self._execute_task(t, context) for t in ready_tasks],
+                    return_exceptions=True
+                )
+            else:
+                # Execute ready tasks sequentially
+                results = []
+                for task in ready_tasks:
+                    try:
+                        results.append(await self._execute_task(task, context))
+                    except Exception as e:
+                        results.append(e)
+
+            # Process results
+            for task, result in zip(ready_tasks, results):
+                if isinstance(result, Exception):
+                    execution.tasks_failed += 1
+                    if workflow.error_handling == 'fail_fast':
+                        raise result
+                    elif workflow.error_handling == 'continue_on_error':
+                        logger.warning(f"⚠️ Task failed but continuing: {task['name']} - {str(result)}")
+                        context['task_results'][task['id']] = {'error': str(result)}
+                        completed_tasks.add(task['id'])
+                        del pending_tasks[task['id']]
+                    else:  # retry_all
+                        raise result
+                else:
                     context['task_results'][task['id']] = result
                     context['execution_order'].append(task['id'])
                     completed_tasks.add(task['id'])
-                    pending_tasks.remove(task)
+                    del pending_tasks[task['id']]
                     
                     execution.tasks_executed += 1
                     execution.tasks_completed += 1
-                    
                     logger.info(f"✅ Task completed: {task['name']}")
-                    
-                except Exception as e:
-                    execution.tasks_failed += 1
-                    
-                    if workflow.error_handling == 'fail_fast':
-                        raise
-                    elif workflow.error_handling == 'continue_on_error':
-                        logger.warning(f"⚠️ Task failed but continuing: {task['name']} - {str(e)}")
-                        context['task_results'][task['id']] = {'error': str(e)}
-                        completed_tasks.add(task['id'])
-                        pending_tasks.remove(task)
-                    else:  # retry_all
-                        raise
     
     def _build_execution_graph(self, workflow: PydanticWorkflow) -> Dict[str, List[str]]:
         """Build execution dependency graph"""
@@ -294,11 +306,11 @@ class PydanticN8NEngine:
             graph[task_id] = dependencies
         return graph
     
-    def _get_ready_tasks(self, pending_tasks: set, completed_tasks: set, dependencies: Dict[str, List[str]]) -> List[Dict[str, Any]]:
+    def _get_ready_tasks(self, pending_tasks: Dict[str, Any], completed_tasks: set, dependencies: Dict[str, List[str]]) -> List[Dict[str, Any]]:
         """Get tasks ready for execution"""
         ready_tasks = []
         
-        for task in pending_tasks:
+        for task in pending_tasks.values():
             task_id = task['id']
             task_deps = dependencies.get(task_id, [])
             
