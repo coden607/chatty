@@ -11,12 +11,14 @@ from pydantic import BaseModel
 from typing import Dict, List, Any, Optional
 import asyncio
 import logging
+import time
 from datetime import datetime
 import json
 import os
 import re
 from pathlib import Path
 from leads_storage import get_all_leads, add_lead
+from AUTOMATED_REVENUE_ENGINE import revenue_engine
 from dotenv import load_dotenv
 
 load_dotenv(".env", override=False)
@@ -288,6 +290,11 @@ pipelines = {
 
 autonomy_task_handle: Optional[asyncio.Task] = None
 
+# In-memory cache for the expensive weekly brief AI generation
+_weekly_brief_cache = None
+_weekly_brief_time = 0
+_weekly_brief_lock = None
+
 narcoguard_workflows = [
     {
         "id": "ng-outreach",
@@ -391,6 +398,7 @@ def _record_learning(outcome: str, score: float, notes: str = "") -> None:
     learning_log[:] = learning_log[:60]
 
 def _refresh_trends() -> None:
+    """Refresh trends from disk with mtime-based caching to minimize I/O."""
     os.makedirs(TREND_DIR, exist_ok=True)
     trend_files = sorted(
         (f for f in os.listdir(TREND_DIR) if f.endswith(".json")),
@@ -400,12 +408,18 @@ def _refresh_trends() -> None:
         return
     latest_path = os.path.join(TREND_DIR, trend_files[0])
     try:
+        # Check if file has been modified since last load
+        current_mtime = os.path.getmtime(latest_path)
+        if getattr(_refresh_trends, "_last_mtime", 0) >= current_mtime:
+            return
+
         with open(latest_path, "r", encoding="ascii") as handle:
             payload = json.load(handle)
         trend_state["items"] = payload.get("items", [])[:25]
         trend_state["sources"] = payload.get("sources", [])[:10]
         trend_state["last_refresh"] = datetime.now().isoformat()
-    except (json.JSONDecodeError, OSError):
+        _refresh_trends._last_mtime = current_mtime
+    except (json.JSONDecodeError, OSError, AttributeError):
         return
 
 def _seed_automation_ideas() -> None:
@@ -1421,7 +1435,6 @@ async def pilot_calc(payload: PilotCalcRequest):
 async def draft_proposal(payload: DraftRequest):
     """Generate a proposal draft"""
     try:
-        from AUTOMATED_REVENUE_ENGINE import revenue_engine
         system_prompt = "You are a professional grant writer and business developer for NarcoGuard."
         user_prompt = f"""Write a comprehensive proposal draft for: {payload.title}
         
@@ -1446,7 +1459,6 @@ async def draft_proposal(payload: DraftRequest):
 async def investor_weekly(payload: DraftRequest):
     """Generate an investor weekly update draft"""
     try:
-        from AUTOMATED_REVENUE_ENGINE import revenue_engine
         system_prompt = "You are the founder of NarcoGuard writing a weekly update to investors."
         user_prompt = f"""Write a weekly investor update for: {payload.title}
         
@@ -1470,7 +1482,6 @@ async def investor_weekly(payload: DraftRequest):
 async def investor_narrative(payload: DraftRequest):
     """Generate a narrative refresh draft"""
     try:
-        from AUTOMATED_REVENUE_ENGINE import revenue_engine
         system_prompt = "You are a strategic communications expert for a MedTech startup."
         user_prompt = f"""Refine the core investor narrative for: {payload.title}
         
@@ -1508,7 +1519,6 @@ async def data_room_checklist():
 async def press_pitch(payload: PressPitchRequest):
     """Generate a press pitch"""
     try:
-        from AUTOMATED_REVENUE_ENGINE import revenue_engine
         system_prompt = "You are a PR specialist for NarcoGuard."
         user_prompt = f"""Write a compelling press pitch for: {payload.outlet or 'Tech Media'}
         
@@ -1532,7 +1542,6 @@ async def press_pitch(payload: PressPitchRequest):
 async def video_script(payload: VideoScriptRequest):
     """Generate a short video script"""
     try:
-        from AUTOMATED_REVENUE_ENGINE import revenue_engine
         system_prompt = "You are a video producer for social media content."
         user_prompt = f"""Write a video script ({payload.length_sec or 90} seconds) about: {payload.topic}
         
@@ -1552,7 +1561,6 @@ async def video_script(payload: VideoScriptRequest):
 async def partner_brief(payload: PartnerBriefRequest):
     """Generate a partner outreach brief"""
     try:
-        from AUTOMATED_REVENUE_ENGINE import revenue_engine
         system_prompt = "You are a partnership director for a health tech company."
         user_prompt = f"""Write a partnership proposal brief for: {payload.partner_type}
         
@@ -1612,7 +1620,7 @@ async def get_kpi_anomalies():
 async def weekly_brief():
     """Get weekly summary brief (cached for 120s to reduce LLM overhead)"""
     global _weekly_brief_cache
-    
+
     # Check if cache is valid (120 seconds TTL)
     now = datetime.now().timestamp()
     if _weekly_brief_cache["body"] and (now - _weekly_brief_cache["timestamp"] < 120):
@@ -1627,14 +1635,13 @@ async def weekly_brief():
 
         completed = transparency_log[:15]  # Fetch more logs for context
         events = collab_feed[:15]
-        
+
         try:
             from AUTOMATED_REVENUE_ENGINE import revenue_engine
-            
+
             # Prepare context for AI
             logs_text = "\n".join([f"- {acc.get('action')}: {acc.get('result')} ({acc.get('details')})" for acc in completed])
             events_text = "\n".join([f"- {evt.get('agent')}: {evt.get('event')} - {evt.get('detail')}" for evt in events])
-
             system_prompt = "You are the Chief of Staff for a fully autonomous company."
             user_prompt = f"""Generate a concise, 1-sentence strategic summary of the recent system activity.
 
