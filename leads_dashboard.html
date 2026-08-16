@@ -901,10 +901,14 @@
           btn.style.color = btn.style.borderColor = "var(--success)";
           setTimeout(() => {
             btn.innerText = originalText;
-            btn.style.color = "var(--text-muted)";
-            btn.style.borderColor = "var(--border)";
+            btn.style.color = "";
+            btn.style.borderColor = "";
           }, 2000);
         } catch (err) { console.error("Failed to copy:", err); }
+      }
+
+      async function copyStrategy() {
+        await copyToClipboard("modal-content", document.getElementById("copy-strategy-btn"));
       }
 
       async function copyStrategy() {
