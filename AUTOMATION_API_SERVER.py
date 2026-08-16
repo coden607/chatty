@@ -21,6 +21,13 @@ from pathlib import Path
 from leads_storage import get_all_leads, add_lead
 from AUTOMATED_REVENUE_ENGINE import revenue_engine
 from dotenv import load_dotenv
+import time
+
+# Move heavy import to top to avoid lazy-loading overhead in requests
+try:
+    from AUTOMATED_REVENUE_ENGINE import revenue_engine
+except ImportError:
+    revenue_engine = None
 
 load_dotenv(".env", override=False)
 _secrets_file = os.getenv("CHATTY_SECRETS_FILE")
@@ -1703,6 +1710,43 @@ async def weekly_brief():
         _weekly_brief_cache["timestamp"] = now
 
         return body
+
+async def _safe_call(func, *args, **kwargs):
+    """Safe wrapper for aggregated calls to prevent total failure"""
+    try:
+        if asyncio.iscoroutinefunction(func):
+            return await func(*args, **kwargs)
+        else:
+            return func(*args, **kwargs)
+    except Exception as e:
+        logger.error(f"Error in dashboard aggregated call: {e}")
+        return {"error": str(e)}
+
+@app.get("/api/dashboard/all")
+async def get_dashboard_all():
+    """Consolidated endpoint for dashboard heartbeat (16-in-1)"""
+    tasks = {
+        "leads": _safe_call(get_leads),
+        "workflows": _safe_call(get_narcoguard_workflows),
+        "agents": _safe_call(get_agents),
+        "tasks": _safe_call(get_tasks),
+        "collab": _safe_call(get_collab_feed),
+        "messages": _safe_call(get_user_messages),
+        "autonomy": _safe_call(get_autonomy_status),
+        "pipelines": _safe_call(get_pipelines),
+        "campaigns": _safe_call(get_campaigns),
+        "n8n": _safe_call(get_n8n_workflows),
+        "transparency": _safe_call(get_transparency_report),
+        "content": _safe_call(get_content_briefs),
+        "grants": _safe_call(get_grants),
+        "experiments": _safe_call(get_pricing_experiments),
+        "kpi": _safe_call(get_kpi_anomalies),
+        "weekly": _safe_call(weekly_brief)
+    }
+
+    keys = list(tasks.keys())
+    results = await asyncio.gather(*tasks.values())
+    return dict(zip(keys, results))
 
 @app.get("/api/tasks")
 async def get_tasks():
