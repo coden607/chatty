@@ -810,8 +810,10 @@
           if (data.weekly) document.getElementById("weekly-brief").textContent = data.weekly.summary || "No summary.";
 
           const status = document.getElementById("status-msg");
-          status.style.opacity = 1;
-          setTimeout(() => (status.style.opacity = 0), 3000);
+          if (status) {
+            status.style.opacity = 1;
+            setTimeout(() => (status.style.opacity = 0), 3000);
+          }
         } catch (error) {
           console.error("Dashboard refresh failed:", error);
         } finally {

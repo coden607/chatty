@@ -116,6 +116,10 @@ def update_lead_status(lead_id: int, status: str):
     _leads_cache = leads
     _last_mtime = os.path.getmtime(LEADS_FILE)
 
+    global _leads_cache, _last_mtime
+    _leads_cache = leads
+    _last_mtime = os.path.getmtime(LEADS_FILE)
+
 def update_lead_follow_up(lead_id: int, follow_up_payload: Dict[str, Any]):
     """Update a lead's follow-up metadata"""
     leads = get_all_leads()
@@ -128,6 +132,10 @@ def update_lead_follow_up(lead_id: int, follow_up_payload: Dict[str, Any]):
             break
     with open(LEADS_FILE, "w") as f:
         json.dump(leads, f)
+
+    global _leads_cache, _last_mtime
+    _leads_cache = leads
+    _last_mtime = os.path.getmtime(LEADS_FILE)
 
     global _leads_cache, _last_mtime
     _leads_cache = leads
