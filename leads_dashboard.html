@@ -847,6 +847,9 @@
           updateDashboard(data);
         } catch (error) {
           console.error("Failed to fetch leads:", error);
+        } finally {
+          btn.disabled = false;
+          btn.innerText = originalText;
         }
       }
 
@@ -966,7 +969,7 @@
                     </td>
                     <td style="font-size: 0.9rem;">${escapeHTML(lead.source)}</td>
                     <td>
-                        <div class="score-bar">
+                        <div class="score-bar" role="progressbar" aria-valuenow="${lead.lead_score}" aria-valuemin="0" aria-valuemax="100" aria-label="Lead score: ${lead.lead_score}%">
                             <div class="score-fill" style="width: ${lead.lead_score}%"></div>
                         </div>
                         <span style="font-size: 0.75rem; margin-top: 4px; display: block;">${lead.lead_score}%</span>
@@ -1740,6 +1743,13 @@
           });
         });
       }
+
+      // Close modal on Escape key
+      document.addEventListener('keydown', (e) => {
+        if (e.key === 'Escape') {
+          closeModal();
+        }
+      });
     </script>
   </body>
 </html>
