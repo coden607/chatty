@@ -29,8 +29,17 @@ from pydantic import BaseModel, Field, validator, ValidationError
 from pydantic_ai import Agent, ModelRetry
 from pydantic_ai.models.test import TestModel
 
-from server import db, Agent, Task, logger
-from learning_system import memory_system, adaptive_learning
+try:
+    from server import db, Agent, Task, logger
+except ImportError:
+    # Handle circular imports or environment issues during bootstrap/testing
+    import logging
+    logger = logging.getLogger("pydantic_n8n_engine")
+    db = Agent = Task = None
+try:
+    from learning_system import memory_system, adaptive_learning
+except ImportError:
+    memory_system = adaptive_learning = None
 from openclaw_integration import MultiLLMRouter
 
 class WorkflowStatus(str, Enum):
