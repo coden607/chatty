@@ -13,3 +13,7 @@
 ## 2026-02-20 - [Thundering herd prevention with asyncio.Lock]
 **Learning:** When implementing an in-memory cache for an expensive async operation (like AI generation), simply checking the cache before the logic is not enough to prevent redundant calls under high concurrency.
 **Action:** Wrap the entire cache-check and generation logic in an `asyncio.Lock` to ensure only one request triggers the expensive logic while others wait for the cached result.
+
+## 2026-02-21 - [In-memory caching for async LLM endpoints]
+**Learning:** For expensive and frequently polled AI content generation endpoints, implementing a simple in-memory cache with an 'asyncio.Lock' prevents redundant LLM calls and avoids race conditions ('cache stampedes') while drastically improving response times for subsequent requests.
+**Action:** Identify endpoints that poll slow external services and apply time-based in-memory caching with proper concurrency locks.
