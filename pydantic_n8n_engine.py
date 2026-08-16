@@ -608,6 +608,40 @@ class PydanticN8NEngine:
             logger.error(f"Safe eval failed for expression: {expression}", error=str(e))
             raise ValueError(f"Unsafe or invalid expression: {str(e)}")
     
+    def _safe_eval(self, expression: str) -> Any:
+        """
+        Safely evaluate a mathematical expression using AST.
+        Whitelisted operators: Add, Sub, Mult, Div, BitXor, USub, UAdd.
+        Explicitly excludes Pow (**) to prevent DoS.
+        """
+        operators = {
+            ast.Add: operator.add,
+            ast.Sub: operator.sub,
+            ast.Mult: operator.mul,
+            ast.Div: operator.truediv,
+            ast.BitXor: operator.xor,
+            ast.USub: operator.neg,
+            ast.UAdd: operator.pos,
+        }
+
+        def eval_node(node):
+            # ast.Constant covers int, float, complex in Python 3.8+
+            if isinstance(node, ast.Constant) and isinstance(node.value, (int, float, complex)):
+                return node.value
+            elif isinstance(node, ast.BinOp):
+                if type(node.op) in operators:
+                    return operators[type(node.op)](eval_node(node.left), eval_node(node.right))
+                raise ValueError(f"Unsupported operator: {type(node.op)}")
+            elif isinstance(node, ast.UnaryOp):
+                if type(node.op) in operators:
+                    return operators[type(node.op)](eval_node(node.operand))
+                raise ValueError(f"Unsupported operator: {type(node.op)}")
+            else:
+                raise TypeError(f"Unsupported node type: {type(node)}")
+
+        tree = ast.parse(str(expression), mode='eval')
+        return eval_node(tree.body)
+
     def _register_builtin_tasks(self):
         """Register built-in task functions"""
         self.register_task('send_email', self._send_email_task)
