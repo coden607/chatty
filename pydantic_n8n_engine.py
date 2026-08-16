@@ -20,6 +20,11 @@ from dataclasses import dataclass, field
 from enum import Enum
 
 import requests
+
+# Pre-compile the regex pattern for variable substitution ({{var_name}})
+# This is a Bolt optimization that avoids repeated pattern compilation and
+# enables a single-pass replacement for complex templates.
+VAR_PATTERN = re.compile(r'\{\{(.*?)\}\}')
 from pydantic import BaseModel, Field, validator, ValidationError
 from pydantic_ai import Agent, ModelRetry
 from pydantic_ai.models.test import TestModel
