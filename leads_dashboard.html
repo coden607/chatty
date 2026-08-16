@@ -990,6 +990,13 @@
         copyToClipboard('modal-content', document.getElementById("copy-strategy-btn"));
       }
 
+      // Close modal on Escape key
+      window.addEventListener('keydown', (e) => {
+        if (e.key === 'Escape') {
+          closeModal();
+        }
+      });
+
       function updateDashboard(data) {
         document.getElementById("count-total").innerText = data.total;
         document.getElementById("count-new").innerText = data.new;
