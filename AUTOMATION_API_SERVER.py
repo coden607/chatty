@@ -1852,6 +1852,33 @@ async def get_dashboard_all():
         "grants": res[12], "experiments": res[13], "anomalies": res[14], "weekly_brief": res[15]
     }
 
+@app.get("/api/dashboard/all")
+async def get_dashboard_all():
+    """Aggregated endpoint for dashboard data to reduce network overhead and improve performance"""
+    # Fetch all dashboard components concurrently
+    keys = [
+        "status", "leads", "workflows", "agents", "autonomy", "pipelines",
+        "campaigns", "n8n", "transparency", "briefs", "grants", "experiments",
+        "anomalies", "weekly_brief", "collab", "messages", "tasks"
+    ]
+    funcs = [
+        get_status, get_leads, get_narcoguard_workflows, get_agents,
+        get_autonomy_status, get_pipelines, get_campaigns, get_n8n_workflows,
+        get_transparency_report, get_content_briefs, get_grants,
+        get_pricing_experiments, get_kpi_anomalies, weekly_brief,
+        get_collab_feed, get_user_messages, get_tasks
+    ]
+
+    async def _safe_call(func):
+        try:
+            return await func()
+        except Exception as e:
+            logger.error(f"Error in dashboard sub-call {func.__name__}: {e}")
+            return {"error": str(e)}
+
+    results = await asyncio.gather(*(_safe_call(f) for f in funcs))
+    return dict(zip(keys, results))
+
 @app.get("/api/tasks")
 async def get_tasks():
     """Get the autonomy task queue"""
