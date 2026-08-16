@@ -199,6 +199,11 @@ automation_instance: Optional[Any] = None
 automation_task: Optional[asyncio.Task] = None
 automation_lock = asyncio.Lock()
 
+# Performance Optimization: Cache for expensive AI-generated brief
+_weekly_brief_cache: Optional[Dict[str, Any]] = None
+_weekly_brief_cache_time: float = 0
+_weekly_brief_lock = asyncio.Lock()
+
 agents_registry = [
     {"name": "orchestrator", "status": "active", "focus": "routing", "llm": "control", "apis": ["scheduler", "memory"]},
     {"name": "revenue_engine", "status": "active", "focus": "pricing", "llm": "analysis", "apis": ["billing", "crm"]},

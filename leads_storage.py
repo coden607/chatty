@@ -127,6 +127,8 @@ def update_lead_status(lead_id: int, status: str):
     _leads_cache = leads
     _last_mtime = os.path.getmtime(LEADS_FILE)
 
+    _update_cache(leads)
+
 def update_lead_follow_up(lead_id: int, follow_up_payload: Dict[str, Any]):
     """Update a lead's follow-up metadata"""
     global _leads_cache, _last_mtime
@@ -156,6 +158,8 @@ def update_lead_follow_up(lead_id: int, follow_up_payload: Dict[str, Any]):
     # Update cache after write
     _leads_cache = leads
     _last_mtime = os.path.getmtime(LEADS_FILE)
+
+    _update_cache(leads)
 
 
 def add_lead(name: str, email: str, source: str, metadata: Dict[str, Any] = None) -> Dict[str, Any]:
