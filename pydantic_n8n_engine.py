@@ -901,6 +901,9 @@ class ErrorHandler:
             'message': 'Data format needs to be corrected'
         }
 
+# Pre-compiled regex for variable replacement
+VAR_PATTERN = re.compile(r'\{\{([^}]+)\}\}')
+
 # Global instance
 pydantic_n8n_engine = PydanticN8NEngine()
 
