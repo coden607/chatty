@@ -873,9 +873,12 @@
 
       async function focusAgent(leadId, btn) {
         const leadName = btn.closest('tr').querySelector('.lead-name').innerText;
-        const originalText = btn.innerText;
-        btn.innerText = "Targeting...";
-          btn.disabled = true;
+        await uiAction(btn, "Targeting...", async () => {
+          try {
+            const response = await fetch(`${apiBase}/api/leads/${leadId}/convert`, {
+              method: 'POST'
+            });
+            const data = await response.json();
 
         try {
           const response = await fetch(`${apiBase}/api/leads/${leadId}/convert`, {
