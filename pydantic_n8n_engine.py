@@ -5,6 +5,7 @@ Self-optimizing workflows with Pydantic validation and AI-driven task routing
 """
 
 import os
+import ast
 import json
 import time
 import asyncio
@@ -624,6 +625,21 @@ class PydanticN8NEngine:
         format_str = kwargs.get('format', '%Y-%m-%d %H:%M:%S')
         return {'current_time': datetime.now().strftime(format_str)}
     
+    def _safe_eval(self, expr: str) -> Any:
+        """Safely evaluate mathematical expressions using AST"""
+        allowed_nodes = (
+            ast.Expression, ast.BinOp, ast.UnaryOp, ast.Num, ast.Constant,
+            ast.Add, ast.Sub, ast.Mult, ast.Div, ast.Pow, ast.BitXor, ast.USub
+        )
+        try:
+            tree = ast.parse(expr, mode='eval')
+            for node in ast.walk(tree):
+                if not isinstance(node, allowed_nodes):
+                    raise ValueError(f"Unsupported operation or node type: {type(node).__name__}")
+            return eval(compile(tree, '<string>', 'eval'), {"__builtins__": {}})
+        except Exception as e:
+            raise ValueError(f"Safe eval failed: {str(e)}")
+
     async def _calculate_task(self, **kwargs) -> Dict[str, Any]:
         """Built-in calculation task with security-focused safe evaluation"""
         expression = kwargs.get('expression', '0')
