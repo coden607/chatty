@@ -23,7 +23,7 @@ const experiments: RecordValue[] = [];
 const generated: RecordValue = { type: '', draft: '' };
 const launchRuns: RecordValue[] = [];
 const pipelines: RecordValue[] = [{ name: 'Revenue Autopilot', status: 'active', progress: 41, stages: [{ name: 'Offer optimization', status: 'active' }, { name: 'Pricing experiments', status: 'queued' }] }];
-const autonomy = { state: { running: false, mode: 'production-dashboard', loop_interval_sec: 60, last_tick: null as string | null }, settings: { daily_budget: 250, risk_guardrails: 'conservative', primary_channel: 'email' } };
+const autonomy = { state: { running: false, mode: 'production-dashboard', loop_interval_sec: 60, last_tick: null as string | null, last_sweep_at: null as string | null, last_sweep_summary: '' }, settings: { daily_budget: 250, risk_guardrails: 'conservative', primary_channel: 'email' } };
 const learning = {
   score: 48,
   last_tick: null as string | null,
@@ -207,6 +207,88 @@ async function sendOutboundEmail(payload: RecordValue) {
     }
   }
   throw new Error(`All outbound email providers failed: ${failures.join('; ')}`);
+}
+function automationDue(force = false) {
+  if (force) return true;
+  if (!autonomy.state.running) return false;
+  const lastSweep = autonomy.state.last_sweep_at || autonomy.state.last_tick;
+  if (!lastSweep) return true;
+  const elapsedMs = Date.now() - new Date(lastSweep).getTime();
+  const intervalMs = Math.max(15, Number(autonomy.state.loop_interval_sec || 60)) * 1000;
+  return elapsedMs >= intervalMs;
+}
+async function runAutomationCycle(trigger = 'dashboard', force = false) {
+  const actions: string[] = [];
+  if (!automationDue(force)) {
+    return { ran: false, trigger, actions, summary: 'Automation cycle skipped because the next interval is not due yet.' };
+  }
+
+  const timestamp = now();
+  autonomy.state.last_sweep_at = timestamp;
+  autonomy.state.last_tick = timestamp;
+
+  workflows.forEach((workflow) => {
+    if (String(workflow.status || '').toLowerCase() === 'active') {
+      workflow.progress = Math.min(100, Number(workflow.progress || 0) + 2);
+      workflow.last_run = timestamp;
+    }
+  });
+  if (workflows.length) actions.push(`Advanced ${workflows.length} workflow(s).`);
+
+  pipelines.forEach((pipeline) => {
+    pipeline.progress = Math.min(100, Number(pipeline.progress || 0) + 3);
+  });
+  if (pipelines.length) actions.push(`Advanced ${pipelines.length} pipeline(s).`);
+
+  campaigns.forEach((campaign) => {
+    if (String(campaign.status || '').toLowerCase() === 'planned') campaign.status = 'active';
+  });
+  if (campaigns.length) actions.push('Activated planned campaign(s).');
+
+  if (n8nWorkflows.length && process.env.N8N_BASE_URL && process.env.N8N_API_KEY) {
+    const remoteCandidate = n8nWorkflows.find((workflow) => !workflow.remote_status || workflow.remote_status === 'local_only' || workflow.remote_status === 'pending') || n8nWorkflows[0];
+    if (remoteCandidate) {
+      try {
+        const remote = await pushWorkflowToN8n(remoteCandidate);
+        remoteCandidate.remote_status = remote.status;
+        remoteCandidate.remote_id = remote.workflowId || remote.workflow?.id || remoteCandidate.remote_id || null;
+        actions.push(`Activated n8n workflow ${String(remoteCandidate.name || remoteCandidate.id)}.`);
+      } catch (error) {
+        remoteCandidate.remote_status = 'pending';
+        remoteCandidate.remote_detail = error instanceof Error ? error.message : 'n8n automation failed';
+        actions.push(`n8n activation failed for ${String(remoteCandidate.name || remoteCandidate.id)}.`);
+      }
+    }
+  }
+
+  const notifyEmail = String(process.env.AUTOMATION_NOTIFY_EMAIL || process.env.OPS_NOTIFY_EMAIL || process.env.ADMIN_EMAIL || '').trim();
+  if (notifyEmail && (process.env.SENDGRID_API_KEY || resendApiKey)) {
+    const summary = `CHATTY automation cycle complete.\n\nWorkflows: ${workflows.length}\nPipelines: ${pipelines.length}\nCampaigns: ${campaigns.length}\nPending integrations: ${missingIntegrations().join('; ') || 'none'}\n\n${publicLinksFooter()}`;
+    try {
+      const emailResult = await sendOutboundEmail({ to: notifyEmail, subject: 'CHATTY automation cycle summary', text: summary });
+      actions.push(`Sent automation summary email via ${String(emailResult.provider || 'email')}.`);
+    } catch (error) {
+      actions.push(`Automation summary email failed: ${error instanceof Error ? error.message : 'unknown error'}.`);
+    }
+  }
+
+  if (process.env.NVIDIA_API_KEY || process.env.OPENAI_API_KEY || process.env.OPENROUTER_API_KEY || process.env.XAI_API_KEY || process.env.MISTRAL_API_KEY || process.env.DEEPSEEK_API_KEY) {
+    try {
+      const result = await generateWithProvider(
+        `Write a concise automation status note for CHATTY using only these live facts: workflows=${workflows.length}, campaigns=${campaigns.length}, tasks=${tasks.length}, pending_integrations=${missingIntegrations().join('; ') || 'none'}, public_narcoguard=${narcoguardUrl}, funding=${fundingUrl}. Do not invent outcomes.`
+      );
+      generated.type = 'automation-summary';
+      generated.draft = result.text;
+      actions.push(`Generated live automation summary with ${result.provider}.`);
+    } catch (error) {
+      actions.push(`Automation summary generation failed: ${error instanceof Error ? error.message : 'unknown error'}.`);
+    }
+  }
+
+  const learningState = learnFromSignals(trigger);
+  autonomy.state.last_sweep_summary = actions.length ? actions.join(' ') : 'Automation cycle completed with no eligible actions.';
+  record('automation_sweep', 'orchestrator', autonomy.state.last_sweep_summary);
+  return { ran: true, trigger, timestamp, actions, learning: learningState, summary: autonomy.state.last_sweep_summary };
 }
 async function pushWorkflowToN8n(workflow: RecordValue) {
   const baseUrl = String(process.env.N8N_BASE_URL || '').trim().replace(/\/+$/, '');
@@ -428,7 +510,7 @@ function dashboardPayload() {
 }
 function getPayload(path: string[]) {
   switch (path.join('/')) {
-    case 'dashboard/all': return dashboardPayload(); case 'leads': return leadsPayload(); case 'learning/status': return { learning: learnFromSignals('status'), timestamp: now() }; case 'narcoguard/workflows': return { project: 'Narcoguard', workflows }; case 'narcoguard/launch/status': return { latest: launchRuns[0] || null, runs: launchRuns, events: collabEvents }; case 'agents': return { total: agents.length, agents }; case 'tasks': return { total: tasks.length, tasks }; case 'agents/collab': return { total: collabEvents.length, events: collabEvents }; case 'user/messages': return { total: messages.length, messages }; case 'autonomy/status': return autonomy; case 'pipelines': return { pipelines }; case 'campaigns': return { total: campaigns.length, campaigns }; case 'n8n/workflows': return { total: n8nWorkflows.length, workflows: n8nWorkflows }; case 'integrations/status': return integrationStatus(); case 'transparency/report': return { completed: collabEvents }; case 'content/briefs': return { briefs }; case 'grants': return { grants }; case 'experiments/pricing': return { experiments }; case 'kpi/anomalies': return { anomalies: [] }; case 'weekly/brief': return weeklyPayload(); default: return { status: 'ok', route: path.join('/') };
+    case 'dashboard/all': return dashboardPayload(); case 'leads': return leadsPayload(); case 'learning/status': return { learning: learnFromSignals('status'), timestamp: now() }; case 'automation/status': return { autonomy, learning: learnFromSignals('status'), timestamp: now() }; case 'narcoguard/workflows': return { project: 'Narcoguard', workflows }; case 'narcoguard/launch/status': return { latest: launchRuns[0] || null, runs: launchRuns, events: collabEvents }; case 'agents': return { total: agents.length, agents }; case 'tasks': return { total: tasks.length, tasks }; case 'agents/collab': return { total: collabEvents.length, events: collabEvents }; case 'user/messages': return { total: messages.length, messages }; case 'autonomy/status': return autonomy; case 'pipelines': return { pipelines }; case 'campaigns': return { total: campaigns.length, campaigns }; case 'n8n/workflows': return { total: n8nWorkflows.length, workflows: n8nWorkflows }; case 'integrations/status': return integrationStatus(); case 'transparency/report': return { completed: collabEvents }; case 'content/briefs': return { briefs }; case 'grants': return { grants }; case 'experiments/pricing': return { experiments }; case 'kpi/anomalies': return { anomalies: [] }; case 'weekly/brief': return weeklyPayload(); default: return { status: 'ok', route: path.join('/') };
   }
 }
 async function body(request: Request): Promise<RecordValue> { try { return await request.json() as RecordValue; } catch { return {}; } }
@@ -488,6 +570,10 @@ export function POST(request: Request, context: { params: Promise<{ path: string
     if (route === 'tasks') { const task = { id: Date.now(), title: String(data.title || 'Untitled task'), owner: String(data.owner || 'orchestrator'), priority: String(data.priority || 'medium'), status: 'queued', created_at: now() }; tasks.unshift(task); record('task', task.owner, `Queued task: ${task.title}`); return finish({ status: 'queued', task, total: tasks.length, tasks, events: collabEvents }); }
     if (route === 'user/messages') { const message = { id: Date.now(), channel: 'operator', message: String(data.message || ''), timestamp: now() }; messages.unshift(message); record('message', 'operator', message.message); return finish({ status: 'sent', message, total: messages.length, messages, events: collabEvents }); }
     if (route === 'autonomy/start' || route === 'autonomy/stop') { autonomy.state.running = route.endsWith('start'); autonomy.state.last_tick = now(); record('autonomy', 'orchestrator', autonomy.state.running ? 'Autonomy loop started.' : 'Autonomy loop stopped.'); return finish({ status: autonomy.state.running ? 'started' : 'stopped', ...autonomy, events: collabEvents }); }
+    if (route === 'automation/sweep') {
+      const result = await runAutomationCycle('manual', Boolean(data.force));
+      return finish({ status: result.ran ? 'completed' : 'skipped', ...result, dashboard: await dashboardPayload(), events: collabEvents });
+    }
     if (route === 'autonomy/settings') { if (typeof data.daily_budget === 'number') autonomy.settings.daily_budget = data.daily_budget; if (typeof data.primary_channel === 'string' && data.primary_channel) autonomy.settings.primary_channel = data.primary_channel; record('settings', 'operator', 'Autonomy settings updated.'); return finish({ status: 'updated', ...autonomy, events: collabEvents }); }
     if (route === 'pipelines/refresh') { pipelines.forEach((pipeline) => { pipeline.progress = Math.min(100, Number(pipeline.progress || 0) + 7); }); record('pipeline', 'orchestrator', 'Pipelines advanced.'); return finish({ status: 'refreshed', pipelines, events: collabEvents }); }
     if (route === 'campaigns') { const campaign = { id: Date.now(), name: String(data.name || 'Untitled campaign'), channel: String(data.channel || 'email'), goal: String(data.goal || 'leads'), owner: 'content_engine', status: 'planned', created_at: now() }; campaigns.unshift(campaign); record('campaign', 'content_engine', `Planned campaign: ${campaign.name}`); return finish({ status: 'planned', campaign, total: campaigns.length, campaigns, events: collabEvents }); }
