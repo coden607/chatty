@@ -10,9 +10,7 @@ async def verify_dashboard():
         context = await browser.new_context()
         page = await context.new_page()
 
-        # Absolute path to the dashboard
-        file_path = os.path.abspath("leads_dashboard.html")
-        url = f"file://{file_path}"
+        url = os.getenv("DASHBOARD_URL", "http://localhost:8080/dashboard")
 
         print(f"Navigating to {url}")
 
@@ -40,7 +38,9 @@ async def verify_dashboard():
         await page.wait_for_selector(".lead-row")
 
         # Take a screenshot
-        screenshot_path = "/home/jules/verification/dashboard_verified.png"
+        screenshot_dir = os.path.abspath("verification")
+        os.makedirs(screenshot_dir, exist_ok=True)
+        screenshot_path = os.path.join(screenshot_dir, "dashboard_verified.png")
         await page.screenshot(path=screenshot_path)
         print(f"Screenshot saved to {screenshot_path}")
 

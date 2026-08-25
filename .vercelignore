@@ -9,3 +9,6 @@ trend_data/
 .env.example
 .env.template
 sendgrid.env
+/api/
+/requirements.txt
+/backend/
