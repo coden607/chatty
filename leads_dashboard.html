@@ -600,18 +600,27 @@
           </div>
         </div>
         <div class="panel">
-          <h3>Funding Drive</h3>
-          <textarea id="funding-recipients" aria-label="Funding recipients" class="message-input" placeholder="Recipient emails, comma or newline separated"></textarea>
+          <h3>Pilot Partner Outreach</h3>
+          <textarea id="funding-recipients" aria-label="Funding recipients" class="message-input" placeholder="Public health, harm reduction, or pilot partner emails"></textarea>
           <input id="funding-notify" aria-label="Funding notify email" class="prompt-textarea" placeholder="Notify email (optional)" />
           <label style="display: flex; align-items: center; gap: 8px; font-size: 0.85rem; color: var(--text-muted); margin-top: 6px;">
             <input id="funding-send-now" type="checkbox" checked />
-            Send immediately when recipients are present
+            Send immediately when partners are present
           </label>
           <div class="prompt-row">
-            <button class="btn" onclick="autoFillFundingRecipients(this)">Auto-Find Leads</button>
-            <button class="btn" onclick="runFundingCampaign(this)">Run Funding Campaign</button>
+            <button class="btn" onclick="autoFillFundingRecipients(this)">Auto-Find Partners</button>
+            <button class="btn" onclick="runFundingCampaign(this)">Run Outreach</button>
           </div>
-          <div id="funding-status" class="generator-output" aria-live="polite">Waiting for funding run...</div>
+          <div id="funding-status" class="generator-output" aria-live="polite">Waiting for outreach run...</div>
+        </div>
+        <div class="panel">
+          <h3>YouTube Learning</h3>
+          <input id="youtube-url" aria-label="YouTube URL" class="prompt-textarea" placeholder="Paste a YouTube URL" />
+          <div class="prompt-row">
+            <button class="btn" onclick="addYouTubeWatchlist(this)">Add to Watchlist</button>
+            <button class="btn" onclick="learnFromYouTube(this)">Learn Now</button>
+          </div>
+          <div id="youtube-status" class="generator-output" aria-live="polite">Waiting for YouTube input...</div>
         </div>
         <div class="panel">
           <h3>Outbound Email</h3>
@@ -935,6 +944,7 @@
         if (saved.learning) data.learning = saved.learning;
         if (saved.governance) data.governance = saved.governance;
         if (saved.funding) data.funding = saved.funding;
+        if (saved.youtube) data.youtube = saved.youtube;
         if (saved.pipelines) data.pipelines = saved.pipelines;
         if (saved.campaigns) data.campaigns = saved.campaigns;
         if (saved.n8n) data.n8n = saved.n8n;
@@ -1035,7 +1045,7 @@
           const data = await response.json();
           if (!response.ok || !["launched", "already_launched"].includes(data.status)) throw new Error(data.detail || "Launch failed");
           const snapshot = data.dashboard || {};
-          saveAutoState({ workflows: snapshot.workflows, tasks: snapshot.tasks, collab: snapshot.collab, messages: snapshot.messages, autonomy: snapshot.autonomy, learning: snapshot.learning, governance: snapshot.governance, funding: snapshot.funding, pipelines: snapshot.pipelines, campaigns: snapshot.campaigns, n8n: snapshot.n8n, briefs: snapshot.briefs, content: snapshot.content, grants: snapshot.grants, experiments: snapshot.experiments, generated: snapshot.generated, weekly: snapshot.weekly });
+          saveAutoState({ workflows: snapshot.workflows, tasks: snapshot.tasks, collab: snapshot.collab, messages: snapshot.messages, autonomy: snapshot.autonomy, learning: snapshot.learning, governance: snapshot.governance, funding: snapshot.funding, youtube: snapshot.youtube, pipelines: snapshot.pipelines, campaigns: snapshot.campaigns, n8n: snapshot.n8n, briefs: snapshot.briefs, content: snapshot.content, grants: snapshot.grants, experiments: snapshot.experiments, generated: snapshot.generated, weekly: snapshot.weekly });
           if (snapshot.workflows) renderWorkflows(snapshot.workflows.workflows || []);
           if (snapshot.tasks) renderTasks(snapshot.tasks.tasks || []);
           if (snapshot.collab) renderCollabFeed(snapshot.collab.events || []);
@@ -1085,6 +1095,7 @@
           if (data.learning) renderLearningStatus(data.learning);
           if (data.governance) renderGovernanceStatus(data.governance);
           if (data.funding) renderFundingStatus(data.funding);
+          if (data.youtube) renderYouTubeStatus(data.youtube);
           if (data.pipelines) renderPipelines(data.pipelines.pipelines || data.pipelines);
           if (data.campaigns) renderCampaigns(data.campaigns.campaigns || []);
           if (data.n8n) renderN8nWorkflows(data.n8n.workflows || []);
@@ -1098,6 +1109,7 @@
           if (data.learning) saveAutoState({ learning: data.learning });
           if (data.governance) saveAutoState({ governance: data.governance });
           if (data.funding) saveAutoState({ funding: data.funding });
+          if (data.youtube) saveAutoState({ youtube: data.youtube });
 
           const status = document.getElementById("status-msg");
           if (status) {
@@ -1624,6 +1636,7 @@
           if (data.learning) renderLearningStatus(data.learning);
           if (data.governance) renderGovernanceStatus(data.governance);
           if (data.funding) renderFundingStatus(data.funding);
+          if (data.youtube) renderYouTubeStatus(data.youtube);
           if (data.pipelines) renderPipelines(data.pipelines.pipelines || []);
           if (data.campaigns) renderCampaigns(data.campaigns.campaigns || []);
           if (data.n8n) renderN8nWorkflows(data.n8n.workflows || []);
@@ -1637,6 +1650,7 @@
           if (data.learning) saveAutoState({ learning: data.learning });
           if (data.governance) saveAutoState({ governance: data.governance });
           if (data.funding) saveAutoState({ funding: data.funding });
+          if (data.youtube) saveAutoState({ youtube: data.youtube });
 
           statusMsg.innerText = `Refreshed at ${new Date().toLocaleTimeString()}`;
           setTimeout(() => (statusMsg.style.opacity = 0), 3000);
@@ -1718,6 +1732,20 @@
         `;
       }
 
+      function renderYouTubeStatus(youtube) {
+        const status = document.getElementById("youtube-status");
+        if (!status) return;
+        const watchlist = Array.isArray(youtube?.watchlist) ? youtube.watchlist : [];
+        const insights = Array.isArray(youtube?.last_insights) ? youtube.last_insights : [];
+        status.innerHTML = `
+          <div class="log-entry"><strong>Status</strong> • ${escapeHTML(youtube?.last_status || "idle")}<br>Last run: ${escapeHTML(youtube?.last_run_at || "n/a")}</div>
+          <div class="log-entry"><strong>Last video</strong> • ${escapeHTML(youtube?.last_video_title || "No video yet.")}<br>${escapeHTML(youtube?.last_video_url || "")}</div>
+          <div class="log-entry"><strong>Summary</strong> • ${escapeHTML(youtube?.last_summary || "No YouTube learning yet.")}</div>
+          <div class="log-entry"><strong>Insights</strong><br>${insights.length ? insights.map((item) => escapeHTML(item)).join("<br>") : "No insights yet."}</div>
+          <div class="log-entry"><strong>Watchlist</strong> • ${watchlist.length ? escapeHTML(watchlist.map((item) => String(item.url || "")).join(" | ")) : "No queued videos."}</div>
+        `;
+      }
+
       async function fetchGovernanceStatus() {
         try {
           const response = await fetch(`${apiBase}/api/governance/status`);
@@ -1744,13 +1772,91 @@
         }
       }
 
+      async function fetchYouTubeStatus() {
+        try {
+          const response = await fetch(`${apiBase}/api/youtube/status`);
+          const data = await response.json();
+          if (data.youtube) {
+            renderYouTubeStatus(data.youtube);
+            saveAutoState({ youtube: data.youtube });
+          }
+        } catch (error) {
+          console.error("Failed to fetch YouTube status:", error);
+        }
+      }
+
+      async function addYouTubeWatchlist(btn) {
+        const input = document.getElementById("youtube-url");
+        const status = document.getElementById("youtube-status");
+        const url = input.value.trim();
+        const originalText = btn.innerText;
+        btn.innerText = "Adding...";
+        btn.disabled = true;
+        status.textContent = "Adding YouTube URL to the watchlist...";
+        try {
+          const response = await fetch(`${apiBase}/api/youtube/watchlist`, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ url })
+          });
+          const data = await response.json();
+          if (!response.ok || data.status !== "added") throw new Error(data.detail || "Watchlist add failed");
+          input.value = "";
+          if (data.youtube) {
+            renderYouTubeStatus(data.youtube);
+            saveAutoState({ youtube: data.youtube });
+          }
+          if (data.dashboard?.youtube) {
+            renderYouTubeStatus(data.dashboard.youtube);
+            saveAutoState({ youtube: data.dashboard.youtube });
+          }
+        } catch (error) {
+          status.textContent = `Watchlist update failed: ${error.message || "unknown error"}`;
+        } finally {
+          btn.innerText = originalText;
+          btn.disabled = false;
+        }
+      }
+
+      async function learnFromYouTube(btn) {
+        const input = document.getElementById("youtube-url");
+        const status = document.getElementById("youtube-status");
+        const url = input.value.trim();
+        const originalText = btn.innerText;
+        btn.innerText = "Learning...";
+        btn.disabled = true;
+        status.textContent = "Learning from YouTube...";
+        try {
+          const response = await fetch(`${apiBase}/api/youtube/learn`, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ url })
+          });
+          const data = await response.json();
+          if (!response.ok || data.status !== "learned") throw new Error(data.detail || "YouTube learning failed");
+          if (data.youtube) {
+            renderYouTubeStatus(data.youtube);
+            saveAutoState({ youtube: data.youtube });
+          }
+          if (data.dashboard?.youtube) {
+            renderYouTubeStatus(data.dashboard.youtube);
+            saveAutoState({ youtube: data.dashboard.youtube });
+          }
+        } catch (error) {
+          status.textContent = `YouTube learning failed: ${error.message || "unknown error"}`;
+        } finally {
+          btn.innerText = originalText;
+          btn.disabled = false;
+        }
+      }
+
       async function autoFillFundingRecipients(btn) {
         const status = document.getElementById("funding-status");
         const textarea = document.getElementById("funding-recipients");
         const originalText = btn.innerText;
         btn.innerText = "Finding...";
         btn.disabled = true;
-        status.textContent = "Finding qualified prospects...";
+          status.textContent = "Finding mission-aligned partners...";
         try {
           const response = await fetch(`${apiBase}/api/leads/prospects`);
           const data = await response.json();
@@ -1758,14 +1864,14 @@
           const emails = prospects.map((item) => item.email).filter(Boolean);
           textarea.value = emails.join("\n");
           status.textContent = emails.length
-            ? `Auto-selected ${emails.length} qualified prospects.`
-            : "No qualified prospects found.";
+            ? `Auto-selected ${emails.length} mission-aligned partners.`
+            : "No mission-aligned partners found.";
           if (data.prospects) {
             renderFundingStatus({
               last_status: "auto_selected",
               last_run_at: new Date().toISOString(),
               last_recipients: emails,
-              last_summary: emails.length ? `Auto-selected ${emails.length} prospect(s).` : "No qualified prospects found.",
+              last_summary: emails.length ? `Auto-selected ${emails.length} partner(s).` : "No mission-aligned partners found.",
               last_recipient_source: "auto_discovery",
               potential_recipients: prospects,
               package: {},
@@ -1817,10 +1923,11 @@
             if (snapshot.collab) renderCollabFeed(snapshot.collab.events || []);
             if (snapshot.messages) renderOperatorMessages(snapshot.messages.messages || []);
             if (snapshot.autonomy) renderAutonomyStatus(snapshot.autonomy.state, snapshot.autonomy.settings);
-            if (snapshot.learning) renderLearningStatus(snapshot.learning);
-            if (snapshot.governance) renderGovernanceStatus(snapshot.governance);
-            if (snapshot.funding) renderFundingStatus(snapshot.funding);
-            if (snapshot.pipelines) renderPipelines(snapshot.pipelines.pipelines || snapshot.pipelines);
+          if (snapshot.learning) renderLearningStatus(snapshot.learning);
+          if (snapshot.governance) renderGovernanceStatus(snapshot.governance);
+          if (snapshot.funding) renderFundingStatus(snapshot.funding);
+          if (snapshot.youtube) renderYouTubeStatus(snapshot.youtube);
+          if (snapshot.pipelines) renderPipelines(snapshot.pipelines.pipelines || snapshot.pipelines);
             if (snapshot.campaigns) renderCampaigns(snapshot.campaigns.campaigns || []);
             if (snapshot.n8n) renderN8nWorkflows(snapshot.n8n.workflows || []);
             if (snapshot.briefs) renderContentBriefs(snapshot.briefs.briefs || []);
@@ -2398,12 +2505,14 @@
           if (data.grants) renderGrants(data.grants.grants || []);
           if (data.experiments) renderPricingExperiments(data.experiments.experiments || []);
           if (data.funding) renderFundingStatus(data.funding);
+          if (data.youtube) renderYouTubeStatus(data.youtube);
           if (data.integrations) renderIntegrationStatus(data.integrations);
           if (data.anomalies) renderAnomalies(data.anomalies.anomalies || []);
           if (data.brief) document.getElementById("weekly-brief").textContent = data.brief.summary || "No summary.";
           if (data.learning) saveAutoState({ learning: data.learning });
           if (data.governance) saveAutoState({ governance: data.governance });
           if (data.funding) saveAutoState({ funding: data.funding });
+          if (data.youtube) saveAutoState({ youtube: data.youtube });
 
           console.log("Dashboard consolidated heartbeat successful");
         } catch (error) {
@@ -2479,6 +2588,7 @@
       setInterval(fetchLearningStatus, 15000);
       setInterval(fetchGovernanceStatus, 30000);
       setInterval(fetchFundingStatus, 30000);
+      setInterval(fetchYouTubeStatus, 30000);
       setInterval(maybeAutoSweep, 60000);
 
       // Initial load
@@ -2488,6 +2598,7 @@
       fetchLearningStatus();
       fetchGovernanceStatus();
       fetchFundingStatus();
+      fetchYouTubeStatus();
 
       if ("serviceWorker" in navigator) {
         window.addEventListener("load", () => {

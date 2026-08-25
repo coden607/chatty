@@ -38,6 +38,17 @@ const funding = {
   },
   last_summary: '',
 };
+const youtubeWatchlist: RecordValue[] = [];
+const youtubeLearningRuns: RecordValue[] = [];
+const youtubeLearning = {
+  last_run_at: null as string | null,
+  last_status: 'idle',
+  last_video_url: '',
+  last_video_title: '',
+  last_summary: '',
+  last_insights: [] as string[],
+  learned_count: 0,
+};
 const pipelines: RecordValue[] = [{ name: 'Revenue Autopilot', status: 'active', progress: 41, stages: [{ name: 'Offer optimization', status: 'active' }, { name: 'Pricing experiments', status: 'queued' }] }];
 const autonomy = { state: { running: false, mode: 'production-dashboard', loop_interval_sec: 60, last_tick: null as string | null, last_sweep_at: null as string | null, last_sweep_summary: '' }, settings: { daily_budget: 250, risk_guardrails: 'conservative', primary_channel: 'email' } };
 const learning = {
@@ -90,6 +101,76 @@ function parseEmailList(value: unknown) {
     .map((item) => item.trim())
     .filter((item) => item.includes('@'));
 }
+function isMissionAlignedProspect(lead: Lead) {
+  const haystack = [
+    lead.name,
+    lead.company,
+    lead.source,
+    lead.status,
+    lead.role,
+    lead.metadata && typeof lead.metadata === 'object' ? JSON.stringify(lead.metadata) : '',
+  ]
+    .map((value) => String(value || '').toLowerCase())
+    .join(' ');
+  return [
+    'health',
+    'public',
+    'harm reduction',
+    'harmreduction',
+    'opioid',
+    'overdose',
+    'naloxone',
+    'emergency',
+    'ems',
+    'first responder',
+    'hospital',
+    'clinic',
+    'recovery',
+    'samhsa',
+    'cdc',
+    'nih',
+    'coalition',
+    'department of health',
+  ].some((keyword) => haystack.includes(keyword));
+}
+function extractYouTubeVideoId(url: string) {
+  const patterns = [
+    /(?:v=|youtu\.be\/|embed\/|shorts\/)([a-zA-Z0-9_-]{11})/,
+    /^([a-zA-Z0-9_-]{11})$/,
+  ];
+  for (const pattern of patterns) {
+    const match = String(url || '').match(pattern);
+    if (match?.[1]) return match[1];
+  }
+  return '';
+}
+function isYouTubeUrl(url: string) {
+  return /youtube\.com|youtu\.be/i.test(String(url || ''));
+}
+async function fetchYouTubeMetadata(url: string) {
+  const videoId = extractYouTubeVideoId(url);
+  if (!videoId) {
+    return { videoId: '', title: '', description: '', author: '', url };
+  }
+  const oembedUrl = `https://www.youtube.com/oembed?url=${encodeURIComponent(`https://www.youtube.com/watch?v=${videoId}`)}&format=json`;
+  try {
+    const response = await fetch(oembedUrl, { cache: 'no-store' });
+    if (response.ok) {
+      const data = await response.json() as RecordValue;
+      return {
+        videoId,
+        title: String(data.title || ''),
+        description: String(data.description || ''),
+        author: String(data.author_name || ''),
+        thumbnail: String(data.thumbnail_url || ''),
+        url: `https://www.youtube.com/watch?v=${videoId}`,
+      };
+    }
+  } catch (error) {
+    console.error('YouTube metadata fetch failed', error);
+  }
+  return { videoId, title: '', description: '', author: '', url: `https://www.youtube.com/watch?v=${videoId}` };
+}
 function discoverPotentialRecipients(limit = maxAutoFundingRecipients) {
   const candidates = leadList
     .map((lead) => ({
@@ -98,7 +179,7 @@ function discoverPotentialRecipients(limit = maxAutoFundingRecipients) {
       status: String(lead.status || '').toLowerCase(),
       hasEmail: Boolean(String(lead.email || '').includes('@')),
     }))
-    .filter(({ lead, score, status, hasEmail }) => hasEmail && score >= 80 && ['grant_target', 'new', 'engaging', 'qualified', 'warm'].includes(status || '') && Boolean(lead.name || lead.company));
+    .filter(({ lead, score, status, hasEmail }) => hasEmail && score >= 80 && ['grant_target', 'new', 'engaging', 'qualified', 'warm'].includes(status || '') && Boolean(lead.name || lead.company) && isMissionAlignedProspect(lead));
   candidates.sort((a, b) => {
     const scoreDelta = (b.score || 0) - (a.score || 0);
     if (scoreDelta !== 0) return scoreDelta;
@@ -114,18 +195,24 @@ function discoverPotentialRecipients(limit = maxAutoFundingRecipients) {
     created_at: lead.created_at || now(),
   }));
 }
-function stateSnapshot() { return { workflows, tasks, collabEvents, promptHistory, messages, campaigns, n8nWorkflows, briefs, grants, experiments, pipelines, autonomy, learning, generated, launchRuns, fundingRuns, funding }; }
+function stateSnapshot() { return { workflows, tasks, collabEvents, promptHistory, messages, campaigns, n8nWorkflows, briefs, grants, experiments, pipelines, autonomy, learning, generated, launchRuns, fundingRuns, funding, youtubeWatchlist, youtubeLearningRuns, youtubeLearning }; }
 function replaceArray(target: RecordValue[], source: unknown) { if (Array.isArray(source)) { target.splice(0, target.length, ...source); } }
 function hydrateSnapshot(payload: RecordValue) {
   replaceArray(workflows, payload.workflows); replaceArray(tasks, payload.tasks); replaceArray(collabEvents, payload.collabEvents); replaceArray(promptHistory, payload.promptHistory); replaceArray(messages, payload.messages); replaceArray(campaigns, payload.campaigns); replaceArray(n8nWorkflows, payload.n8nWorkflows); replaceArray(briefs, payload.briefs); replaceArray(grants, payload.grants); replaceArray(experiments, payload.experiments); replaceArray(pipelines, payload.pipelines);
   replaceArray(launchRuns, payload.launchRuns);
   replaceArray(fundingRuns, payload.fundingRuns);
+  replaceArray(youtubeWatchlist, payload.youtubeWatchlist);
+  replaceArray(youtubeLearningRuns, payload.youtubeLearningRuns);
   if (payload.generated) Object.assign(generated, payload.generated);
   if (payload.autonomy) { Object.assign(autonomy, payload.autonomy); Object.assign(autonomy.state, payload.autonomy.state || {}); Object.assign(autonomy.settings, payload.autonomy.settings || {}); }
   if (payload.funding) {
     Object.assign(funding, payload.funding);
     Object.assign(funding.last_package, payload.funding.last_package || {});
     funding.last_recipients = Array.isArray(payload.funding.last_recipients) ? payload.funding.last_recipients : funding.last_recipients;
+  }
+  if (payload.youtubeLearning) {
+    Object.assign(youtubeLearning, payload.youtubeLearning);
+    youtubeLearning.last_insights = Array.isArray(payload.youtubeLearning.last_insights) ? payload.youtubeLearning.last_insights : youtubeLearning.last_insights;
   }
   if (payload.learning) {
     Object.assign(learning, payload.learning);
@@ -299,6 +386,19 @@ async function runAutomationCycle(trigger = 'dashboard', force = false) {
     if (String(campaign.status || '').toLowerCase() === 'planned') campaign.status = 'active';
   });
   if (campaigns.length) actions.push('Activated planned campaign(s).');
+
+  const nextYouTube = youtubeWatchlist.find((item) => !item.learned_at && isYouTubeUrl(String(item.url || '')));
+  if (nextYouTube) {
+    try {
+      const youtubeResult = await runYouTubeLearning([String(nextYouTube.url || '')], trigger);
+      nextYouTube.learned_at = timestamp;
+      nextYouTube.last_summary = youtubeResult.summary;
+      actions.push(`Learned from YouTube: ${String(nextYouTube.url || '')}`);
+    } catch (error) {
+      nextYouTube.last_error = error instanceof Error ? error.message : 'YouTube learning failed';
+      actions.push(`YouTube learning failed for ${String(nextYouTube.url || '')}.`);
+    }
+  }
 
   if (n8nWorkflows.length && process.env.N8N_BASE_URL && process.env.N8N_API_KEY) {
     const remoteCandidate = n8nWorkflows.find((workflow) => !workflow.remote_status || workflow.remote_status === 'local_only' || workflow.remote_status === 'pending') || n8nWorkflows[0];
@@ -494,6 +594,7 @@ function learnFromSignals(trigger = 'heartbeat') {
     campaigns: campaigns.map((campaign) => [campaign.id, campaign.status, campaign.channel]),
     n8n: n8nWorkflows.map((workflow) => [workflow.id, workflow.remote_status || workflow.status, workflow.remote_id || null]),
     generated: [generated.type || '', String(generated.draft || '').length],
+    youtube: [youtubeLearning.learned_count, youtubeLearning.last_video_title || '', String(youtubeLearning.last_summary || '').length],
     autonomy: [autonomy.state.running, autonomy.state.mode, autonomy.settings.primary_channel, autonomy.settings.daily_budget],
     missing: missingIntegrations(),
   });
@@ -502,6 +603,9 @@ function learnFromSignals(trigger = 'heartbeat') {
   learning.insights = snapshot.insights;
   learning.recommendations = snapshot.recommendations;
   learning.signals = snapshot.signals;
+  if (youtubeLearning.last_summary) {
+    learning.recommendations = Array.from(new Set([youtubeLearning.last_summary, ...learning.recommendations])).slice(0, 6);
+  }
   learning.last_tick = now();
   learning.last_signature = signature;
   if (trigger !== 'hydrate' && signature !== previousSignature) {
@@ -528,6 +632,84 @@ function fundingStatus() {
     },
   };
 }
+function youtubeStatus() {
+  return {
+    last_run_at: youtubeLearning.last_run_at,
+    last_status: youtubeLearning.last_status,
+    last_video_url: youtubeLearning.last_video_url,
+    last_video_title: youtubeLearning.last_video_title,
+    last_summary: youtubeLearning.last_summary,
+    last_insights: youtubeLearning.last_insights,
+    learned_count: youtubeLearning.learned_count,
+    watchlist_count: youtubeWatchlist.length,
+    watchlist: youtubeWatchlist.slice(0, 10),
+  };
+}
+async function runYouTubeLearning(urls: string[] = [], trigger = 'manual') {
+  const queue = urls.length ? urls : youtubeWatchlist.map((item) => String(item.url || item.video_url || '')).filter(Boolean);
+  if (!queue.length) {
+    return { status: 'idle', summary: 'No YouTube URLs available.', youtube: youtubeStatus(), runs: youtubeLearningRuns };
+  }
+  const url = queue[0];
+  if (!isYouTubeUrl(url)) {
+    throw new Error('A valid YouTube URL is required.');
+  }
+  const timestamp = now();
+  const meta = await fetchYouTubeMetadata(url);
+  const prompt = `Learn from this YouTube video for CHATTY automation improvements.
+Title: ${meta.title || 'Unknown title'}
+Author: ${meta.author || 'Unknown author'}
+Description: ${meta.description || 'No description available.'}
+URL: ${meta.url}
+
+Return strict JSON with keys: summary, insights, actions, keywords.
+Focus on concrete automation, learning, outreach, and workflow improvements.
+Do not invent transcript details that are not in the metadata.`;
+  const result = await generateWithProvider(prompt);
+  let payload: RecordValue = {};
+  try {
+    payload = JSON.parse(result.text);
+  } catch {
+    payload = { summary: result.text, insights: [], actions: [], keywords: [] };
+  }
+
+  const summary = String(payload.summary || result.text || '').trim();
+  const insights = Array.isArray(payload.insights) ? payload.insights.map((item) => String(item).trim()).filter(Boolean) : [];
+  const actions = Array.isArray(payload.actions) ? payload.actions.map((item) => String(item).trim()).filter(Boolean) : [];
+  const keywords = Array.isArray(payload.keywords) ? payload.keywords.map((item) => String(item).trim()).filter(Boolean) : [];
+
+  youtubeLearning.last_run_at = timestamp;
+  youtubeLearning.last_status = 'learned';
+  youtubeLearning.last_video_url = meta.url;
+  youtubeLearning.last_video_title = meta.title || url;
+  youtubeLearning.last_summary = summary;
+  youtubeLearning.last_insights = insights;
+  youtubeLearning.learned_count += 1;
+
+  const run = {
+    id: Date.now(),
+    trigger,
+    video_url: meta.url,
+    video_title: meta.title || url,
+    author: meta.author || '',
+    summary,
+    insights,
+    actions,
+    keywords,
+    created_at: timestamp,
+  };
+  youtubeLearningRuns.unshift(run);
+  youtubeLearningRuns.splice(20);
+
+  record('youtube_learning', 'orchestrator', `Learned from YouTube: ${meta.title || url}`);
+  return {
+    status: 'learned',
+    summary,
+    run,
+    youtube: youtubeStatus(),
+    recent_runs: youtubeLearningRuns,
+  };
+}
 async function runFundingCampaign(trigger = 'manual', options: RecordValue = {}) {
   const manualRecipients = parseEmailList(options.recipients || process.env.FUNDING_OUTREACH_EMAILS || '');
   const autoRecipients = manualRecipients.length ? [] : discoverPotentialRecipients();
@@ -540,8 +722,8 @@ async function runFundingCampaign(trigger = 'manual', options: RecordValue = {})
   const packagePrompt = `Return strict JSON with keys proposal, pitch, email, social, grant_notes, outreach_steps.
 Use only these live facts: NarcoGuard is hosted at ${narcoguardUrl}. Funding page: ${fundingUrl}.
 Keep the tone factual and concise. Do not invent metrics, awards, or results.
-The package is for fundraising and supervised pilot support.
-Include a donor/investor-facing email draft, a short pitch, a proposal summary, and a social post.
+The package is for overdose-prevention funding, pilot deployment, and mission-aligned partner outreach.
+Include a grant/pilot-partner email draft, a short pitch, a proposal summary, and a social post.
 `;
 
   const result = await generateWithProvider(packagePrompt);
@@ -578,8 +760,8 @@ Include a donor/investor-facing email draft, a short pitch, a proposal summary, 
 
   const campaign = {
     id: Date.now(),
-    name: 'Narcoguard Funding Drive',
-    channel: recipients.length ? 'fundraising-email' : 'grant-writing',
+    name: 'NarcoGuard Pilot Partner Outreach',
+    channel: recipients.length ? 'pilot-outreach' : 'grant-writing',
     goal: 'funding',
     owner: 'investor_relations',
     status: recipients.length ? 'active' : 'planned',
@@ -589,14 +771,14 @@ Include a donor/investor-facing email draft, a short pitch, a proposal summary, 
   campaigns.unshift(campaign);
   grants.unshift({
     id: Date.now() + 1,
-    name: 'Narcoguard funding package',
+    name: 'Narcoguard pilot outreach package',
     deadline: 'TBD',
     status: 'tracking',
     created_at: timestamp,
   });
   briefs.unshift({
     id: Date.now() + 2,
-    title: 'Narcoguard funding package',
+    title: 'Narcoguard pilot outreach package',
     source: 'CHATTY investor relations',
     status: 'ready',
     created_at: timestamp,
@@ -604,7 +786,7 @@ Include a donor/investor-facing email draft, a short pitch, a proposal summary, 
   n8nWorkflows.unshift({
     id: Date.now() + 3,
     name: 'Narcoguard Funding Outreach Workflow',
-    description: 'Generate and distribute fundraising materials, track responses, and log follow-ups.',
+    description: 'Generate and distribute grant and pilot-partner materials, track responses, and log follow-ups.',
     trigger: 'manual',
     status: 'ready',
     created_at: timestamp,
@@ -663,8 +845,8 @@ Include a donor/investor-facing email draft, a short pitch, a proposal summary, 
   fundingRuns.splice(20);
 
   const summary = recipients.length
-    ? `Funding campaign drafted for ${recipients.length} recipient(s) via ${recipientSource}.`
-    : 'Funding package drafted and queued for review.';
+    ? `Pilot outreach drafted for ${recipients.length} recipient(s) via ${recipientSource}.`
+    : 'Pilot outreach package drafted and queued for review.';
   funding.last_summary = summary;
   record('funding_campaign', 'investor_relations', summary);
   return {
@@ -792,11 +974,11 @@ function integrationStatus() {
 }
 function dashboardPayload() {
   learnFromSignals('dashboard');
-  return { status: { status: 'running', systems_active: agents.length, total_automations: workflows.length, uptime_hours: 0, revenue_generated: 0 }, leads: leadsPayload(), workflows: { workflows }, agents: { agents }, tasks: { total: tasks.length, tasks }, collab: { total: collabEvents.length, events: collabEvents }, messages: { total: messages.length, messages }, autonomy, learning, governance: governanceStatus(), funding: fundingStatus(), pipelines: { pipelines }, campaigns: { total: campaigns.length, campaigns }, n8n: { total: n8nWorkflows.length, workflows: n8nWorkflows }, transparency: { completed: collabEvents }, briefs: { briefs }, content: { briefs }, grants: { grants }, experiments: { experiments }, generated, integrations: integrationStatus(), anomalies: { anomalies: [] }, kpi: { anomalies: [] }, weekly: weeklyPayload(), weekly_brief: weeklyPayload(), timestamp: now() };
+  return { status: { status: 'running', systems_active: agents.length, total_automations: workflows.length, uptime_hours: 0, revenue_generated: 0 }, leads: leadsPayload(), workflows: { workflows }, agents: { agents }, tasks: { total: tasks.length, tasks }, collab: { total: collabEvents.length, events: collabEvents }, messages: { total: messages.length, messages }, autonomy, learning, governance: governanceStatus(), funding: fundingStatus(), youtube: youtubeStatus(), pipelines: { pipelines }, campaigns: { total: campaigns.length, campaigns }, n8n: { total: n8nWorkflows.length, workflows: n8nWorkflows }, transparency: { completed: collabEvents }, briefs: { briefs }, content: { briefs }, grants: { grants }, experiments: { experiments }, generated, integrations: integrationStatus(), anomalies: { anomalies: [] }, kpi: { anomalies: [] }, weekly: weeklyPayload(), weekly_brief: weeklyPayload(), timestamp: now() };
 }
 function getPayload(path: string[]) {
   switch (path.join('/')) {
-    case 'dashboard/all': return dashboardPayload(); case 'leads': return leadsPayload(); case 'leads/prospects': return prospectsPayload(); case 'learning/status': return { learning: learnFromSignals('status'), timestamp: now() }; case 'automation/status': return { autonomy, learning: learnFromSignals('status'), governance: governanceStatus(), funding: fundingStatus(), timestamp: now() }; case 'governance/status': return { governance: governanceStatus(), timestamp: now() }; case 'funding/status': return { funding: fundingStatus(), funding_runs: fundingRuns, timestamp: now() }; case 'narcoguard/workflows': return { project: 'Narcoguard', workflows }; case 'narcoguard/launch/status': return { latest: launchRuns[0] || null, runs: launchRuns, events: collabEvents }; case 'agents': return { total: agents.length, agents }; case 'tasks': return { total: tasks.length, tasks }; case 'agents/collab': return { total: collabEvents.length, events: collabEvents }; case 'user/messages': return { total: messages.length, messages }; case 'autonomy/status': return autonomy; case 'pipelines': return { pipelines }; case 'campaigns': return { total: campaigns.length, campaigns }; case 'n8n/workflows': return { total: n8nWorkflows.length, workflows: n8nWorkflows }; case 'integrations/status': return integrationStatus(); case 'transparency/report': return { completed: collabEvents }; case 'content/briefs': return { briefs }; case 'grants': return { grants }; case 'experiments/pricing': return { experiments }; case 'kpi/anomalies': return { anomalies: [] }; case 'weekly/brief': return weeklyPayload(); default: return { status: 'ok', route: path.join('/') };
+    case 'dashboard/all': return dashboardPayload(); case 'leads': return leadsPayload(); case 'leads/prospects': return prospectsPayload(); case 'learning/status': return { learning: learnFromSignals('status'), youtube: youtubeStatus(), timestamp: now() }; case 'automation/status': return { autonomy, learning: learnFromSignals('status'), governance: governanceStatus(), funding: fundingStatus(), youtube: youtubeStatus(), timestamp: now() }; case 'governance/status': return { governance: governanceStatus(), timestamp: now() }; case 'funding/status': return { funding: fundingStatus(), funding_runs: fundingRuns, timestamp: now() }; case 'youtube/status': return { youtube: youtubeStatus(), recent_runs: youtubeLearningRuns, timestamp: now() }; case 'narcoguard/workflows': return { project: 'Narcoguard', workflows }; case 'narcoguard/launch/status': return { latest: launchRuns[0] || null, runs: launchRuns, events: collabEvents }; case 'agents': return { total: agents.length, agents }; case 'tasks': return { total: tasks.length, tasks }; case 'agents/collab': return { total: collabEvents.length, events: collabEvents }; case 'user/messages': return { total: messages.length, messages }; case 'autonomy/status': return autonomy; case 'pipelines': return { pipelines }; case 'campaigns': return { total: campaigns.length, campaigns }; case 'n8n/workflows': return { total: n8nWorkflows.length, workflows: n8nWorkflows }; case 'integrations/status': return integrationStatus(); case 'transparency/report': return { completed: collabEvents }; case 'content/briefs': return { briefs }; case 'grants': return { grants }; case 'experiments/pricing': return { experiments }; case 'kpi/anomalies': return { anomalies: [] }; case 'weekly/brief': return weeklyPayload(); default: return { status: 'ok', route: path.join('/') };
   }
 }
 async function body(request: Request): Promise<RecordValue> { try { return await request.json() as RecordValue; } catch { return {}; } }
@@ -859,6 +1041,33 @@ export function POST(request: Request, context: { params: Promise<{ path: string
     if (route === 'automation/sweep') {
       const result = await runAutomationCycle('manual', Boolean(data.force));
       return finish({ status: result.ran ? 'completed' : 'skipped', ...result, dashboard: await dashboardPayload(), events: collabEvents });
+    }
+    if (route === 'youtube/watchlist') {
+      const urls = Array.isArray(data.urls) ? data.urls : [data.url].filter(Boolean);
+      const added = urls
+        .map((url) => String(url || '').trim())
+        .filter(Boolean)
+        .filter((url) => isYouTubeUrl(url))
+        .map((url) => {
+          const existing = youtubeWatchlist.find((item) => String(item.url || '') === url);
+          if (existing) return existing;
+          const entry = { id: Date.now() + youtubeWatchlist.length, url, created_at: now(), learned_at: null, last_summary: '' };
+          youtubeWatchlist.unshift(entry);
+          return entry;
+        });
+      if (!added.length) return finish({ status: 'failed', detail: 'No valid YouTube URLs supplied.' }, 400);
+      record('youtube_watchlist', 'orchestrator', `Added ${added.length} YouTube URL(s) to the watchlist.`);
+      return finish({ status: 'added', added, youtube: youtubeStatus(), dashboard: await dashboardPayload() });
+    }
+    if (route === 'youtube/learn') {
+      try {
+        const urls = Array.isArray(data.urls) ? data.urls.map((item) => String(item || '').trim()).filter(Boolean) : [String(data.url || '').trim()].filter(Boolean);
+        const result = await runYouTubeLearning(urls, 'manual');
+        return finish({ ...result, dashboard: await dashboardPayload(), events: collabEvents });
+      } catch (error) {
+        record('youtube_learning_failed', 'orchestrator', `YouTube learning failed: ${error instanceof Error ? error.message : 'unknown error'}`);
+        return finish({ status: 'failed', detail: error instanceof Error ? error.message : 'YouTube learning failed' }, 502);
+      }
     }
     if (route === 'autonomy/settings') { if (typeof data.daily_budget === 'number') autonomy.settings.daily_budget = data.daily_budget; if (typeof data.primary_channel === 'string' && data.primary_channel) autonomy.settings.primary_channel = data.primary_channel; record('settings', 'operator', 'Autonomy settings updated.'); return finish({ status: 'updated', ...autonomy, events: collabEvents }); }
     if (route === 'funding/run') {
