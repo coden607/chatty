@@ -5,6 +5,7 @@ export const runtime = 'edge';
 type Lead = { id?: number | string; name?: string; email?: string; source?: string; lead_score?: number; status?: string; created_at?: string; [key: string]: unknown };
 type RecordValue = Record<string, any>;
 const leadList = leads as Lead[];
+const maxAutoFundingRecipients = 8;
 
 const workflows: RecordValue[] = [
   { id: 'ng-outreach', name: 'Narcoguard Outreach Pipeline', owner: 'acquisition_engine', status: 'active', progress: 72, last_run: null, steps: [{ name: 'Target list build', status: 'complete' }, { name: 'Personalization pass', status: 'active' }, { name: 'Cadence scheduling', status: 'queued' }, { name: 'CRM logging', status: 'queued' }] },
@@ -88,6 +89,30 @@ function parseEmailList(value: unknown) {
     .split(/[\n,;]/g)
     .map((item) => item.trim())
     .filter((item) => item.includes('@'));
+}
+function discoverPotentialRecipients(limit = maxAutoFundingRecipients) {
+  const candidates = leadList
+    .map((lead) => ({
+      lead,
+      score: Number(lead.lead_score || 0),
+      status: String(lead.status || '').toLowerCase(),
+      hasEmail: Boolean(String(lead.email || '').includes('@')),
+    }))
+    .filter(({ lead, score, status, hasEmail }) => hasEmail && score >= 80 && ['grant_target', 'new', 'engaging', 'qualified', 'warm'].includes(status || '') && Boolean(lead.name || lead.company));
+  candidates.sort((a, b) => {
+    const scoreDelta = (b.score || 0) - (a.score || 0);
+    if (scoreDelta !== 0) return scoreDelta;
+    return String(a.lead.name || a.lead.company || '').localeCompare(String(b.lead.name || b.lead.company || ''));
+  });
+  return candidates.slice(0, limit).map(({ lead, score }) => ({
+    id: lead.id,
+    name: lead.name || lead.company || 'Prospect',
+    email: String(lead.email || '').trim(),
+    source: lead.source || 'lead intelligence',
+    lead_score: score,
+    status: lead.status || 'qualified',
+    created_at: lead.created_at || now(),
+  }));
 }
 function stateSnapshot() { return { workflows, tasks, collabEvents, promptHistory, messages, campaigns, n8nWorkflows, briefs, grants, experiments, pipelines, autonomy, learning, generated, launchRuns, fundingRuns, funding }; }
 function replaceArray(target: RecordValue[], source: unknown) { if (Array.isArray(source)) { target.splice(0, target.length, ...source); } }
@@ -485,14 +510,18 @@ function learnFromSignals(trigger = 'heartbeat') {
   return learning;
 }
 function fundingStatus() {
+  const autoRecipients = discoverPotentialRecipients();
   return {
     ready: Boolean(funding.last_package.proposal || funding.last_package.pitch || funding.last_recipients.length || fundingRuns.length),
     last_run_at: funding.last_run_at,
     last_status: funding.last_status,
     last_recipients: funding.last_recipients,
+    last_recipient_source: funding.last_recipients.length ? (funding.last_recipients.every((recipient) => autoRecipients.some((item) => item.email === recipient)) ? 'auto' : 'manual') : 'none',
     contacts_configured: funding.last_recipients.length > 0,
     package_ready: Boolean(funding.last_package.proposal || funding.last_package.pitch || funding.last_package.email),
     runs: fundingRuns.length,
+    auto_discovery_ready: autoRecipients.length > 0,
+    potential_recipients: autoRecipients,
     public_links: {
       narcoguard: narcoguardUrl,
       funding: fundingUrl,
@@ -500,7 +529,10 @@ function fundingStatus() {
   };
 }
 async function runFundingCampaign(trigger = 'manual', options: RecordValue = {}) {
-  const recipients = parseEmailList(options.recipients || process.env.FUNDING_OUTREACH_EMAILS || '');
+  const manualRecipients = parseEmailList(options.recipients || process.env.FUNDING_OUTREACH_EMAILS || '');
+  const autoRecipients = manualRecipients.length ? [] : discoverPotentialRecipients();
+  const recipients = manualRecipients.length ? manualRecipients : autoRecipients.map((item) => item.email);
+  const recipientSource = manualRecipients.length ? 'manual' : recipients.length ? 'auto_discovered' : 'none';
   const notifyEmail = String(options.notify_email || process.env.FUNDING_NOTIFY_EMAIL || process.env.ADMIN_EMAIL || '').trim();
   const sendNow = options.send_now !== false;
   const timestamp = now();
@@ -552,6 +584,7 @@ Include a donor/investor-facing email draft, a short pitch, a proposal summary, 
     owner: 'investor_relations',
     status: recipients.length ? 'active' : 'planned',
     created_at: timestamp,
+    recipient_source: recipientSource,
   };
   campaigns.unshift(campaign);
   grants.unshift({
@@ -619,6 +652,7 @@ Include a donor/investor-facing email draft, a short pitch, a proposal summary, 
     trigger,
     status: funding.last_status,
     recipients,
+    recipient_source: recipientSource,
     send_now: sendNow,
     campaign_id: campaign.id,
     package: funding.last_package,
@@ -629,7 +663,7 @@ Include a donor/investor-facing email draft, a short pitch, a proposal summary, 
   fundingRuns.splice(20);
 
   const summary = recipients.length
-    ? `Funding campaign drafted for ${recipients.length} recipient(s).`
+    ? `Funding campaign drafted for ${recipients.length} recipient(s) via ${recipientSource}.`
     : 'Funding package drafted and queued for review.';
   funding.last_summary = summary;
   record('funding_campaign', 'investor_relations', summary);
@@ -643,6 +677,7 @@ Include a donor/investor-facing email draft, a short pitch, a proposal summary, 
     workflows: n8nWorkflows,
     package: funding.last_package,
     send_results: sendResults,
+    recipient_source: recipientSource,
     funding: fundingStatus(),
   };
 }
@@ -705,6 +740,7 @@ function governanceStatus() {
   };
 }
 function leadsPayload() { const publicLeads = leadList.map(publicLead); return { total: publicLeads.length, new: publicLeads.filter((lead) => (lead.status || 'new') === 'new').length, leads: publicLeads }; }
+function prospectsPayload() { return { total: discoverPotentialRecipients().length, prospects: discoverPotentialRecipients(), timestamp: now() }; }
 function weeklyPayload() { return { completed: collabEvents, events: collabEvents, summary: `Narcoguard automation is operational. ${campaigns.length} campaign(s), ${tasks.length} task(s), and ${messages.length} operator message(s) tracked.` }; }
 function integrationStatus() {
   const emailReady = Boolean(process.env.SENDGRID_API_KEY || resendApiKey);
@@ -760,7 +796,7 @@ function dashboardPayload() {
 }
 function getPayload(path: string[]) {
   switch (path.join('/')) {
-    case 'dashboard/all': return dashboardPayload(); case 'leads': return leadsPayload(); case 'learning/status': return { learning: learnFromSignals('status'), timestamp: now() }; case 'automation/status': return { autonomy, learning: learnFromSignals('status'), governance: governanceStatus(), funding: fundingStatus(), timestamp: now() }; case 'governance/status': return { governance: governanceStatus(), timestamp: now() }; case 'funding/status': return { funding: fundingStatus(), funding_runs: fundingRuns, timestamp: now() }; case 'narcoguard/workflows': return { project: 'Narcoguard', workflows }; case 'narcoguard/launch/status': return { latest: launchRuns[0] || null, runs: launchRuns, events: collabEvents }; case 'agents': return { total: agents.length, agents }; case 'tasks': return { total: tasks.length, tasks }; case 'agents/collab': return { total: collabEvents.length, events: collabEvents }; case 'user/messages': return { total: messages.length, messages }; case 'autonomy/status': return autonomy; case 'pipelines': return { pipelines }; case 'campaigns': return { total: campaigns.length, campaigns }; case 'n8n/workflows': return { total: n8nWorkflows.length, workflows: n8nWorkflows }; case 'integrations/status': return integrationStatus(); case 'transparency/report': return { completed: collabEvents }; case 'content/briefs': return { briefs }; case 'grants': return { grants }; case 'experiments/pricing': return { experiments }; case 'kpi/anomalies': return { anomalies: [] }; case 'weekly/brief': return weeklyPayload(); default: return { status: 'ok', route: path.join('/') };
+    case 'dashboard/all': return dashboardPayload(); case 'leads': return leadsPayload(); case 'leads/prospects': return prospectsPayload(); case 'learning/status': return { learning: learnFromSignals('status'), timestamp: now() }; case 'automation/status': return { autonomy, learning: learnFromSignals('status'), governance: governanceStatus(), funding: fundingStatus(), timestamp: now() }; case 'governance/status': return { governance: governanceStatus(), timestamp: now() }; case 'funding/status': return { funding: fundingStatus(), funding_runs: fundingRuns, timestamp: now() }; case 'narcoguard/workflows': return { project: 'Narcoguard', workflows }; case 'narcoguard/launch/status': return { latest: launchRuns[0] || null, runs: launchRuns, events: collabEvents }; case 'agents': return { total: agents.length, agents }; case 'tasks': return { total: tasks.length, tasks }; case 'agents/collab': return { total: collabEvents.length, events: collabEvents }; case 'user/messages': return { total: messages.length, messages }; case 'autonomy/status': return autonomy; case 'pipelines': return { pipelines }; case 'campaigns': return { total: campaigns.length, campaigns }; case 'n8n/workflows': return { total: n8nWorkflows.length, workflows: n8nWorkflows }; case 'integrations/status': return integrationStatus(); case 'transparency/report': return { completed: collabEvents }; case 'content/briefs': return { briefs }; case 'grants': return { grants }; case 'experiments/pricing': return { experiments }; case 'kpi/anomalies': return { anomalies: [] }; case 'weekly/brief': return weeklyPayload(); default: return { status: 'ok', route: path.join('/') };
   }
 }
 async function body(request: Request): Promise<RecordValue> { try { return await request.json() as RecordValue; } catch { return {}; } }
