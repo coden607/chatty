@@ -1,5 +1,5 @@
 import leads from '../../../leads.json';
-import youtubeLearningSeed from '../../../generated_content/youtube_learnings.json';
+import coleMedinKnowledgeBaseSeed from '../../../cole_medin_knowledge_base_seed.json';
 
 export const runtime = 'edge';
 
@@ -66,37 +66,7 @@ const learning = {
   },
 };
 function buildColeMedinKnowledgeBaseSeed() {
-  const entries = Array.isArray(youtubeLearningSeed) ? youtubeLearningSeed : [];
-  return entries
-    .filter((item) => {
-      const text = `${String(item?.title || '')} ${JSON.stringify(item?.insights || {})}`.toLowerCase();
-      return ['ai', 'agent', 'code', 'claude', 'archon', 'wiki', 'brain', 'pydantic', 'vercel', 'kimi', 'automation', 'local', 'harness', 'knowledge'].some((needle) => text.includes(needle));
-    })
-    .map((item) => {
-      const insights = item?.insights || {};
-      const summary = String(insights.summary || '').trim();
-      const keyTopics = Array.isArray(insights.key_topics) ? insights.key_topics.map((value: unknown) => String(value).trim()).filter(Boolean) : [];
-      const tips = Array.isArray(insights.actionable_tips) ? insights.actionable_tips.map((value: unknown) => String(value).trim()).filter(Boolean) : [];
-      const tools = Array.isArray(insights.tools_mentioned) ? insights.tools_mentioned.map((value: unknown) => String(value).trim()).filter(Boolean) : [];
-      const themes = coleMedinThemes({ summary, insights: keyTopics, actions: tips, keywords: tools, title: item?.title });
-      return {
-        id: `seed-${String(item?.video_id || item?.video_url || item?.title || Date.now())}`,
-        title: String(item?.title || 'Cole Medin video'),
-        url: String(item?.video_url || ''),
-        summary,
-        insights: keyTopics,
-        actions: tips,
-        keywords: tools,
-        themes,
-        implementation_targets: themes.length ? themes : ['Cole Medin learning'],
-        source_run_id: item?.video_id || item?.video_url || item?.title || '',
-        learned_at: item?.processed_at || now(),
-        updated_at: item?.processed_at || now(),
-        seed: true,
-      };
-    })
-    .filter((item) => String(item.url || '').includes('youtube.com/watch'))
-    .slice(0, 50);
+  return Array.isArray(coleMedinKnowledgeBaseSeed) ? coleMedinKnowledgeBaseSeed : [];
 }
 const coleMedinKnowledgeBase: RecordValue[] = buildColeMedinKnowledgeBaseSeed();
 
