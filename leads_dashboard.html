@@ -608,6 +608,7 @@
             Send immediately when recipients are present
           </label>
           <div class="prompt-row">
+            <button class="btn" onclick="autoFillFundingRecipients(this)">Auto-Find Leads</button>
             <button class="btn" onclick="runFundingCampaign(this)">Run Funding Campaign</button>
           </div>
           <div id="funding-status" class="generator-output" aria-live="polite">Waiting for funding run...</div>
@@ -1705,11 +1706,13 @@
         const status = document.getElementById("funding-status");
         if (!status) return;
         const recipients = Array.isArray(funding?.last_recipients) ? funding.last_recipients : [];
+        const prospects = Array.isArray(funding?.potential_recipients) ? funding.potential_recipients : [];
         const pkg = funding?.last_package || {};
         status.innerHTML = `
           <div class="log-entry"><strong>Status</strong> • ${escapeHTML(funding?.last_status || "idle")}<br>Last run: ${escapeHTML(funding?.last_run_at || "n/a")}</div>
-          <div class="log-entry"><strong>Summary</strong> • ${escapeHTML(funding?.last_summary || "No summary yet.")}</div>
+          <div class="log-entry"><strong>Summary</strong> • ${escapeHTML(funding?.last_summary || "No summary yet.")}<br>Source: ${escapeHTML(funding?.last_recipient_source || "none")}</div>
           <div class="log-entry"><strong>Recipients</strong> • ${recipients.length ? escapeHTML(recipients.join(", ")) : "No recipients supplied."}</div>
+          <div class="log-entry"><strong>Auto prospects</strong> • ${prospects.length ? escapeHTML(prospects.slice(0, 5).map((item) => `${item.name} <${item.email}>`).join(" | ")) : "No qualified prospects found."}</div>
           <div class="log-entry"><strong>Package</strong><br>${escapeHTML((String(pkg.proposal || pkg.pitch || "").slice(0, 180)) || "No package yet.")}${String(pkg.proposal || pkg.pitch || "").length > 180 ? "..." : ""}<br>${escapeHTML((String(pkg.grant_notes || "").slice(0, 120)) || "")}</div>
           <div class="log-entry"><strong>Public links</strong><br><a href="${escapeHTML(funding?.public_links?.narcoguard || "")}" target="_blank" rel="noreferrer">NarcoGuard</a> • <a href="${escapeHTML(funding?.public_links?.funding || "")}" target="_blank" rel="noreferrer">Funding</a></div>
         `;
@@ -1738,6 +1741,45 @@
           }
         } catch (error) {
           console.error("Failed to fetch funding status:", error);
+        }
+      }
+
+      async function autoFillFundingRecipients(btn) {
+        const status = document.getElementById("funding-status");
+        const textarea = document.getElementById("funding-recipients");
+        const originalText = btn.innerText;
+        btn.innerText = "Finding...";
+        btn.disabled = true;
+        status.textContent = "Finding qualified prospects...";
+        try {
+          const response = await fetch(`${apiBase}/api/leads/prospects`);
+          const data = await response.json();
+          const prospects = Array.isArray(data.prospects) ? data.prospects : [];
+          const emails = prospects.map((item) => item.email).filter(Boolean);
+          textarea.value = emails.join("\n");
+          status.textContent = emails.length
+            ? `Auto-selected ${emails.length} qualified prospects.`
+            : "No qualified prospects found.";
+          if (data.prospects) {
+            renderFundingStatus({
+              last_status: "auto_selected",
+              last_run_at: new Date().toISOString(),
+              last_recipients: emails,
+              last_summary: emails.length ? `Auto-selected ${emails.length} prospect(s).` : "No qualified prospects found.",
+              last_recipient_source: "auto_discovery",
+              potential_recipients: prospects,
+              package: {},
+              public_links: { narcoguard: "https://narcoguard-pwa.vercel.app", funding: "https://gofund.me/e1a0b3f2" },
+            });
+          }
+          if (data.prospects) {
+            saveAutoState({ funding: { last_recipients: emails, potential_recipients: prospects, last_recipient_source: "auto_discovery" } });
+          }
+        } catch (error) {
+          status.textContent = `Lead discovery failed: ${error.message || "unknown error"}`;
+        } finally {
+          btn.innerText = originalText;
+          btn.disabled = false;
         }
       }
 
