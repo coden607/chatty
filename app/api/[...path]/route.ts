@@ -32,6 +32,7 @@ const sendgridFromEmail = process.env.SENDGRID_FROM_EMAIL || process.env.SENDGRI
 const sendgridFromName = process.env.SENDGRID_FROM_NAME || 'CHATTY';
 const narcoguardUrl = process.env.NARCOGUARD_URL || 'https://v0-narcoguard-pwa-build.vercel.app';
 const fundingUrl = process.env.NARCOGUARD_FUNDING_URL || process.env.GOFUNDME_URL || 'https://gofund.me/e1a0b3f2';
+const defaultSendgridFromEmail = 'noreply@narcoguard.com';
 
 function redactEmail(email: unknown) { if (typeof email !== 'string' || !email.includes('@')) return ''; const [local, domain] = email.split('@'); return `${local.slice(0, 2)}***@${domain}`; }
 function publicLead(lead: Lead) { return { ...lead, email: redactEmail(lead.email) }; }
@@ -100,14 +101,12 @@ async function sendSendGridEmail(payload: RecordValue) {
   const subject = String(payload.subject || '').trim();
   const text = String(payload.text || payload.content || '').trim();
   const html = typeof payload.html === 'string' ? payload.html.trim() : '';
-  const fromEmail = String(payload.from_email || payload.fromEmail || sendgridFromEmail || '').trim();
+  const fromEmail = String(payload.from_email || payload.fromEmail || sendgridFromEmail || defaultSendgridFromEmail).trim();
   const fromName = String(payload.from_name || payload.fromName || sendgridFromName || '').trim();
   const replyTo = String(payload.reply_to || payload.replyTo || '').trim();
   if (!to) throw new Error('A recipient email address is required.');
   if (!subject) throw new Error('An email subject is required.');
   if (!text && !html) throw new Error('Email content is required.');
-  if (!fromEmail) throw new Error('Configure `SENDGRID_FROM_EMAIL` or provide `from_email` in the request.');
-
   const body: RecordValue = {
     personalizations: [{ to: [{ email: to }], subject }],
     from: fromName ? { email: fromEmail, name: fromName } : { email: fromEmail },
@@ -234,8 +233,8 @@ function integrationStatus() {
     },
     sendgrid: {
       configured: Boolean(process.env.SENDGRID_API_KEY),
-      from_email_configured: Boolean(sendgridFromEmail),
-      ready: Boolean(process.env.SENDGRID_API_KEY && sendgridFromEmail),
+      from_email_configured: Boolean(sendgridFromEmail || defaultSendgridFromEmail),
+      ready: Boolean(process.env.SENDGRID_API_KEY),
     },
     n8n: {
       configured: Boolean(process.env.N8N_BASE_URL && process.env.N8N_API_KEY),
@@ -434,7 +433,6 @@ function missingIntegrations() {
   const missing: string[] = [];
   if (!process.env.NVIDIA_API_KEY && !process.env.OPENAI_API_KEY && !process.env.OPENROUTER_API_KEY) missing.push('AI provider key for live model generation');
   if (!process.env.SENDGRID_API_KEY) missing.push('SendGrid API key for outbound email');
-  if (!sendgridFromEmail) missing.push('SendGrid from email for outbound email');
   if (!process.env.TWITTER_API_KEY) missing.push('social provider credentials for outbound posts');
   if (!process.env.N8N_BASE_URL || !process.env.N8N_API_KEY) missing.push('n8n URL and API key for remote workflow activation');
   return missing;

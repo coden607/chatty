@@ -11,6 +11,9 @@ import asyncio
 from datetime import datetime
 from pathlib import Path
 
+NARCOGUARD_URL = os.getenv("NARCOGUARD_URL", "https://v0-narcoguard-pwa-build.vercel.app")
+FUNDING_URL = os.getenv("NARCOGUARD_FUNDING_URL", os.getenv("GOFUNDME_URL", "https://gofund.me/e1a0b3f2"))
+
 logger = logging.getLogger(__name__)
 
 class ViralGrowthEngine:
@@ -31,16 +34,16 @@ class ViralGrowthEngine:
         logger.info("🎬 Viral Growth: Running Hero Story Loop...")
         
         system_prompt = "You are a master storyteller and social media growth hacker."
-        user_prompt = """
+        user_prompt = f"""
         Create a 5-tweet thread telling the story of NarcoGuard's impact.
         Focus on: 'The Guardian on the Wrist'. 
         
         Story beats:
         1. The problem of solitary overdose.
         2. The 'Wait, there's a better way' moment.
-        3. Real-time demo: Watch the AI detect a crisis at https://v0-narcoguard-pwa-build.vercel.app
+        3. Real-time demo: Watch the AI detect a crisis at {NARCOGUARD_URL}
         4. The impact: Seconds saved, lives unified, families kept whole.
-        5. Call to action: Help us put these on 80 more wrists: https://gofund.me/9acf270ea
+        5. Call to action: Help us put these on 80 more wrists: {FUNDING_URL}
         
         Include emojis and high-engagement hooks.
         """
@@ -113,9 +116,9 @@ class ViralGrowthEngine:
             [
                 "1) Every day, someone overdoses alone. Minutes are lost. Families wait.",
                 "2) We built NarcoGuard because there had to be a faster way than hope.",
-                "3) See the live demo of our automated detection: https://v0-narcoguard-pwa-build.vercel.app",
+                f"3) See the live demo of our automated detection: {NARCOGUARD_URL}",
                 "4) Seconds saved turn into lives saved and families kept whole.",
-                "5) Help put 80 more on wrists in Broome County: https://gofund.me/9acf270ea",
+                f"5) Help put 80 more on wrists in Broome County: {FUNDING_URL}",
             ]
         )
 
