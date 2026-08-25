@@ -24,13 +24,26 @@ const generated: RecordValue = { type: '', draft: '' };
 const launchRuns: RecordValue[] = [];
 const pipelines: RecordValue[] = [{ name: 'Revenue Autopilot', status: 'active', progress: 41, stages: [{ name: 'Offer optimization', status: 'active' }, { name: 'Pricing experiments', status: 'queued' }] }];
 const autonomy = { state: { running: false, mode: 'production-dashboard', loop_interval_sec: 60, last_tick: null as string | null }, settings: { daily_budget: 250, risk_guardrails: 'conservative', primary_channel: 'email' } };
+const learning = {
+  score: 48,
+  last_tick: null as string | null,
+  last_signature: '',
+  insights: [] as string[],
+  recommendations: [] as string[],
+  signals: {
+    successful_actions: 0,
+    failed_actions: 0,
+    active_workflows: 0,
+    pending_integrations: 0,
+  },
+};
 
 const supabaseUrl = process.env.SUPABASE_URL;
 const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
 const stateId = 'global';
 const sendgridFromEmail = process.env.SENDGRID_FROM_EMAIL || process.env.SENDGRID_FROM || '';
 const sendgridFromName = process.env.SENDGRID_FROM_NAME || 'CHATTY';
-const narcoguardUrl = process.env.NARCOGUARD_URL || 'https://v0-narcoguard-pwa-build.vercel.app';
+const narcoguardUrl = process.env.NARCOGUARD_URL || 'https://narcoguard-pwa.vercel.app';
 const fundingUrl = process.env.NARCOGUARD_FUNDING_URL || process.env.GOFUNDME_URL || 'https://gofund.me/e1a0b3f2';
 const defaultSendgridFromEmail = 'noreply@narcoguard.com';
 
@@ -49,13 +62,19 @@ function appendPublicLinks(text: string) {
   if (hasNarcoguard && hasFunding) return text;
   return `${text}\n\n${footer}`;
 }
-function stateSnapshot() { return { workflows, tasks, collabEvents, promptHistory, messages, campaigns, n8nWorkflows, briefs, grants, experiments, pipelines, autonomy, generated, launchRuns }; }
+function stateSnapshot() { return { workflows, tasks, collabEvents, promptHistory, messages, campaigns, n8nWorkflows, briefs, grants, experiments, pipelines, autonomy, learning, generated, launchRuns }; }
 function replaceArray(target: RecordValue[], source: unknown) { if (Array.isArray(source)) { target.splice(0, target.length, ...source); } }
 function hydrateSnapshot(payload: RecordValue) {
   replaceArray(workflows, payload.workflows); replaceArray(tasks, payload.tasks); replaceArray(collabEvents, payload.collabEvents); replaceArray(promptHistory, payload.promptHistory); replaceArray(messages, payload.messages); replaceArray(campaigns, payload.campaigns); replaceArray(n8nWorkflows, payload.n8nWorkflows); replaceArray(briefs, payload.briefs); replaceArray(grants, payload.grants); replaceArray(experiments, payload.experiments); replaceArray(pipelines, payload.pipelines);
   replaceArray(launchRuns, payload.launchRuns);
   if (payload.generated) Object.assign(generated, payload.generated);
   if (payload.autonomy) { Object.assign(autonomy, payload.autonomy); Object.assign(autonomy.state, payload.autonomy.state || {}); Object.assign(autonomy.settings, payload.autonomy.settings || {}); }
+  if (payload.learning) {
+    Object.assign(learning, payload.learning);
+    Object.assign(learning.signals, payload.learning.signals || {});
+    learning.insights = Array.isArray(payload.learning.insights) ? payload.learning.insights : learning.insights;
+    learning.recommendations = Array.isArray(payload.learning.recommendations) ? payload.learning.recommendations : learning.recommendations;
+  }
 }
 async function hydrateFromSupabase() {
   if (!supabaseUrl || !supabaseServiceKey) return;
@@ -223,6 +242,81 @@ function buildN8nWorkflowDefinition(name: string, description: string, trigger: 
     },
   };
 }
+function clamp(value: number, min: number, max: number) { return Math.min(max, Math.max(min, value)); }
+function summarizeSignals() {
+  const recentEvents = collabEvents.slice(0, 12);
+  const failedActions = recentEvents.filter((event) => /fail|error|blocked/i.test(String(event.event || '') + ' ' + String(event.detail || ''))).length;
+  const successfulActions = recentEvents.filter((event) => /sent|launched|activated|generated|refreshed|queued|completed/i.test(String(event.event || '') + ' ' + String(event.detail || ''))).length;
+  const activeWorkflows = workflows.filter((workflow) => String(workflow.status || '').toLowerCase() === 'active').length + n8nWorkflows.filter((workflow) => String(workflow.remote_status || workflow.status || '').toLowerCase() === 'activated').length;
+  const pendingIntegrations = missingIntegrations().length;
+  const busyTasks = tasks.filter((task) => ['active', 'queued', 'pending'].includes(String(task.status || '').toLowerCase())).length;
+  const averageWorkflowProgress = workflows.length
+    ? Math.round(workflows.reduce((sum, workflow) => sum + Number(workflow.progress || 0), 0) / workflows.length)
+    : 0;
+  const score = clamp(
+    35 +
+      successfulActions * 5 +
+      activeWorkflows * 4 +
+      Math.min(15, averageWorkflowProgress / 5) +
+      Math.min(10, campaigns.length * 2) +
+      Math.min(10, n8nWorkflows.length * 2) -
+      failedActions * 7 -
+      pendingIntegrations * 5 -
+      Math.max(0, busyTasks - workflows.length),
+    0,
+    100,
+  );
+
+  const insights = [
+    activeWorkflows ? `${activeWorkflows} workflow${activeWorkflows === 1 ? '' : 's'} are active.` : 'No active workflows were detected.',
+    successfulActions ? `${successfulActions} recent action${successfulActions === 1 ? '' : 's'} completed successfully.` : 'No recent successful actions were recorded.',
+    pendingIntegrations ? `${pendingIntegrations} integration${pendingIntegrations === 1 ? '' : 's'} still need credentials or credits.` : 'All tracked integrations are currently satisfied.',
+    averageWorkflowProgress ? `Average workflow progress is ${averageWorkflowProgress}%.` : 'Workflow progress is not yet established.',
+  ].filter(Boolean).slice(0, 4);
+
+  const recommendations: string[] = [];
+  if (pendingIntegrations) recommendations.push(`Connect the missing integrations: ${missingIntegrations().join('; ')}.`);
+  if (failedActions) recommendations.push('Review the latest failed actions and retry the blocked automations.');
+  if (!n8nWorkflows.length) recommendations.push('Create or activate at least one n8n workflow so the automation layer can run outside the dashboard.');
+  if (!campaigns.length) recommendations.push('Seed a live campaign so learning has a conversion signal to optimize.');
+  if (!generated.draft) recommendations.push('Generate a fresh proposal, pitch, or video script to keep outbound content current.');
+
+  return {
+    score,
+    insights,
+    recommendations: recommendations.slice(0, 4),
+    signals: {
+      successful_actions: successfulActions,
+      failed_actions: failedActions,
+      active_workflows: activeWorkflows,
+      pending_integrations: pendingIntegrations,
+    },
+  };
+}
+function learnFromSignals(trigger = 'heartbeat') {
+  const previousSignature = learning.last_signature;
+  const signature = JSON.stringify({
+    workflows: workflows.map((workflow) => [workflow.id, workflow.status, workflow.progress, workflow.last_run]),
+    tasks: tasks.map((task) => [task.id, task.status, task.owner]),
+    collab: collabEvents.slice(0, 12).map((event) => [event.event, event.agent, event.detail]),
+    campaigns: campaigns.map((campaign) => [campaign.id, campaign.status, campaign.channel]),
+    n8n: n8nWorkflows.map((workflow) => [workflow.id, workflow.remote_status || workflow.status, workflow.remote_id || null]),
+    generated: [generated.type || '', String(generated.draft || '').length],
+    autonomy: [autonomy.state.running, autonomy.state.mode, autonomy.settings.primary_channel, autonomy.settings.daily_budget],
+    missing: missingIntegrations(),
+  });
+  const snapshot = summarizeSignals();
+  learning.score = snapshot.score;
+  learning.insights = snapshot.insights;
+  learning.recommendations = snapshot.recommendations;
+  learning.signals = snapshot.signals;
+  learning.last_tick = now();
+  learning.last_signature = signature;
+  if (trigger !== 'hydrate' && signature !== previousSignature) {
+    record('learning_update', 'orchestrator', `Learning loop updated to ${learning.score}% confidence.`);
+  }
+  return learning;
+}
 function leadsPayload() { const publicLeads = leadList.map(publicLead); return { total: publicLeads.length, new: publicLeads.filter((lead) => (lead.status || 'new') === 'new').length, leads: publicLeads }; }
 function weeklyPayload() { return { completed: collabEvents, events: collabEvents, summary: `Narcoguard automation is operational. ${campaigns.length} campaign(s), ${tasks.length} task(s), and ${messages.length} operator message(s) tracked.` }; }
 function integrationStatus() {
@@ -259,11 +353,12 @@ function integrationStatus() {
   };
 }
 function dashboardPayload() {
-  return { status: { status: 'running', systems_active: agents.length, total_automations: workflows.length, uptime_hours: 0, revenue_generated: 0 }, leads: leadsPayload(), workflows: { workflows }, agents: { agents }, tasks: { total: tasks.length, tasks }, collab: { total: collabEvents.length, events: collabEvents }, messages: { total: messages.length, messages }, autonomy, pipelines: { pipelines }, campaigns: { total: campaigns.length, campaigns }, n8n: { total: n8nWorkflows.length, workflows: n8nWorkflows }, transparency: { completed: collabEvents }, briefs: { briefs }, content: { briefs }, grants: { grants }, experiments: { experiments }, generated, integrations: integrationStatus(), anomalies: { anomalies: [] }, kpi: { anomalies: [] }, weekly: weeklyPayload(), weekly_brief: weeklyPayload(), timestamp: now() };
+  learnFromSignals('dashboard');
+  return { status: { status: 'running', systems_active: agents.length, total_automations: workflows.length, uptime_hours: 0, revenue_generated: 0 }, leads: leadsPayload(), workflows: { workflows }, agents: { agents }, tasks: { total: tasks.length, tasks }, collab: { total: collabEvents.length, events: collabEvents }, messages: { total: messages.length, messages }, autonomy, learning, pipelines: { pipelines }, campaigns: { total: campaigns.length, campaigns }, n8n: { total: n8nWorkflows.length, workflows: n8nWorkflows }, transparency: { completed: collabEvents }, briefs: { briefs }, content: { briefs }, grants: { grants }, experiments: { experiments }, generated, integrations: integrationStatus(), anomalies: { anomalies: [] }, kpi: { anomalies: [] }, weekly: weeklyPayload(), weekly_brief: weeklyPayload(), timestamp: now() };
 }
 function getPayload(path: string[]) {
   switch (path.join('/')) {
-    case 'dashboard/all': return dashboardPayload(); case 'leads': return leadsPayload(); case 'narcoguard/workflows': return { project: 'Narcoguard', workflows }; case 'narcoguard/launch/status': return { latest: launchRuns[0] || null, runs: launchRuns, events: collabEvents }; case 'agents': return { total: agents.length, agents }; case 'tasks': return { total: tasks.length, tasks }; case 'agents/collab': return { total: collabEvents.length, events: collabEvents }; case 'user/messages': return { total: messages.length, messages }; case 'autonomy/status': return autonomy; case 'pipelines': return { pipelines }; case 'campaigns': return { total: campaigns.length, campaigns }; case 'n8n/workflows': return { total: n8nWorkflows.length, workflows: n8nWorkflows }; case 'integrations/status': return integrationStatus(); case 'transparency/report': return { completed: collabEvents }; case 'content/briefs': return { briefs }; case 'grants': return { grants }; case 'experiments/pricing': return { experiments }; case 'kpi/anomalies': return { anomalies: [] }; case 'weekly/brief': return weeklyPayload(); default: return { status: 'ok', route: path.join('/') };
+    case 'dashboard/all': return dashboardPayload(); case 'leads': return leadsPayload(); case 'learning/status': return { learning: learnFromSignals('status'), timestamp: now() }; case 'narcoguard/workflows': return { project: 'Narcoguard', workflows }; case 'narcoguard/launch/status': return { latest: launchRuns[0] || null, runs: launchRuns, events: collabEvents }; case 'agents': return { total: agents.length, agents }; case 'tasks': return { total: tasks.length, tasks }; case 'agents/collab': return { total: collabEvents.length, events: collabEvents }; case 'user/messages': return { total: messages.length, messages }; case 'autonomy/status': return autonomy; case 'pipelines': return { pipelines }; case 'campaigns': return { total: campaigns.length, campaigns }; case 'n8n/workflows': return { total: n8nWorkflows.length, workflows: n8nWorkflows }; case 'integrations/status': return integrationStatus(); case 'transparency/report': return { completed: collabEvents }; case 'content/briefs': return { briefs }; case 'grants': return { grants }; case 'experiments/pricing': return { experiments }; case 'kpi/anomalies': return { anomalies: [] }; case 'weekly/brief': return weeklyPayload(); default: return { status: 'ok', route: path.join('/') };
   }
 }
 async function body(request: Request): Promise<RecordValue> { try { return await request.json() as RecordValue; } catch { return {}; } }
@@ -274,7 +369,7 @@ export function POST(request: Request, context: { params: Promise<{ path: string
   return context.params.then(async ({ path }) => {
     const route = path.join('/'); const data = await body(request);
     await hydrateFromSupabase();
-    const finish = async (payload: unknown, status = 200) => { await persistToSupabase(); return json(payload, status); };
+    const finish = async (payload: unknown, status = 200) => { learnFromSignals(route); await persistToSupabase(); return json(payload, status); };
     if (route === 'narcoguard/launch') {
       const launchId = 'narcoguard-production-launch-v1';
       const existing = campaigns.find((campaign) => campaign.launch_id === launchId);

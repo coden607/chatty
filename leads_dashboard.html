@@ -582,6 +582,15 @@
           </div>
         </div>
         <div class="panel">
+          <h3>Learning Loop</h3>
+          <div id="learning-status" class="prompt-log">
+            <div class="log-entry">Waiting for first learning tick...</div>
+          </div>
+          <div class="prompt-row">
+            <button class="btn" onclick="fetchLearningStatus()">Refresh Learning</button>
+          </div>
+        </div>
+        <div class="panel">
           <h3>Outbound Email</h3>
           <input id="email-to" aria-label="Recipient email" class="prompt-textarea" placeholder="Recipient email" />
           <input id="email-subject" aria-label="Email subject" class="prompt-textarea" placeholder="Subject" />
@@ -897,6 +906,7 @@
         if (saved.collab) data.collab = saved.collab;
         if (saved.messages) data.messages = saved.messages;
         if (saved.autonomy) data.autonomy = saved.autonomy;
+        if (saved.learning) data.learning = saved.learning;
         if (saved.pipelines) data.pipelines = saved.pipelines;
         if (saved.campaigns) data.campaigns = saved.campaigns;
         if (saved.n8n) data.n8n = saved.n8n;
@@ -997,7 +1007,7 @@
           const data = await response.json();
           if (!response.ok || !["launched", "already_launched"].includes(data.status)) throw new Error(data.detail || "Launch failed");
           const snapshot = data.dashboard || {};
-          saveAutoState({ workflows: snapshot.workflows, tasks: snapshot.tasks, collab: snapshot.collab, messages: snapshot.messages, autonomy: snapshot.autonomy, pipelines: snapshot.pipelines, campaigns: snapshot.campaigns, n8n: snapshot.n8n, briefs: snapshot.briefs, content: snapshot.content, grants: snapshot.grants, experiments: snapshot.experiments, generated: snapshot.generated, weekly: snapshot.weekly });
+          saveAutoState({ workflows: snapshot.workflows, tasks: snapshot.tasks, collab: snapshot.collab, messages: snapshot.messages, autonomy: snapshot.autonomy, learning: snapshot.learning, pipelines: snapshot.pipelines, campaigns: snapshot.campaigns, n8n: snapshot.n8n, briefs: snapshot.briefs, content: snapshot.content, grants: snapshot.grants, experiments: snapshot.experiments, generated: snapshot.generated, weekly: snapshot.weekly });
           if (snapshot.workflows) renderWorkflows(snapshot.workflows.workflows || []);
           if (snapshot.tasks) renderTasks(snapshot.tasks.tasks || []);
           if (snapshot.collab) renderCollabFeed(snapshot.collab.events || []);
@@ -1044,6 +1054,7 @@
           if (data.collab) renderCollabFeed(data.collab.events || []);
           if (data.messages) renderOperatorMessages(data.messages.messages || []);
           if (data.autonomy) renderAutonomyStatus(data.autonomy.state, data.autonomy.settings);
+          if (data.learning) renderLearningStatus(data.learning);
           if (data.pipelines) renderPipelines(data.pipelines.pipelines || data.pipelines);
           if (data.campaigns) renderCampaigns(data.campaigns.campaigns || []);
           if (data.n8n) renderN8nWorkflows(data.n8n.workflows || []);
@@ -1054,6 +1065,7 @@
           if (data.integrations) renderIntegrationStatus(data.integrations);
           if (data.kpi) renderAnomalies(data.kpi.anomalies || []);
           if (data.weekly) document.getElementById("weekly-brief").textContent = data.weekly.summary || "No summary.";
+          if (data.learning) saveAutoState({ learning: data.learning });
 
           const status = document.getElementById("status-msg");
           if (status) {
@@ -1575,6 +1587,7 @@
           if (data.collab) renderCollabFeed(data.collab.events || []);
           if (data.messages) renderOperatorMessages(data.messages.messages || []);
           if (data.autonomy) renderAutonomyStatus(data.autonomy.state, data.autonomy.settings);
+          if (data.learning) renderLearningStatus(data.learning);
           if (data.pipelines) renderPipelines(data.pipelines.pipelines || []);
           if (data.campaigns) renderCampaigns(data.campaigns.campaigns || []);
           if (data.n8n) renderN8nWorkflows(data.n8n.workflows || []);
@@ -1585,6 +1598,7 @@
           if (data.integrations) renderIntegrationStatus(data.integrations);
           if (data.anomalies) renderAnomalies(data.anomalies.anomalies || []);
           if (data.weekly) document.getElementById("weekly-brief").textContent = data.weekly.summary || "No summary.";
+          if (data.learning) saveAutoState({ learning: data.learning });
 
           statusMsg.innerText = `Refreshed at ${new Date().toLocaleTimeString()}`;
           setTimeout(() => (statusMsg.style.opacity = 0), 3000);
@@ -1619,6 +1633,33 @@
         status.innerHTML = `<strong>Status:</strong> ${escapeHTML(state.running ? "running" : "stopped")} • Mode: ${escapeHTML(state.mode)}<br><strong>Last tick:</strong> ${escapeHTML(state.last_tick || "n/a")}`;
         document.getElementById("autonomy-budget").value = settings.daily_budget ?? "";
         document.getElementById("autonomy-channel").value = settings.primary_channel ?? "";
+      }
+
+      function renderLearningStatus(learning) {
+        const status = document.getElementById("learning-status");
+        if (!status) return;
+        const insights = Array.isArray(learning?.insights) ? learning.insights : [];
+        const recommendations = Array.isArray(learning?.recommendations) ? learning.recommendations : [];
+        const signals = learning?.signals || {};
+        status.innerHTML = `
+          <div class="log-entry"><strong>Score</strong> • ${escapeHTML(String(learning?.score ?? 0))}%<br>Last tick: ${escapeHTML(learning?.last_tick || "n/a")}</div>
+          <div class="log-entry"><strong>Signals</strong> • Success ${escapeHTML(String(signals.successful_actions ?? 0))}, Fail ${escapeHTML(String(signals.failed_actions ?? 0))}, Active ${escapeHTML(String(signals.active_workflows ?? 0))}, Pending ${escapeHTML(String(signals.pending_integrations ?? 0))}</div>
+          <div class="log-entry"><strong>Insights</strong><br>${insights.length ? insights.map((item) => escapeHTML(item)).join("<br>") : "No insights yet."}</div>
+          <div class="log-entry"><strong>Recommendations</strong><br>${recommendations.length ? recommendations.map((item) => escapeHTML(item)).join("<br>") : "No recommendations yet."}</div>
+        `;
+      }
+
+      async function fetchLearningStatus() {
+        try {
+          const response = await fetch(`${apiBase}/api/learning/status`);
+          const data = await response.json();
+          if (data.learning) {
+            renderLearningStatus(data.learning);
+            saveAutoState({ learning: data.learning });
+          }
+        } catch (error) {
+          console.error("Failed to fetch learning status:", error);
+        }
       }
 
       async function startAutonomy() {
@@ -2094,6 +2135,7 @@
           if (data.collab) renderCollabFeed(data.collab.events || []);
           if (data.messages) renderOperatorMessages(data.messages.messages || []);
           if (data.autonomy) renderAutonomyStatus(data.autonomy.state, data.autonomy.settings);
+          if (data.learning) renderLearningStatus(data.learning);
           if (data.pipelines) renderPipelines(data.pipelines.pipelines || []);
           if (data.campaigns) renderCampaigns(data.campaigns.campaigns || []);
           if (data.n8n) renderN8nWorkflows(data.n8n.workflows || []);
@@ -2104,6 +2146,7 @@
           if (data.integrations) renderIntegrationStatus(data.integrations);
           if (data.anomalies) renderAnomalies(data.anomalies.anomalies || []);
           if (data.brief) document.getElementById("weekly-brief").textContent = data.brief.summary || "No summary.";
+          if (data.learning) saveAutoState({ learning: data.learning });
 
           console.log("Dashboard consolidated heartbeat successful");
         } catch (error) {
@@ -2176,11 +2219,13 @@
       setInterval(fetchDashboardAll, 30000);
       setInterval(fetchLaunchActivity, 10000);
       setInterval(fetchIntegrationStatus, 30000);
+      setInterval(fetchLearningStatus, 15000);
 
       // Initial load
       fetchDashboardAll();
       fetchLaunchActivity();
       fetchIntegrationStatus();
+      fetchLearningStatus();
 
       if ("serviceWorker" in navigator) {
         window.addEventListener("load", () => {
