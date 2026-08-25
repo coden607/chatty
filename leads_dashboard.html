@@ -745,7 +745,9 @@
             </div>
             <div class="prompt-row">
               <button class="btn" onclick="saveAutonomySettings()">Save Settings</button>
+              <button class="btn" onclick="runAutomationSweep(this)">Run Automation Sweep</button>
             </div>
+            <div id="automation-sweep-status" class="generator-output" aria-live="polite">No automation sweep has run yet.</div>
           </div>
           <div class="panel">
             <h3>Pipelines</h3>
@@ -886,6 +888,7 @@
 
       const apiBase = window.location.protocol === "file:" ? "http://localhost:8080" : window.location.origin;
       const autoSaveKey = "chatty-dashboard-state-v1";
+      let autonomyRunning = false;
 
       function loadAutoSavedState() {
         try { return JSON.parse(localStorage.getItem(autoSaveKey) || "{}"); }
@@ -1632,7 +1635,8 @@
 
       function renderAutonomyStatus(state, settings) {
         const status = document.getElementById("autonomy-status");
-        status.innerHTML = `<strong>Status:</strong> ${escapeHTML(state.running ? "running" : "stopped")} • Mode: ${escapeHTML(state.mode)}<br><strong>Last tick:</strong> ${escapeHTML(state.last_tick || "n/a")}`;
+        autonomyRunning = Boolean(state?.running);
+        status.innerHTML = `<strong>Status:</strong> ${escapeHTML(state.running ? "running" : "stopped")} • Mode: ${escapeHTML(state.mode)}<br><strong>Last tick:</strong> ${escapeHTML(state.last_tick || "n/a")}<br><strong>Last sweep:</strong> ${escapeHTML(state.last_sweep_at || "n/a")}<br><strong>Sweep summary:</strong> ${escapeHTML(state.last_sweep_summary || "No sweep summary yet.")}`;
         document.getElementById("autonomy-budget").value = settings.daily_budget ?? "";
         document.getElementById("autonomy-channel").value = settings.primary_channel ?? "";
       }
@@ -1697,6 +1701,66 @@
         if (!response.ok || data.status !== "updated") throw new Error(data.detail || "Settings update failed");
         saveAutoState({ autonomy: { state: data.state, settings: data.settings }, collab: { total: (data.events || []).length, events: data.events || [] } });
         renderAutonomyStatus(data.state, data.settings);
+      }
+
+      async function runAutomationSweep(btn) {
+        const status = document.getElementById("automation-sweep-status");
+        const originalText = btn.innerText;
+        btn.innerText = "Sweeping...";
+        btn.disabled = true;
+        status.textContent = "Running automation sweep...";
+        try {
+          const response = await fetch(`${apiBase}/api/automation/sweep`, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ force: true })
+          });
+          const data = await response.json();
+          if (!response.ok || data.status !== "completed") throw new Error(data.detail || data.summary || "Automation sweep failed");
+          status.textContent = data.summary || "Automation sweep completed.";
+          if (data.dashboard) {
+            const snapshot = data.dashboard;
+            saveAutoState({ workflows: snapshot.workflows, tasks: snapshot.tasks, collab: snapshot.collab, messages: snapshot.messages, autonomy: snapshot.autonomy, learning: snapshot.learning, pipelines: snapshot.pipelines, campaigns: snapshot.campaigns, n8n: snapshot.n8n, briefs: snapshot.briefs, content: snapshot.content, grants: snapshot.grants, experiments: snapshot.experiments, generated: snapshot.generated, weekly: snapshot.weekly });
+            if (snapshot.workflows) renderWorkflows(snapshot.workflows.workflows || []);
+            if (snapshot.tasks) renderTasks(snapshot.tasks.tasks || []);
+            if (snapshot.collab) renderCollabFeed(snapshot.collab.events || []);
+            if (snapshot.messages) renderOperatorMessages(snapshot.messages.messages || []);
+            if (snapshot.autonomy) renderAutonomyStatus(snapshot.autonomy.state, snapshot.autonomy.settings);
+            if (snapshot.learning) renderLearningStatus(snapshot.learning);
+            if (snapshot.pipelines) renderPipelines(snapshot.pipelines.pipelines || snapshot.pipelines);
+            if (snapshot.campaigns) renderCampaigns(snapshot.campaigns.campaigns || []);
+            if (snapshot.n8n) renderN8nWorkflows(snapshot.n8n.workflows || []);
+            if (snapshot.content) renderContentBriefs(snapshot.content.briefs || []);
+            if (snapshot.grants) renderGrants(snapshot.grants.grants || []);
+            if (snapshot.experiments) renderPricingExperiments(snapshot.experiments.experiments || []);
+            if (snapshot.integrations) renderIntegrationStatus(snapshot.integrations);
+            if (snapshot.weekly) document.getElementById("weekly-brief").textContent = snapshot.weekly.summary || "No summary.";
+          } else {
+            await refreshAll();
+          }
+        } catch (error) {
+          status.textContent = `Automation sweep failed: ${error.message || "unknown error"}`;
+        } finally {
+          btn.innerText = originalText;
+          btn.disabled = false;
+        }
+      }
+
+      async function maybeAutoSweep() {
+        if (!autonomyRunning) return;
+        try {
+          const response = await fetch(`${apiBase}/api/automation/sweep`, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ force: false })
+          });
+          const data = await response.json();
+          if (response.ok && data.status === "completed") {
+            await refreshAll();
+          }
+        } catch (error) {
+          console.error("Automatic sweep failed:", error);
+        }
       }
 
       async function fetchPipelines() {
@@ -2222,6 +2286,7 @@
       setInterval(fetchLaunchActivity, 10000);
       setInterval(fetchIntegrationStatus, 30000);
       setInterval(fetchLearningStatus, 15000);
+      setInterval(maybeAutoSweep, 60000);
 
       // Initial load
       fetchDashboardAll();
