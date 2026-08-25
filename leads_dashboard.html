@@ -1314,7 +1314,12 @@
           { name: "AI providers", ready: data?.ai?.configured, detail: data?.ai?.configured ? `Live providers: ${(data.ai.providers || []).join(", ")}` : "No live model provider configured." },
           { name: "Social", ready: data?.social?.ready, detail: data?.social?.ready ? "Posting integrations available." : "No social credentials configured." }
         ];
-        list.innerHTML = entries.map((entry) => `<div class="log-entry"><strong>${escapeHTML(entry.name)}</strong> • ${entry.ready ? "ready" : "pending"}<br>${escapeHTML(entry.detail)}</div>`).join("");
+        const links = data?.public_links || {};
+        const linkHtml = [];
+        if (links.narcoguard) linkHtml.push(`<a href="${escapeHTML(links.narcoguard)}" target="_blank" rel="noreferrer">NarcoGuard</a>`);
+        if (links.funding) linkHtml.push(`<a href="${escapeHTML(links.funding)}" target="_blank" rel="noreferrer">Funding</a>`);
+        const publicLinks = linkHtml.length ? `<div class="log-entry"><strong>Public links</strong><br>${linkHtml.join(" • ")}</div>` : "";
+        list.innerHTML = entries.map((entry) => `<div class="log-entry"><strong>${escapeHTML(entry.name)}</strong> • ${entry.ready ? "ready" : "pending"}<br>${escapeHTML(entry.detail)}</div>`).join("") + publicLinks;
       }
 
       async function fetchIntegrationStatus() {

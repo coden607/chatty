@@ -30,12 +30,24 @@ const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
 const stateId = 'global';
 const sendgridFromEmail = process.env.SENDGRID_FROM_EMAIL || process.env.SENDGRID_FROM || '';
 const sendgridFromName = process.env.SENDGRID_FROM_NAME || 'CHATTY';
+const narcoguardUrl = process.env.NARCOGUARD_URL || 'https://v0-narcoguard-pwa-build.vercel.app';
+const fundingUrl = process.env.NARCOGUARD_FUNDING_URL || process.env.GOFUNDME_URL || 'https://gofund.me/e1a0b3f2';
 
 function redactEmail(email: unknown) { if (typeof email !== 'string' || !email.includes('@')) return ''; const [local, domain] = email.split('@'); return `${local.slice(0, 2)}***@${domain}`; }
 function publicLead(lead: Lead) { return { ...lead, email: redactEmail(lead.email) }; }
 function now() { return new Date().toISOString(); }
 function json(data: unknown, status = 200) { return Response.json(data, { status, headers: { 'cache-control': 'no-store' } }); }
 function record(event: string, agent: string, detail: string) { collabEvents.unshift({ event, agent, detail, timestamp: now() }); collabEvents.splice(20); }
+function publicLinksFooter() {
+  return `NarcoGuard: ${narcoguardUrl}\nFunding: ${fundingUrl}`;
+}
+function appendPublicLinks(text: string) {
+  const footer = publicLinksFooter();
+  const hasNarcoguard = text.includes(narcoguardUrl);
+  const hasFunding = text.includes(fundingUrl);
+  if (hasNarcoguard && hasFunding) return text;
+  return `${text}\n\n${footer}`;
+}
 function stateSnapshot() { return { workflows, tasks, collabEvents, promptHistory, messages, campaigns, n8nWorkflows, briefs, grants, experiments, pipelines, autonomy, generated, launchRuns }; }
 function replaceArray(target: RecordValue[], source: unknown) { if (Array.isArray(source)) { target.splice(0, target.length, ...source); } }
 function hydrateSnapshot(payload: RecordValue) {
@@ -104,6 +116,11 @@ async function sendSendGridEmail(payload: RecordValue) {
   if (text) body.content.push({ type: 'text/plain', value: text });
   if (html) body.content.push({ type: 'text/html', value: html });
   if (replyTo) body.reply_to = { email: replyTo };
+  body.content = body.content.map((entry: RecordValue) => {
+    if (entry.type === 'text/plain') return { ...entry, value: appendPublicLinks(String(entry.value || '')) };
+    if (entry.type === 'text/html') return { ...entry, value: `${String(entry.value || '')}<p><a href="${narcoguardUrl}">NarcoGuard</a> · <a href="${fundingUrl}">Funding</a></p>` };
+    return entry;
+  });
 
   const response = await fetch('https://api.sendgrid.com/v3/mail/send', {
     method: 'POST',
@@ -211,6 +228,10 @@ function leadsPayload() { const publicLeads = leadList.map(publicLead); return {
 function weeklyPayload() { return { completed: collabEvents, events: collabEvents, summary: `Narcoguard automation is operational. ${campaigns.length} campaign(s), ${tasks.length} task(s), and ${messages.length} operator message(s) tracked.` }; }
 function integrationStatus() {
   return {
+    public_links: {
+      narcoguard: narcoguardUrl,
+      funding: fundingUrl,
+    },
     sendgrid: {
       configured: Boolean(process.env.SENDGRID_API_KEY),
       from_email_configured: Boolean(sendgridFromEmail),
@@ -311,7 +332,7 @@ export function POST(request: Request, context: { params: Promise<{ path: string
       const description = String(data.description || '');
       const trigger = String(data.trigger || 'manual');
       const definition = buildN8nWorkflowDefinition(name, description, trigger);
-      const workflow = { id: Date.now(), name, description, trigger, path: `n8n_workflows/${name.toLowerCase().replace(/[^a-z0-9]+/g, '-')}.json`, status: 'ready', created_at: now(), definition, remote_definition: definition };
+      const workflow: RecordValue = { id: Date.now(), name, description, trigger, path: `n8n_workflows/${name.toLowerCase().replace(/[^a-z0-9]+/g, '-')}.json`, status: 'ready', created_at: now(), definition, remote_definition: definition };
       let remote: RecordValue | null = null;
       try {
         if (process.env.N8N_BASE_URL && process.env.N8N_API_KEY) remote = await pushWorkflowToN8n(workflow);
@@ -364,7 +385,7 @@ export function POST(request: Request, context: { params: Promise<{ path: string
       try {
         const result = await sendSendGridEmail(data);
         record('email_sent', 'acquisition_engine', `Sent email to ${String(data.to || '').trim()}.`);
-        return finish({ status: 'sent', ...result, events: collabEvents });
+        return finish({ ...result, status: 'sent', events: collabEvents });
       } catch (error) {
         record('email_failed', 'acquisition_engine', `Email send failed: ${error instanceof Error ? error.message : 'unknown error'}`);
         return finish({ status: 'failed', detail: error instanceof Error ? error.message : 'Email send failed' }, 502);
@@ -379,7 +400,7 @@ export function POST(request: Request, context: { params: Promise<{ path: string
         const text = String(data.text || data.content || `Hello ${String(lead.name || 'there')},\n\nWe are reaching out with a supervised pilot update from Narcoguard.`);
         const result = await sendSendGridEmail({ ...data, to: lead.email, subject, text });
         record('lead_email_sent', 'acquisition_engine', `Sent email to lead ${id}.`);
-        return finish({ status: 'sent', lead_id: id, ...result, events: collabEvents });
+        return finish({ ...result, status: 'sent', lead_id: id, events: collabEvents });
       } catch (error) {
         record('lead_email_failed', 'acquisition_engine', `Lead email failed for ${id}: ${error instanceof Error ? error.message : 'unknown error'}`);
         return finish({ status: 'failed', detail: error instanceof Error ? error.message : 'Lead email send failed' }, 502);
@@ -391,10 +412,10 @@ export function POST(request: Request, context: { params: Promise<{ path: string
     if (route === 'proposals/draft' || route === 'press/pitch' || route === 'video/script') {
       const type = route === 'proposals/draft' ? 'proposal' : route === 'press/pitch' ? 'pitch' : 'video';
       const prompt = type === 'proposal'
-        ? `Draft a concise supervised pilot proposal for Narcoguard. Title: ${String(data.title || 'Operational overdose-response intelligence')}. Include scope, implementation steps, measurable pilot metrics, assumptions, and a clear call to action. State unknowns explicitly.`
+        ? `Draft a concise supervised pilot proposal for Narcoguard. Title: ${String(data.title || 'Operational overdose-response intelligence')}. Include scope, implementation steps, measurable pilot metrics, assumptions, and a clear call to action. State unknowns explicitly. End with these links exactly: NarcoGuard ${narcoguardUrl} and Funding ${fundingUrl}.`
         : type === 'pitch'
-          ? `Draft a concise press pitch for Narcoguard. Angle: ${String(data.angle || 'measurable field impact')}. Use a factual public-health tone, avoid unsupported claims, and include a suggested headline and why-now paragraph.`
-          : 'Draft a concise 60-second video script for Narcoguard explaining the operational problem, the supervised pilot, and the next step. Do not claim measured results that are not provided.';
+          ? `Draft a concise press pitch for Narcoguard. Angle: ${String(data.angle || 'measurable field impact')}. Use a factual public-health tone, avoid unsupported claims, and include a suggested headline and why-now paragraph. End with these links exactly: NarcoGuard ${narcoguardUrl} and Funding ${fundingUrl}.`
+          : `Draft a concise 60-second video script for Narcoguard explaining the operational problem, the supervised pilot, and the next step. Do not claim measured results that are not provided. End with these links exactly: NarcoGuard ${narcoguardUrl} and Funding ${fundingUrl}.`;
       try {
         const result = await generateWithProvider(prompt);
         generated.type = type; generated.draft = result.text;
