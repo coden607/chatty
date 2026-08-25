@@ -620,6 +620,10 @@
             <button class="btn" onclick="addYouTubeWatchlist(this)">Add to Watchlist</button>
             <button class="btn" onclick="learnFromYouTube(this)">Learn Now</button>
           </div>
+          <div class="prompt-row">
+            <button class="btn" onclick="seedColeMedinChannel(this)">Seed Cole Medin</button>
+            <button class="btn" onclick="runColeMedinLearning(this)">Run Cole Learning</button>
+          </div>
           <div id="youtube-status" class="generator-output" aria-live="polite">Waiting for YouTube input...</div>
         </div>
         <div class="panel">
@@ -1737,11 +1741,14 @@
         if (!status) return;
         const watchlist = Array.isArray(youtube?.watchlist) ? youtube.watchlist : [];
         const insights = Array.isArray(youtube?.last_insights) ? youtube.last_insights : [];
+        const cole = youtube?.cole_medin || {};
+        const pendingCole = Array.isArray(cole?.pending_videos) ? cole.pending_videos : [];
         status.innerHTML = `
           <div class="log-entry"><strong>Status</strong> • ${escapeHTML(youtube?.last_status || "idle")}<br>Last run: ${escapeHTML(youtube?.last_run_at || "n/a")}</div>
           <div class="log-entry"><strong>Last video</strong> • ${escapeHTML(youtube?.last_video_title || "No video yet.")}<br>${escapeHTML(youtube?.last_video_url || "")}</div>
           <div class="log-entry"><strong>Summary</strong> • ${escapeHTML(youtube?.last_summary || "No YouTube learning yet.")}</div>
           <div class="log-entry"><strong>Insights</strong><br>${insights.length ? insights.map((item) => escapeHTML(item)).join("<br>") : "No insights yet."}</div>
+          <div class="log-entry"><strong>Cole Medin</strong> • ${escapeHTML(String(cole?.seeded_videos || 0))} seeded, ${escapeHTML(String(cole?.learned_videos || 0))} learned<br>${pendingCole.length ? escapeHTML(pendingCole.slice(0, 3).map((item) => item.title || item.url).join(" | ")) : "No pending Cole Medin videos."}</div>
           <div class="log-entry"><strong>Watchlist</strong> • ${watchlist.length ? escapeHTML(watchlist.map((item) => String(item.url || "")).join(" | ")) : "No queued videos."}</div>
         `;
       }
@@ -1782,6 +1789,67 @@
           }
         } catch (error) {
           console.error("Failed to fetch YouTube status:", error);
+        }
+      }
+
+      async function seedColeMedinChannel(btn) {
+        const status = document.getElementById("youtube-status");
+        const originalText = btn.innerText;
+        btn.innerText = "Seeding...";
+        btn.disabled = true;
+        status.textContent = "Seeding Cole Medin channel feed...";
+        try {
+          const response = await fetch(`${apiBase}/api/youtube/cole-medin/seed`, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ limit: 5 })
+          });
+          const data = await response.json();
+          if (!response.ok || data.status !== "seeded") throw new Error(data.detail || "Cole Medin seed failed");
+          if (data.youtube) {
+            renderYouTubeStatus(data.youtube);
+            saveAutoState({ youtube: data.youtube });
+          }
+          if (data.dashboard?.youtube) {
+            renderYouTubeStatus(data.dashboard.youtube);
+            saveAutoState({ youtube: data.dashboard.youtube });
+          }
+        } catch (error) {
+          status.textContent = `Cole Medin seed failed: ${error.message || "unknown error"}`;
+        } finally {
+          btn.innerText = originalText;
+          btn.disabled = false;
+        }
+      }
+
+      async function runColeMedinLearning(btn) {
+        const status = document.getElementById("youtube-status");
+        const originalText = btn.innerText;
+        btn.innerText = "Learning...";
+        btn.disabled = true;
+        status.textContent = "Running Cole Medin learning...";
+        try {
+          const response = await fetch(`${apiBase}/api/youtube/cole-medin/run`, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ limit: 3 })
+          });
+          const data = await response.json();
+          if (!response.ok || !["learned", "idle"].includes(data.status)) throw new Error(data.detail || "Cole Medin learning failed");
+          if (data.youtube) {
+            renderYouTubeStatus(data.youtube);
+            saveAutoState({ youtube: data.youtube });
+          }
+          if (data.dashboard?.youtube) {
+            renderYouTubeStatus(data.dashboard.youtube);
+            saveAutoState({ youtube: data.dashboard.youtube });
+          }
+          status.textContent = data.summary || "Cole Medin learning complete.";
+        } catch (error) {
+          status.textContent = `Cole Medin learning failed: ${error.message || "unknown error"}`;
+        } finally {
+          btn.innerText = originalText;
+          btn.disabled = false;
         }
       }
 

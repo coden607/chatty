@@ -76,6 +76,8 @@ const resendFromEmail = process.env.RESEND_FROM_EMAIL || sendgridFromEmail || de
 const resendFromName = process.env.RESEND_FROM_NAME || sendgridFromName || 'CHATTY';
 const narcoguardUrl = process.env.NARCOGUARD_URL || 'https://narcoguard-pwa.vercel.app';
 const fundingUrl = process.env.NARCOGUARD_FUNDING_URL || process.env.GOFUNDME_URL || 'https://gofund.me/e1a0b3f2';
+const coleMedinChannelId = 'UCZ92LYsgE9p2pZtF6LZ8B2A';
+const coleMedinChannelUrl = 'https://www.youtube.com/@ColeMedin';
 
 function redactEmail(email: unknown) { if (typeof email !== 'string' || !email.includes('@')) return ''; const [local, domain] = email.split('@'); return `${local.slice(0, 2)}***@${domain}`; }
 function publicLead(lead: Lead) { return { ...lead, email: redactEmail(lead.email) }; }
@@ -147,6 +149,42 @@ function extractYouTubeVideoId(url: string) {
 function isYouTubeUrl(url: string) {
   return /youtube\.com|youtu\.be/i.test(String(url || ''));
 }
+function decodeXmlEntities(text: string) {
+  return String(text || '')
+    .replace(/&amp;/g, '&')
+    .replace(/&lt;/g, '<')
+    .replace(/&gt;/g, '>')
+    .replace(/&quot;/g, '"')
+    .replace(/&#39;/g, "'");
+}
+function extractFeedEntries(xml: string) {
+  const entries: Array<{ title: string; url: string; video_id: string; published: string; updated: string }> = [];
+  const entryPattern = /<entry>([\s\S]*?)<\/entry>/g;
+  let match: RegExpExecArray | null;
+  while ((match = entryPattern.exec(xml))) {
+    const entry = match[1];
+    const title = decodeXmlEntities((entry.match(/<title>([\s\S]*?)<\/title>/)?.[1] || '').trim());
+    const videoId = (entry.match(/<yt:videoId>([\s\S]*?)<\/yt:videoId>/)?.[1] || '').trim();
+    const url = (entry.match(/<link[^>]+href="([^"]+)"/)?.[1] || (videoId ? `https://www.youtube.com/watch?v=${videoId}` : '')).trim();
+    const published = (entry.match(/<published>([\s\S]*?)<\/published>/)?.[1] || '').trim();
+    const updated = (entry.match(/<updated>([\s\S]*?)<\/updated>/)?.[1] || '').trim();
+    if (url) {
+      entries.push({ title, url, video_id: videoId, published, updated });
+    }
+  }
+  return entries;
+}
+async function fetchColeMedinFeed(limit = 5) {
+  try {
+    const response = await fetch(`https://www.youtube.com/feeds/videos.xml?channel_id=${coleMedinChannelId}`, { cache: 'no-store' });
+    if (!response.ok) return [];
+    const xml = await response.text();
+    return extractFeedEntries(xml).slice(0, limit);
+  } catch (error) {
+    console.error('Cole Medin feed fetch failed', error);
+    return [];
+  }
+}
 async function fetchYouTubeMetadata(url: string) {
   const videoId = extractYouTubeVideoId(url);
   if (!videoId) {
@@ -170,6 +208,115 @@ async function fetchYouTubeMetadata(url: string) {
     console.error('YouTube metadata fetch failed', error);
   }
   return { videoId, title: '', description: '', author: '', url: `https://www.youtube.com/watch?v=${videoId}` };
+}
+async function seedColeMedinWatchlist(limit = 5) {
+  const entries = await fetchColeMedinFeed(limit);
+  const added: RecordValue[] = [];
+  for (const entry of entries) {
+    const existing = youtubeWatchlist.find((item) => String(item.url || '') === entry.url);
+    if (existing) {
+      existing.source = 'cole_medin';
+      existing.channel = 'Cole Medin';
+      existing.channel_url = coleMedinChannelUrl;
+      existing.channel_id = coleMedinChannelId;
+      existing.title = existing.title || entry.title;
+      continue;
+    }
+    const watchItem = {
+      id: Date.now() + youtubeWatchlist.length,
+      url: entry.url,
+      title: entry.title,
+      video_id: entry.video_id,
+      channel: 'Cole Medin',
+      channel_url: coleMedinChannelUrl,
+      channel_id: coleMedinChannelId,
+      source: 'cole_medin',
+      created_at: now(),
+      learned_at: null as string | null,
+      last_summary: '',
+    };
+    youtubeWatchlist.unshift(watchItem);
+    added.push(watchItem);
+  }
+  if (added.length) {
+    record('youtube_watchlist', 'orchestrator', `Seeded ${added.length} Cole Medin video(s) from the channel feed.`);
+  }
+  return { added, entries, youtube: youtubeStatus() };
+}
+function applyColeMedinInsights(payload: RecordValue, meta: RecordValue) {
+  const text = `${String(payload.summary || '')} ${JSON.stringify(payload.insights || [])} ${JSON.stringify(payload.actions || [])} ${JSON.stringify(payload.keywords || [])}`.toLowerCase();
+  const applied: RecordValue[] = [];
+  const pushTask = (title: string, detail: string) => {
+    tasks.unshift({ id: Date.now() + tasks.length, title, owner: 'orchestrator', priority: 'high', status: 'queued', source: 'cole_medin_learning', detail, created_at: now() });
+    applied.push({ type: 'task', title });
+  };
+  const pushBrief = (title: string, detail: string) => {
+    briefs.unshift({ id: Date.now() + briefs.length, title, source: 'Cole Medin learning', status: 'ready', created_at: now(), detail });
+    applied.push({ type: 'brief', title });
+  };
+  const pushWorkflow = (name: string, description: string) => {
+    n8nWorkflows.unshift({ id: Date.now() + n8nWorkflows.length, name, description, trigger: 'manual', status: 'ready', source: 'cole_medin_learning', created_at: now() });
+    applied.push({ type: 'workflow', name });
+  };
+  const pushExperiment = (name: string, hypothesis: string) => {
+    experiments.unshift({ id: Date.now() + experiments.length, name, hypothesis, metric: 'learning_adoption', status: 'planned', source: 'cole_medin_learning', created_at: now() });
+    applied.push({ type: 'experiment', name });
+  };
+
+  if (text.includes('agent zero')) {
+    pushTask('Implement Agent Zero fleet coordination pattern', 'Cole Medin video emphasized fleet coordination and agent specialization.');
+    pushWorkflow('Cole Medin Agent Zero Pattern', 'Turn Cole Medin Agent Zero guidance into a reusable fleet coordination workflow.');
+  }
+  if (text.includes('archon 2') || text.includes('archon')) {
+    pushTask('Apply Archon 2 style orchestration', 'Cole Medin video emphasized hierarchical orchestration and strategic planning.');
+    pushBrief('Cole Medin Archon 2 notes', 'Summarize Archon-style orchestration patterns for the CHATTY planner.');
+  }
+  if (text.includes('bmad')) {
+    pushTask('Extend BMAD behavioral modeling', 'Cole Medin video emphasized behavioral modeling and feedback loops.');
+    pushExperiment('BMAD learning loop refinement', 'Measure whether behavioral modeling improves automation outcomes.');
+  }
+  if (text.includes('rag') || text.includes('second brain') || text.includes('context engineering') || text.includes('knowledge base')) {
+    pushWorkflow('YouTube knowledge base ingestion', 'Use Cole Medin-style context engineering to improve learning from external content.');
+    pushBrief('Context engineering notes', 'Capture Cole Medin context-engineering patterns for reuse in Chatty.');
+  }
+  if (!applied.length) {
+    pushBrief(`Cole Medin video note: ${String(meta.title || 'video')}`, String(payload.summary || 'No explicit implementation notes extracted.'));
+  }
+
+  generated.type = 'cole_medin_learning';
+  generated.draft = `${String(meta.title || 'Cole Medin video')}\n\n${String(payload.summary || '')}`.trim();
+  learning.recommendations = Array.from(new Set([...(payload.actions || []).map((item: unknown) => String(item)), ...(payload.insights || []).map((item: unknown) => String(item)), ...learning.recommendations])).slice(0, 10);
+  record('cole_medin_applied', 'orchestrator', `Applied ${applied.length} Cole Medin insight(s) from ${String(meta.title || meta.url || 'video')}.`);
+  return applied;
+}
+async function runColeMedinLearning(limit = 3) {
+  const seeded = await seedColeMedinWatchlist(Math.max(limit, 5));
+  const targets = youtubeWatchlist.filter((item) => String(item.source || '') === 'cole_medin' && !item.learned_at).slice(0, limit);
+  const learned: RecordValue[] = [];
+  const applied: RecordValue[] = [];
+  const videos = targets.length ? targets : seeded.entries.map((entry) => ({ ...entry, source: 'cole_medin' }));
+  for (const video of videos.slice(0, limit)) {
+    const result = await runYouTubeLearning([String(video.url || '')], 'cole_medin');
+    const details = applyColeMedinInsights(result, video);
+    learned.push({ url: video.url, title: video.title || result.run?.video_title || '', summary: result.summary, run: result.run });
+    applied.push(...details);
+    const watched = youtubeWatchlist.find((item) => String(item.url || '') === String(video.url || ''));
+    if (watched) {
+      watched.learned_at = now();
+      watched.last_summary = result.summary;
+      watched.last_applied = details.map((item) => item.title || item.name).filter(Boolean);
+    }
+  }
+  youtubeLearning.last_status = learned.length ? 'cole_medin_learned' : youtubeLearning.last_status;
+  youtubeLearning.last_summary = learned.length ? `Cole Medin learning complete for ${learned.length} video(s).` : youtubeLearning.last_summary;
+  return {
+    status: learned.length ? 'learned' : 'idle',
+    summary: youtubeLearning.last_summary || 'No Cole Medin videos processed.',
+    learned,
+    applied,
+    youtube: youtubeStatus(),
+    recent_runs: youtubeLearningRuns,
+  };
 }
 function discoverPotentialRecipients(limit = maxAutoFundingRecipients) {
   const candidates = leadList
@@ -397,6 +544,18 @@ async function runAutomationCycle(trigger = 'dashboard', force = false) {
     } catch (error) {
       nextYouTube.last_error = error instanceof Error ? error.message : 'YouTube learning failed';
       actions.push(`YouTube learning failed for ${String(nextYouTube.url || '')}.`);
+    }
+  }
+
+  const coleMedinAutoEnabled = String(process.env.CHATTY_COLE_MEDIN_AUTO || 'true').toLowerCase() !== 'false';
+  if (coleMedinAutoEnabled) {
+    try {
+      const coleResult = await runColeMedinLearning(1);
+      if (coleResult.learned?.length) {
+        actions.push(`Learned from Cole Medin channel: ${String(coleResult.learned[0]?.title || coleResult.learned[0]?.url || 'video')}.`);
+      }
+    } catch (error) {
+      actions.push(`Cole Medin learning failed: ${error instanceof Error ? error.message : 'unknown error'}.`);
     }
   }
 
@@ -643,6 +802,13 @@ function youtubeStatus() {
     learned_count: youtubeLearning.learned_count,
     watchlist_count: youtubeWatchlist.length,
     watchlist: youtubeWatchlist.slice(0, 10),
+    cole_medin: {
+      channel: coleMedinChannelUrl,
+      channel_id: coleMedinChannelId,
+      seeded_videos: youtubeWatchlist.filter((item) => String(item.source || '') === 'cole_medin').length,
+      learned_videos: youtubeWatchlist.filter((item) => String(item.source || '') === 'cole_medin' && Boolean(item.learned_at)).length,
+      pending_videos: youtubeWatchlist.filter((item) => String(item.source || '') === 'cole_medin' && !item.learned_at).slice(0, 5),
+    },
   };
 }
 async function runYouTubeLearning(urls: string[] = [], trigger = 'manual') {
@@ -978,7 +1144,7 @@ function dashboardPayload() {
 }
 function getPayload(path: string[]) {
   switch (path.join('/')) {
-    case 'dashboard/all': return dashboardPayload(); case 'leads': return leadsPayload(); case 'leads/prospects': return prospectsPayload(); case 'learning/status': return { learning: learnFromSignals('status'), youtube: youtubeStatus(), timestamp: now() }; case 'automation/status': return { autonomy, learning: learnFromSignals('status'), governance: governanceStatus(), funding: fundingStatus(), youtube: youtubeStatus(), timestamp: now() }; case 'governance/status': return { governance: governanceStatus(), timestamp: now() }; case 'funding/status': return { funding: fundingStatus(), funding_runs: fundingRuns, timestamp: now() }; case 'youtube/status': return { youtube: youtubeStatus(), recent_runs: youtubeLearningRuns, timestamp: now() }; case 'narcoguard/workflows': return { project: 'Narcoguard', workflows }; case 'narcoguard/launch/status': return { latest: launchRuns[0] || null, runs: launchRuns, events: collabEvents }; case 'agents': return { total: agents.length, agents }; case 'tasks': return { total: tasks.length, tasks }; case 'agents/collab': return { total: collabEvents.length, events: collabEvents }; case 'user/messages': return { total: messages.length, messages }; case 'autonomy/status': return autonomy; case 'pipelines': return { pipelines }; case 'campaigns': return { total: campaigns.length, campaigns }; case 'n8n/workflows': return { total: n8nWorkflows.length, workflows: n8nWorkflows }; case 'integrations/status': return integrationStatus(); case 'transparency/report': return { completed: collabEvents }; case 'content/briefs': return { briefs }; case 'grants': return { grants }; case 'experiments/pricing': return { experiments }; case 'kpi/anomalies': return { anomalies: [] }; case 'weekly/brief': return weeklyPayload(); default: return { status: 'ok', route: path.join('/') };
+    case 'dashboard/all': return dashboardPayload(); case 'leads': return leadsPayload(); case 'leads/prospects': return prospectsPayload(); case 'learning/status': return { learning: learnFromSignals('status'), youtube: youtubeStatus(), timestamp: now() }; case 'automation/status': return { autonomy, learning: learnFromSignals('status'), governance: governanceStatus(), funding: fundingStatus(), youtube: youtubeStatus(), timestamp: now() }; case 'governance/status': return { governance: governanceStatus(), timestamp: now() }; case 'funding/status': return { funding: fundingStatus(), funding_runs: fundingRuns, timestamp: now() }; case 'youtube/status': return { youtube: youtubeStatus(), recent_runs: youtubeLearningRuns, timestamp: now() }; case 'youtube/cole-medin/status': return { youtube: youtubeStatus(), recent_runs: youtubeLearningRuns.filter((run) => String(run.trigger || '').includes('cole')), timestamp: now() }; case 'narcoguard/workflows': return { project: 'Narcoguard', workflows }; case 'narcoguard/launch/status': return { latest: launchRuns[0] || null, runs: launchRuns, events: collabEvents }; case 'agents': return { total: agents.length, agents }; case 'tasks': return { total: tasks.length, tasks }; case 'agents/collab': return { total: collabEvents.length, events: collabEvents }; case 'user/messages': return { total: messages.length, messages }; case 'autonomy/status': return autonomy; case 'pipelines': return { pipelines }; case 'campaigns': return { total: campaigns.length, campaigns }; case 'n8n/workflows': return { total: n8nWorkflows.length, workflows: n8nWorkflows }; case 'integrations/status': return integrationStatus(); case 'transparency/report': return { completed: collabEvents }; case 'content/briefs': return { briefs }; case 'grants': return { grants }; case 'experiments/pricing': return { experiments }; case 'kpi/anomalies': return { anomalies: [] }; case 'weekly/brief': return weeklyPayload(); default: return { status: 'ok', route: path.join('/') };
   }
 }
 async function body(request: Request): Promise<RecordValue> { try { return await request.json() as RecordValue; } catch { return {}; } }
@@ -1041,6 +1207,24 @@ export function POST(request: Request, context: { params: Promise<{ path: string
     if (route === 'automation/sweep') {
       const result = await runAutomationCycle('manual', Boolean(data.force));
       return finish({ status: result.ran ? 'completed' : 'skipped', ...result, dashboard: await dashboardPayload(), events: collabEvents });
+    }
+    if (route === 'youtube/cole-medin/seed') {
+      try {
+        const result = await seedColeMedinWatchlist(Number(data.limit || 5));
+        return finish({ status: 'seeded', ...result, dashboard: await dashboardPayload(), events: collabEvents });
+      } catch (error) {
+        record('youtube_cole_medin_failed', 'orchestrator', `Cole Medin seeding failed: ${error instanceof Error ? error.message : 'unknown error'}`);
+        return finish({ status: 'failed', detail: error instanceof Error ? error.message : 'Cole Medin seeding failed' }, 502);
+      }
+    }
+    if (route === 'youtube/cole-medin/run') {
+      try {
+        const result = await runColeMedinLearning(Number(data.limit || 3));
+        return finish({ ...result, dashboard: await dashboardPayload(), events: collabEvents });
+      } catch (error) {
+        record('youtube_cole_medin_failed', 'orchestrator', `Cole Medin learning failed: ${error instanceof Error ? error.message : 'unknown error'}`);
+        return finish({ status: 'failed', detail: error instanceof Error ? error.message : 'Cole Medin learning failed' }, 502);
+      }
     }
     if (route === 'youtube/watchlist') {
       const urls = Array.isArray(data.urls) ? data.urls : [data.url].filter(Boolean);
