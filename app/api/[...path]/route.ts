@@ -454,6 +454,64 @@ function learnFromSignals(trigger = 'heartbeat') {
   }
   return learning;
 }
+function governanceStatus() {
+  const emailReady = Boolean(process.env.SENDGRID_API_KEY || resendApiKey);
+  const executorReady = Boolean(
+    process.env.N8N_BASE_URL && process.env.N8N_API_KEY
+    || emailReady
+    || Boolean(process.env.TWITTER_API_KEY)
+  );
+  const recentFailures = collabEvents
+    .slice(0, 20)
+    .filter((event) => /fail|error|blocked/i.test(`${String(event.event || '')} ${String(event.detail || '')}`));
+  const recentSweeps = collabEvents
+    .slice(0, 20)
+    .filter((event) => event.event === 'automation_sweep');
+  return {
+    planner: {
+      name: 'Archon2',
+      branch: 'planner',
+      ready: Boolean(agents.length && workflows.length),
+      source: 'hierarchical task decomposition',
+      active_coordinators: agents.filter((agent) => ['orchestrator', 'revenue_engine', 'content_engine', 'investor_relations'].includes(agent.name)).length,
+      guidance: learning.recommendations[0] || 'Use Archon2 to break work into delegated subtasks.',
+    },
+    executor: {
+      name: 'n8n + providers',
+      branch: 'executor',
+      ready: executorReady,
+      n8n_ready: Boolean(process.env.N8N_BASE_URL && process.env.N8N_API_KEY),
+      email_ready: emailReady,
+      social_ready: Boolean(process.env.TWITTER_API_KEY),
+      active_workflows: n8nWorkflows.length,
+      guidance: executorReady ? 'Execution paths available.' : 'Connect at least one execution provider.',
+    },
+    oversight: {
+      name: 'BMAD',
+      branch: 'oversight',
+      ready: true,
+      source: 'behavioral modeling and validation',
+      validation_checks: [
+        'transparency logging',
+        'learning loop score',
+        'failure detection',
+        'integration readiness',
+      ],
+      recent_failures: recentFailures.length,
+      recent_sweeps: recentSweeps.length,
+      guidance: recentFailures.length ? 'Review recent failures before expanding automation.' : 'Oversight layer is clear.',
+    },
+    balance_score: clamp(
+      30 +
+      (Boolean(agents.length && workflows.length) ? 20 : 0) +
+      (executorReady ? 25 : 0) +
+      (recentFailures.length ? -recentFailures.length * 5 : 10) +
+      (recentSweeps.length ? 5 : 0),
+      0,
+      100,
+    ),
+  };
+}
 function leadsPayload() { const publicLeads = leadList.map(publicLead); return { total: publicLeads.length, new: publicLeads.filter((lead) => (lead.status || 'new') === 'new').length, leads: publicLeads }; }
 function weeklyPayload() { return { completed: collabEvents, events: collabEvents, summary: `Narcoguard automation is operational. ${campaigns.length} campaign(s), ${tasks.length} task(s), and ${messages.length} operator message(s) tracked.` }; }
 function integrationStatus() {
@@ -506,11 +564,11 @@ function integrationStatus() {
 }
 function dashboardPayload() {
   learnFromSignals('dashboard');
-  return { status: { status: 'running', systems_active: agents.length, total_automations: workflows.length, uptime_hours: 0, revenue_generated: 0 }, leads: leadsPayload(), workflows: { workflows }, agents: { agents }, tasks: { total: tasks.length, tasks }, collab: { total: collabEvents.length, events: collabEvents }, messages: { total: messages.length, messages }, autonomy, learning, pipelines: { pipelines }, campaigns: { total: campaigns.length, campaigns }, n8n: { total: n8nWorkflows.length, workflows: n8nWorkflows }, transparency: { completed: collabEvents }, briefs: { briefs }, content: { briefs }, grants: { grants }, experiments: { experiments }, generated, integrations: integrationStatus(), anomalies: { anomalies: [] }, kpi: { anomalies: [] }, weekly: weeklyPayload(), weekly_brief: weeklyPayload(), timestamp: now() };
+  return { status: { status: 'running', systems_active: agents.length, total_automations: workflows.length, uptime_hours: 0, revenue_generated: 0 }, leads: leadsPayload(), workflows: { workflows }, agents: { agents }, tasks: { total: tasks.length, tasks }, collab: { total: collabEvents.length, events: collabEvents }, messages: { total: messages.length, messages }, autonomy, learning, governance: governanceStatus(), pipelines: { pipelines }, campaigns: { total: campaigns.length, campaigns }, n8n: { total: n8nWorkflows.length, workflows: n8nWorkflows }, transparency: { completed: collabEvents }, briefs: { briefs }, content: { briefs }, grants: { grants }, experiments: { experiments }, generated, integrations: integrationStatus(), anomalies: { anomalies: [] }, kpi: { anomalies: [] }, weekly: weeklyPayload(), weekly_brief: weeklyPayload(), timestamp: now() };
 }
 function getPayload(path: string[]) {
   switch (path.join('/')) {
-    case 'dashboard/all': return dashboardPayload(); case 'leads': return leadsPayload(); case 'learning/status': return { learning: learnFromSignals('status'), timestamp: now() }; case 'automation/status': return { autonomy, learning: learnFromSignals('status'), timestamp: now() }; case 'narcoguard/workflows': return { project: 'Narcoguard', workflows }; case 'narcoguard/launch/status': return { latest: launchRuns[0] || null, runs: launchRuns, events: collabEvents }; case 'agents': return { total: agents.length, agents }; case 'tasks': return { total: tasks.length, tasks }; case 'agents/collab': return { total: collabEvents.length, events: collabEvents }; case 'user/messages': return { total: messages.length, messages }; case 'autonomy/status': return autonomy; case 'pipelines': return { pipelines }; case 'campaigns': return { total: campaigns.length, campaigns }; case 'n8n/workflows': return { total: n8nWorkflows.length, workflows: n8nWorkflows }; case 'integrations/status': return integrationStatus(); case 'transparency/report': return { completed: collabEvents }; case 'content/briefs': return { briefs }; case 'grants': return { grants }; case 'experiments/pricing': return { experiments }; case 'kpi/anomalies': return { anomalies: [] }; case 'weekly/brief': return weeklyPayload(); default: return { status: 'ok', route: path.join('/') };
+    case 'dashboard/all': return dashboardPayload(); case 'leads': return leadsPayload(); case 'learning/status': return { learning: learnFromSignals('status'), timestamp: now() }; case 'automation/status': return { autonomy, learning: learnFromSignals('status'), governance: governanceStatus(), timestamp: now() }; case 'governance/status': return { governance: governanceStatus(), timestamp: now() }; case 'narcoguard/workflows': return { project: 'Narcoguard', workflows }; case 'narcoguard/launch/status': return { latest: launchRuns[0] || null, runs: launchRuns, events: collabEvents }; case 'agents': return { total: agents.length, agents }; case 'tasks': return { total: tasks.length, tasks }; case 'agents/collab': return { total: collabEvents.length, events: collabEvents }; case 'user/messages': return { total: messages.length, messages }; case 'autonomy/status': return autonomy; case 'pipelines': return { pipelines }; case 'campaigns': return { total: campaigns.length, campaigns }; case 'n8n/workflows': return { total: n8nWorkflows.length, workflows: n8nWorkflows }; case 'integrations/status': return integrationStatus(); case 'transparency/report': return { completed: collabEvents }; case 'content/briefs': return { briefs }; case 'grants': return { grants }; case 'experiments/pricing': return { experiments }; case 'kpi/anomalies': return { anomalies: [] }; case 'weekly/brief': return weeklyPayload(); default: return { status: 'ok', route: path.join('/') };
   }
 }
 async function body(request: Request): Promise<RecordValue> { try { return await request.json() as RecordValue; } catch { return {}; } }

@@ -591,6 +591,15 @@
           </div>
         </div>
         <div class="panel">
+          <h3>Governance Balance</h3>
+          <div id="governance-status" class="prompt-log">
+            <div class="log-entry">Waiting for governance snapshot...</div>
+          </div>
+          <div class="prompt-row">
+            <button class="btn" onclick="fetchGovernanceStatus()">Refresh Governance</button>
+          </div>
+        </div>
+        <div class="panel">
           <h3>Outbound Email</h3>
           <input id="email-to" aria-label="Recipient email" class="prompt-textarea" placeholder="Recipient email" />
           <input id="email-subject" aria-label="Email subject" class="prompt-textarea" placeholder="Subject" />
@@ -910,6 +919,7 @@
         if (saved.messages) data.messages = saved.messages;
         if (saved.autonomy) data.autonomy = saved.autonomy;
         if (saved.learning) data.learning = saved.learning;
+        if (saved.governance) data.governance = saved.governance;
         if (saved.pipelines) data.pipelines = saved.pipelines;
         if (saved.campaigns) data.campaigns = saved.campaigns;
         if (saved.n8n) data.n8n = saved.n8n;
@@ -1010,7 +1020,7 @@
           const data = await response.json();
           if (!response.ok || !["launched", "already_launched"].includes(data.status)) throw new Error(data.detail || "Launch failed");
           const snapshot = data.dashboard || {};
-          saveAutoState({ workflows: snapshot.workflows, tasks: snapshot.tasks, collab: snapshot.collab, messages: snapshot.messages, autonomy: snapshot.autonomy, learning: snapshot.learning, pipelines: snapshot.pipelines, campaigns: snapshot.campaigns, n8n: snapshot.n8n, briefs: snapshot.briefs, content: snapshot.content, grants: snapshot.grants, experiments: snapshot.experiments, generated: snapshot.generated, weekly: snapshot.weekly });
+          saveAutoState({ workflows: snapshot.workflows, tasks: snapshot.tasks, collab: snapshot.collab, messages: snapshot.messages, autonomy: snapshot.autonomy, learning: snapshot.learning, governance: snapshot.governance, pipelines: snapshot.pipelines, campaigns: snapshot.campaigns, n8n: snapshot.n8n, briefs: snapshot.briefs, content: snapshot.content, grants: snapshot.grants, experiments: snapshot.experiments, generated: snapshot.generated, weekly: snapshot.weekly });
           if (snapshot.workflows) renderWorkflows(snapshot.workflows.workflows || []);
           if (snapshot.tasks) renderTasks(snapshot.tasks.tasks || []);
           if (snapshot.collab) renderCollabFeed(snapshot.collab.events || []);
@@ -1058,6 +1068,7 @@
           if (data.messages) renderOperatorMessages(data.messages.messages || []);
           if (data.autonomy) renderAutonomyStatus(data.autonomy.state, data.autonomy.settings);
           if (data.learning) renderLearningStatus(data.learning);
+          if (data.governance) renderGovernanceStatus(data.governance);
           if (data.pipelines) renderPipelines(data.pipelines.pipelines || data.pipelines);
           if (data.campaigns) renderCampaigns(data.campaigns.campaigns || []);
           if (data.n8n) renderN8nWorkflows(data.n8n.workflows || []);
@@ -1069,6 +1080,7 @@
           if (data.kpi) renderAnomalies(data.kpi.anomalies || []);
           if (data.weekly) document.getElementById("weekly-brief").textContent = data.weekly.summary || "No summary.";
           if (data.learning) saveAutoState({ learning: data.learning });
+          if (data.governance) saveAutoState({ governance: data.governance });
 
           const status = document.getElementById("status-msg");
           if (status) {
@@ -1593,6 +1605,7 @@
           if (data.messages) renderOperatorMessages(data.messages.messages || []);
           if (data.autonomy) renderAutonomyStatus(data.autonomy.state, data.autonomy.settings);
           if (data.learning) renderLearningStatus(data.learning);
+          if (data.governance) renderGovernanceStatus(data.governance);
           if (data.pipelines) renderPipelines(data.pipelines.pipelines || []);
           if (data.campaigns) renderCampaigns(data.campaigns.campaigns || []);
           if (data.n8n) renderN8nWorkflows(data.n8n.workflows || []);
@@ -1604,6 +1617,7 @@
           if (data.anomalies) renderAnomalies(data.anomalies.anomalies || []);
           if (data.weekly) document.getElementById("weekly-brief").textContent = data.weekly.summary || "No summary.";
           if (data.learning) saveAutoState({ learning: data.learning });
+          if (data.governance) saveAutoState({ governance: data.governance });
 
           statusMsg.innerText = `Refreshed at ${new Date().toLocaleTimeString()}`;
           setTimeout(() => (statusMsg.style.opacity = 0), 3000);
@@ -1655,6 +1669,33 @@
         `;
       }
 
+      function renderGovernanceStatus(governance) {
+        const status = document.getElementById("governance-status");
+        if (!status) return;
+        const planner = governance?.planner || {};
+        const executor = governance?.executor || {};
+        const oversight = governance?.oversight || {};
+        status.innerHTML = `
+          <div class="log-entry"><strong>Balance</strong> • ${escapeHTML(String(governance?.balance_score ?? 0))}%</div>
+          <div class="log-entry"><strong>Planner</strong> • ${escapeHTML(planner.name || "n/a")} • ${planner.ready ? "ready" : "pending"}<br>${escapeHTML(planner.guidance || "No guidance.")}</div>
+          <div class="log-entry"><strong>Executor</strong> • ${escapeHTML(executor.name || "n/a")} • ${executor.ready ? "ready" : "pending"}<br>${escapeHTML(executor.guidance || "No execution guidance.")}</div>
+          <div class="log-entry"><strong>Oversight</strong> • ${escapeHTML(oversight.name || "n/a")} • ${oversight.ready ? "ready" : "pending"}<br>${escapeHTML(oversight.guidance || "No oversight guidance.")}</div>
+        `;
+      }
+
+      async function fetchGovernanceStatus() {
+        try {
+          const response = await fetch(`${apiBase}/api/governance/status`);
+          const data = await response.json();
+          if (data.governance) {
+            renderGovernanceStatus(data.governance);
+            saveAutoState({ governance: data.governance });
+          }
+        } catch (error) {
+          console.error("Failed to fetch governance status:", error);
+        }
+      }
+
       async function fetchLearningStatus() {
         try {
           const response = await fetch(`${apiBase}/api/learning/status`);
@@ -1662,6 +1703,10 @@
           if (data.learning) {
             renderLearningStatus(data.learning);
             saveAutoState({ learning: data.learning });
+          }
+          if (data.governance) {
+            renderGovernanceStatus(data.governance);
+            saveAutoState({ governance: data.governance });
           }
         } catch (error) {
           console.error("Failed to fetch learning status:", error);
@@ -1672,7 +1717,7 @@
         const response = await fetch(`${apiBase}/api/autonomy/start`, { method: "POST" });
         const data = await response.json();
         if (!response.ok || data.status !== "started") throw new Error(data.detail || "Autonomy start failed");
-        saveAutoState({ autonomy: { state: data.state, settings: data.settings }, collab: { total: (data.events || []).length, events: data.events || [] } });
+          saveAutoState({ autonomy: { state: data.state, settings: data.settings }, collab: { total: (data.events || []).length, events: data.events || [] }, governance: data.governance });
         renderAutonomyStatus(data.state, data.settings);
         renderCollabFeed(data.events || []);
       }
@@ -1681,7 +1726,7 @@
         const response = await fetch(`${apiBase}/api/autonomy/stop`, { method: "POST" });
         const data = await response.json();
         if (!response.ok || data.status !== "stopped") throw new Error(data.detail || "Autonomy stop failed");
-        saveAutoState({ autonomy: { state: data.state, settings: data.settings }, collab: { total: (data.events || []).length, events: data.events || [] } });
+          saveAutoState({ autonomy: { state: data.state, settings: data.settings }, collab: { total: (data.events || []).length, events: data.events || [] }, governance: data.governance });
         renderAutonomyStatus(data.state, data.settings);
         renderCollabFeed(data.events || []);
       }
@@ -1699,7 +1744,7 @@
         });
         const data = await response.json();
         if (!response.ok || data.status !== "updated") throw new Error(data.detail || "Settings update failed");
-        saveAutoState({ autonomy: { state: data.state, settings: data.settings }, collab: { total: (data.events || []).length, events: data.events || [] } });
+        saveAutoState({ autonomy: { state: data.state, settings: data.settings }, collab: { total: (data.events || []).length, events: data.events || [] }, governance: data.governance });
         renderAutonomyStatus(data.state, data.settings);
       }
 
@@ -1720,7 +1765,7 @@
           status.textContent = data.summary || "Automation sweep completed.";
           if (data.dashboard) {
             const snapshot = data.dashboard;
-            saveAutoState({ workflows: snapshot.workflows, tasks: snapshot.tasks, collab: snapshot.collab, messages: snapshot.messages, autonomy: snapshot.autonomy, learning: snapshot.learning, pipelines: snapshot.pipelines, campaigns: snapshot.campaigns, n8n: snapshot.n8n, briefs: snapshot.briefs, content: snapshot.content, grants: snapshot.grants, experiments: snapshot.experiments, generated: snapshot.generated, weekly: snapshot.weekly });
+            saveAutoState({ workflows: snapshot.workflows, tasks: snapshot.tasks, collab: snapshot.collab, messages: snapshot.messages, autonomy: snapshot.autonomy, learning: snapshot.learning, governance: snapshot.governance, pipelines: snapshot.pipelines, campaigns: snapshot.campaigns, n8n: snapshot.n8n, briefs: snapshot.briefs, content: snapshot.content, grants: snapshot.grants, experiments: snapshot.experiments, generated: snapshot.generated, weekly: snapshot.weekly });
             if (snapshot.workflows) renderWorkflows(snapshot.workflows.workflows || []);
             if (snapshot.tasks) renderTasks(snapshot.tasks.tasks || []);
             if (snapshot.collab) renderCollabFeed(snapshot.collab.events || []);
@@ -2213,6 +2258,7 @@
           if (data.anomalies) renderAnomalies(data.anomalies.anomalies || []);
           if (data.brief) document.getElementById("weekly-brief").textContent = data.brief.summary || "No summary.";
           if (data.learning) saveAutoState({ learning: data.learning });
+          if (data.governance) saveAutoState({ governance: data.governance });
 
           console.log("Dashboard consolidated heartbeat successful");
         } catch (error) {
@@ -2286,6 +2332,7 @@
       setInterval(fetchLaunchActivity, 10000);
       setInterval(fetchIntegrationStatus, 30000);
       setInterval(fetchLearningStatus, 15000);
+      setInterval(fetchGovernanceStatus, 30000);
       setInterval(maybeAutoSweep, 60000);
 
       // Initial load
@@ -2293,6 +2340,7 @@
       fetchLaunchActivity();
       fetchIntegrationStatus();
       fetchLearningStatus();
+      fetchGovernanceStatus();
 
       if ("serviceWorker" in navigator) {
         window.addEventListener("load", () => {
