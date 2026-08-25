@@ -24,6 +24,9 @@ _secrets_file = os.getenv("CHATTY_SECRETS_FILE")
 if _secrets_file:
     load_dotenv(os.path.expanduser(_secrets_file), override=True)  # secrets always win
 
+NARCOGUARD_URL = os.getenv("NARCOGUARD_URL", "https://v0-narcoguard-pwa-build.vercel.app")
+FUNDING_URL = os.getenv("NARCOGUARD_FUNDING_URL", os.getenv("GOFUNDME_URL", "https://gofund.me/e1a0b3f2"))
+
 # Heavy SDK imports moved to module level to reduce request-time latency
 print("⏳ Loading Financial & AI SDKs (Stripe, Anthropic, SendGrid)...")
 import stripe
@@ -83,7 +86,7 @@ class AutomatedRevenueEngine:
         self.checkout_url = (
             os.getenv("STRIPE_PAYMENT_LINK")
             or os.getenv("CHECKOUT_URL")
-            or "https://v0-narcoguard-pwa-build.vercel.app"
+            or NARCOGUARD_URL
         )
         
         # Configure libraries
@@ -520,7 +523,7 @@ class AutomatedRevenueEngine:
             try:
                 self.last_llm_provider = f"OpenRouter #{i+1}"
                 logger.info(f"🔁 Trying {self.last_llm_provider}")
-                headers = {"Authorization": f"Bearer {key}", "Content-Type": "application/json", "HTTP-Referer": "https://narcoguard.com", "X-Title": "NarcoGuard AI"}
+                headers = {"Authorization": f"Bearer {key}", "Content-Type": "application/json", "HTTP-Referer": NARCOGUARD_URL, "X-Title": "NarcoGuard AI"}
                 payload = {"model": "openai/gpt-3.5-turbo", "messages": [{"role": "system", "content": sys}, {"role": "user", "content": usr}], "max_tokens": max_tokens}
                 response = await asyncio.to_thread(requests.post, "https://openrouter.ai/api/v1/chat/completions", headers=headers, json=payload, timeout=30)
                 if response.status_code == 429:
@@ -539,7 +542,7 @@ class AutomatedRevenueEngine:
                 if not key:
                     continue
                 try:
-                    headers = {"Authorization": f"Bearer {key}", "Content-Type": "application/json", "HTTP-Referer": "https://narcoguard.com"}
+                    headers = {"Authorization": f"Bearer {key}", "Content-Type": "application/json", "HTTP-Referer": NARCOGUARD_URL}
                     payload = {"model": model, "messages": [{"role": "system", "content": sys}, {"role": "user", "content": usr}], "max_tokens": max_tokens}
                     response = await asyncio.to_thread(requests.post, "https://openrouter.ai/api/v1/chat/completions", headers=headers, json=payload, timeout=30)
                     if response.status_code == 200:
@@ -1017,9 +1020,9 @@ class AutomatedRevenueEngine:
                 [
                     "1/5: Imagine a world where an overdose is detected instantly, and help is already on the way. That world is here. #NarcoGuard #AISavesLives",
                     "2/5: Most overdoses happen in isolation. That's why we built the NG2 Guardian Watch. It monitors vitals and alerts first responders within seconds.",
-                    "3/5: See the full ecosystem in action. Try the live app demo here: https://v0-narcoguard-pwa-build.vercel.app",
+                    f"3/5: See the full ecosystem in action. Try the live app demo here: {NARCOGUARD_URL}",
                     "4/5: The results so far? Hundreds of leads, growing partnerships, and a clear path to saving thousands of lives.",
-                    "5/5: Join the revolution. Help us scale our Broome County pilot. Donate here: https://gofund.me/9acf270ea",
+                    f"5/5: Join the revolution. Help us scale our Broome County pilot. Donate here: {FUNDING_URL}",
                 ]
             )
         if "gofundme" in user_prompt_lower or "update" in user_prompt_lower:
@@ -1032,7 +1035,7 @@ class AutomatedRevenueEngine:
                     "Key milestone: our automation stack is online and actively building the pilot pipeline.",
                     "",
                     "How you can help:",
-                    "1. Donate to our GoFundMe: https://gofund.me/9acf270ea",
+                    f"1. Donate to our GoFundMe: {FUNDING_URL}",
                     "2. Share this update with your network.",
                     "",
                     "Together, we can reduce response times and save lives.",
@@ -1057,7 +1060,7 @@ class AutomatedRevenueEngine:
                     # AFFILIATE/PROMO CONFIGURATION
                     promo_links = {
                         "main_product": self.checkout_url,
-                        "funding_page": "https://gofund.me/9acf270ea", 
+                        "funding_page": FUNDING_URL,
                     }
                     
                     links_context = "\n".join([f"- Use this link for {k}: {v}" for k,v in promo_links.items()])
@@ -1154,7 +1157,7 @@ class AutomatedRevenueEngine:
                         Goal: Propose a pilot program for NarcoGuard (Automatic Naloxone Watch).
                         Focus: 'Harm Reduction Innovation' and 'Taxpayer ROI'.
                         Call to Action: Meeting to discuss rapid deployment in their jurisdiction.
-                        Link: https://v0-narcoguard-pwa-build.vercel.app
+                        Link: {NARCOGUARD_URL}
                         """
                     )
                     

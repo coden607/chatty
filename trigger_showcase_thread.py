@@ -10,23 +10,26 @@ sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 from VIRAL_GROWTH_ENGINE import ViralGrowthEngine
 from AUTOMATED_REVENUE_ENGINE import revenue_engine
 
+NARCOGUARD_URL = os.getenv("NARCOGUARD_URL", "https://v0-narcoguard-pwa-build.vercel.app")
+FUNDING_URL = os.getenv("NARCOGUARD_FUNDING_URL", os.getenv("GOFUNDME_URL", "https://gofund.me/e1a0b3f2"))
+
 async def main():
     print("🚀 Initiating NarcoGuard Showcase Thread...")
     viral = ViralGrowthEngine(revenue_engine)
     
     # Force a hero story generation with 'show off the app' context
     system_prompt = "You are a master storyteller and social media growth hacker."
-    user_prompt = """
+    user_prompt = f"""
     Create a 6-tweet showcase thread for NarcoGuard.
     Focus on: 'The App meets The Watch'.
     
     Story beats:
     1. Hook: 80 lives saved starts with 80 watches.
     2. The Tech: How the NG2 watch monitors vitals in silence.
-    3. The Software: Showcase the live app demo (https://v0-narcoguard-pwa-build.vercel.app).
+    3. The Software: Showcase the live app demo ({NARCOGUARD_URL}).
     4. The Mission: 80 units for Broome County.
     5. The Community: Why this matters now.
-    6. Call to Action: Donate for the first 80: https://gofund.me/9acf270ea
+    6. Call to Action: Donate for the first 80: {FUNDING_URL}
     
     Include screenshot descriptions and emojis.
     """

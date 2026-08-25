@@ -13,6 +13,9 @@ from dotenv import load_dotenv
 
 load_dotenv()
 
+NARCOGUARD_URL = os.getenv("NARCOGUARD_URL", "https://v0-narcoguard-pwa-build.vercel.app")
+FUNDING_URL = os.getenv("NARCOGUARD_FUNDING_URL", os.getenv("GOFUNDME_URL", "https://gofund.me/e1a0b3f2"))
+
 class AutoGrantSubmitter:
     """Automatically generates and tracks grant proposals"""
     
@@ -112,8 +115,8 @@ automatically deploying naloxone and alerting emergency services.
 - Real-time emergency services notification
 - Proven technology ready for immediate deployment
 - Addresses the opioid crisis with innovative harm reduction
-- Web app demo: https://v0-narcoguard-pwa-build.vercel.app
-- Funding campaign: https://gofund.me/9acf270ea
+- Web app demo: {NARCOGUARD_URL}
+- Funding campaign: {FUNDING_URL}
 
 **APPLICANT DETAILS:**
 - Organization: NarcoGuard LLC (New York)

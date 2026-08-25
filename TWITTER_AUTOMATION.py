@@ -15,6 +15,9 @@ from pathlib import Path
 import tweepy
 from transparency_log import log_transparency
 
+NARCOGUARD_URL = os.getenv("NARCOGUARD_URL", "https://v0-narcoguard-pwa-build.vercel.app")
+FUNDING_URL = os.getenv("NARCOGUARD_FUNDING_URL", os.getenv("GOFUNDME_URL", "https://gofund.me/e1a0b3f2"))
+
 # Setup logging
 LOG_DIR = Path(__file__).resolve().parent / "logs"
 LOG_DIR.mkdir(parents=True, exist_ok=True)
@@ -240,9 +243,9 @@ class TwitterAutomation:
         
         sample_content = {
             "NarcoGuard AI life-saving technology": [
-                "🕐 Every second counts in an overdose. NarcoGuard's AI detects overdoses in SECONDS, not minutes. https://v0-narcoguard-pwa-build.vercel.app",
+                f"🕐 Every second counts in an overdose. NarcoGuard's AI detects overdoses in SECONDS, not minutes. {NARCOGUARD_URL}",
                 "The opioid crisis needs solutions, not just awareness. NarcoGuard provides automated naloxone delivery when seconds matter most.",
-                "AI isn't just for chatbots. It's saving lives in Broome County. NarcoGuard: Where technology meets humanity. https://gofund.me/e1a0b3f2"
+                f"AI isn't just for chatbots. It's saving lives in Broome County. NarcoGuard: Where technology meets humanity. {FUNDING_URL}"
             ],
             "Automated overdose prevention": [
                 "What if a watch could save your life? NarcoGuard's AI-powered watch detects overdose signs and delivers naloxone automatically.",

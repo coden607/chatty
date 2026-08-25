@@ -24,6 +24,9 @@ _secrets_file = os.getenv("CHATTY_SECRETS_FILE")
 if _secrets_file:
     load_dotenv(os.path.expanduser(_secrets_file), override=True)  # secrets always win
 
+NARCOGUARD_URL = os.getenv("NARCOGUARD_URL", "https://v0-narcoguard-pwa-build.vercel.app")
+FUNDING_URL = os.getenv("NARCOGUARD_FUNDING_URL", os.getenv("GOFUNDME_URL", "https://gofund.me/e1a0b3f2"))
+
 _log_dir = Path(__file__).resolve().parent / "logs"
 _log_dir.mkdir(parents=True, exist_ok=True)
 
@@ -741,7 +744,7 @@ class ChattyCompleteAutomation:
                 - Progress: pilot deployments in Broome County are accelerating.
                 
                 Format as a high-impact Markdown update. Include a 'Call to Action' for donations to scale the pilot.
-                Link: https://gofund.me/e1a0b3f2
+                Link: {FUNDING_URL}
                 """
                 
                 update_content = await self.revenue_engine.generate_ai_content(system_prompt, user_prompt)
@@ -991,7 +994,7 @@ if __name__ == "__main__":
    Month 6: $80,000-200,000
 
 🔗 NARCOGUARD APP:
-   https://v0-narcoguard-pwa-build.vercel.app
+   {NARCOGUARD_URL}
 
 ⚠️  REQUIREMENTS:
    - API keys configured (Stripe, Anthropic, SendGrid, etc.)
