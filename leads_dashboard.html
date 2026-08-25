@@ -600,6 +600,19 @@
           </div>
         </div>
         <div class="panel">
+          <h3>Funding Drive</h3>
+          <textarea id="funding-recipients" aria-label="Funding recipients" class="message-input" placeholder="Recipient emails, comma or newline separated"></textarea>
+          <input id="funding-notify" aria-label="Funding notify email" class="prompt-textarea" placeholder="Notify email (optional)" />
+          <label style="display: flex; align-items: center; gap: 8px; font-size: 0.85rem; color: var(--text-muted); margin-top: 6px;">
+            <input id="funding-send-now" type="checkbox" checked />
+            Send immediately when recipients are present
+          </label>
+          <div class="prompt-row">
+            <button class="btn" onclick="runFundingCampaign(this)">Run Funding Campaign</button>
+          </div>
+          <div id="funding-status" class="generator-output" aria-live="polite">Waiting for funding run...</div>
+        </div>
+        <div class="panel">
           <h3>Outbound Email</h3>
           <input id="email-to" aria-label="Recipient email" class="prompt-textarea" placeholder="Recipient email" />
           <input id="email-subject" aria-label="Email subject" class="prompt-textarea" placeholder="Subject" />
@@ -920,6 +933,7 @@
         if (saved.autonomy) data.autonomy = saved.autonomy;
         if (saved.learning) data.learning = saved.learning;
         if (saved.governance) data.governance = saved.governance;
+        if (saved.funding) data.funding = saved.funding;
         if (saved.pipelines) data.pipelines = saved.pipelines;
         if (saved.campaigns) data.campaigns = saved.campaigns;
         if (saved.n8n) data.n8n = saved.n8n;
@@ -1020,7 +1034,7 @@
           const data = await response.json();
           if (!response.ok || !["launched", "already_launched"].includes(data.status)) throw new Error(data.detail || "Launch failed");
           const snapshot = data.dashboard || {};
-          saveAutoState({ workflows: snapshot.workflows, tasks: snapshot.tasks, collab: snapshot.collab, messages: snapshot.messages, autonomy: snapshot.autonomy, learning: snapshot.learning, governance: snapshot.governance, pipelines: snapshot.pipelines, campaigns: snapshot.campaigns, n8n: snapshot.n8n, briefs: snapshot.briefs, content: snapshot.content, grants: snapshot.grants, experiments: snapshot.experiments, generated: snapshot.generated, weekly: snapshot.weekly });
+          saveAutoState({ workflows: snapshot.workflows, tasks: snapshot.tasks, collab: snapshot.collab, messages: snapshot.messages, autonomy: snapshot.autonomy, learning: snapshot.learning, governance: snapshot.governance, funding: snapshot.funding, pipelines: snapshot.pipelines, campaigns: snapshot.campaigns, n8n: snapshot.n8n, briefs: snapshot.briefs, content: snapshot.content, grants: snapshot.grants, experiments: snapshot.experiments, generated: snapshot.generated, weekly: snapshot.weekly });
           if (snapshot.workflows) renderWorkflows(snapshot.workflows.workflows || []);
           if (snapshot.tasks) renderTasks(snapshot.tasks.tasks || []);
           if (snapshot.collab) renderCollabFeed(snapshot.collab.events || []);
@@ -1069,6 +1083,7 @@
           if (data.autonomy) renderAutonomyStatus(data.autonomy.state, data.autonomy.settings);
           if (data.learning) renderLearningStatus(data.learning);
           if (data.governance) renderGovernanceStatus(data.governance);
+          if (data.funding) renderFundingStatus(data.funding);
           if (data.pipelines) renderPipelines(data.pipelines.pipelines || data.pipelines);
           if (data.campaigns) renderCampaigns(data.campaigns.campaigns || []);
           if (data.n8n) renderN8nWorkflows(data.n8n.workflows || []);
@@ -1081,6 +1096,7 @@
           if (data.weekly) document.getElementById("weekly-brief").textContent = data.weekly.summary || "No summary.";
           if (data.learning) saveAutoState({ learning: data.learning });
           if (data.governance) saveAutoState({ governance: data.governance });
+          if (data.funding) saveAutoState({ funding: data.funding });
 
           const status = document.getElementById("status-msg");
           if (status) {
@@ -1606,6 +1622,7 @@
           if (data.autonomy) renderAutonomyStatus(data.autonomy.state, data.autonomy.settings);
           if (data.learning) renderLearningStatus(data.learning);
           if (data.governance) renderGovernanceStatus(data.governance);
+          if (data.funding) renderFundingStatus(data.funding);
           if (data.pipelines) renderPipelines(data.pipelines.pipelines || []);
           if (data.campaigns) renderCampaigns(data.campaigns.campaigns || []);
           if (data.n8n) renderN8nWorkflows(data.n8n.workflows || []);
@@ -1618,6 +1635,7 @@
           if (data.weekly) document.getElementById("weekly-brief").textContent = data.weekly.summary || "No summary.";
           if (data.learning) saveAutoState({ learning: data.learning });
           if (data.governance) saveAutoState({ governance: data.governance });
+          if (data.funding) saveAutoState({ funding: data.funding });
 
           statusMsg.innerText = `Refreshed at ${new Date().toLocaleTimeString()}`;
           setTimeout(() => (statusMsg.style.opacity = 0), 3000);
@@ -1683,6 +1701,20 @@
         `;
       }
 
+      function renderFundingStatus(funding) {
+        const status = document.getElementById("funding-status");
+        if (!status) return;
+        const recipients = Array.isArray(funding?.last_recipients) ? funding.last_recipients : [];
+        const pkg = funding?.last_package || {};
+        status.innerHTML = `
+          <div class="log-entry"><strong>Status</strong> • ${escapeHTML(funding?.last_status || "idle")}<br>Last run: ${escapeHTML(funding?.last_run_at || "n/a")}</div>
+          <div class="log-entry"><strong>Summary</strong> • ${escapeHTML(funding?.last_summary || "No summary yet.")}</div>
+          <div class="log-entry"><strong>Recipients</strong> • ${recipients.length ? escapeHTML(recipients.join(", ")) : "No recipients supplied."}</div>
+          <div class="log-entry"><strong>Package</strong><br>${escapeHTML((String(pkg.proposal || pkg.pitch || "").slice(0, 180)) || "No package yet.")}${String(pkg.proposal || pkg.pitch || "").length > 180 ? "..." : ""}<br>${escapeHTML((String(pkg.grant_notes || "").slice(0, 120)) || "")}</div>
+          <div class="log-entry"><strong>Public links</strong><br><a href="${escapeHTML(funding?.public_links?.narcoguard || "")}" target="_blank" rel="noreferrer">NarcoGuard</a> • <a href="${escapeHTML(funding?.public_links?.funding || "")}" target="_blank" rel="noreferrer">Funding</a></div>
+        `;
+      }
+
       async function fetchGovernanceStatus() {
         try {
           const response = await fetch(`${apiBase}/api/governance/status`);
@@ -1693,6 +1725,71 @@
           }
         } catch (error) {
           console.error("Failed to fetch governance status:", error);
+        }
+      }
+
+      async function fetchFundingStatus() {
+        try {
+          const response = await fetch(`${apiBase}/api/funding/status`);
+          const data = await response.json();
+          if (data.funding) {
+            renderFundingStatus(data.funding);
+            saveAutoState({ funding: data.funding });
+          }
+        } catch (error) {
+          console.error("Failed to fetch funding status:", error);
+        }
+      }
+
+      async function runFundingCampaign(btn) {
+        const status = document.getElementById("funding-status");
+        const recipients = document.getElementById("funding-recipients").value.trim();
+        const notifyEmail = document.getElementById("funding-notify").value.trim();
+        const sendNow = document.getElementById("funding-send-now").checked;
+        const originalText = btn.innerText;
+        btn.innerText = "Running...";
+        btn.disabled = true;
+        status.textContent = "Building funding package...";
+        try {
+          const response = await fetch(`${apiBase}/api/funding/run`, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              recipients: recipients || undefined,
+              notify_email: notifyEmail || undefined,
+              send_now: sendNow,
+            })
+          });
+          const data = await response.json();
+          if (!response.ok || !["drafted", "sent"].includes(data.status)) throw new Error(data.detail || data.summary || "Funding campaign failed");
+          status.textContent = data.summary || "Funding campaign completed.";
+          if (data.funding) {
+            renderFundingStatus(data.funding);
+            saveAutoState({ funding: data.funding });
+          }
+          if (data.dashboard) {
+            const snapshot = data.dashboard;
+            saveAutoState({ workflows: snapshot.workflows, tasks: snapshot.tasks, collab: snapshot.collab, messages: snapshot.messages, autonomy: snapshot.autonomy, learning: snapshot.learning, governance: snapshot.governance, funding: snapshot.funding, pipelines: snapshot.pipelines, campaigns: snapshot.campaigns, n8n: snapshot.n8n, briefs: snapshot.briefs, content: snapshot.content, grants: snapshot.grants, experiments: snapshot.experiments, generated: snapshot.generated, weekly: snapshot.weekly });
+            if (snapshot.workflows) renderWorkflows(snapshot.workflows.workflows || []);
+            if (snapshot.tasks) renderTasks(snapshot.tasks.tasks || []);
+            if (snapshot.collab) renderCollabFeed(snapshot.collab.events || []);
+            if (snapshot.messages) renderOperatorMessages(snapshot.messages.messages || []);
+            if (snapshot.autonomy) renderAutonomyStatus(snapshot.autonomy.state, snapshot.autonomy.settings);
+            if (snapshot.learning) renderLearningStatus(snapshot.learning);
+            if (snapshot.governance) renderGovernanceStatus(snapshot.governance);
+            if (snapshot.funding) renderFundingStatus(snapshot.funding);
+            if (snapshot.pipelines) renderPipelines(snapshot.pipelines.pipelines || snapshot.pipelines);
+            if (snapshot.campaigns) renderCampaigns(snapshot.campaigns.campaigns || []);
+            if (snapshot.n8n) renderN8nWorkflows(snapshot.n8n.workflows || []);
+            if (snapshot.briefs) renderContentBriefs(snapshot.briefs.briefs || []);
+            if (snapshot.grants) renderGrants(snapshot.grants.grants || []);
+            if (snapshot.experiments) renderPricingExperiments(snapshot.experiments.experiments || []);
+          }
+        } catch (error) {
+          status.textContent = `Funding campaign failed: ${error.message || "unknown error"}`;
+        } finally {
+          btn.innerText = originalText;
+          btn.disabled = false;
         }
       }
 
@@ -1708,6 +1805,10 @@
             renderGovernanceStatus(data.governance);
             saveAutoState({ governance: data.governance });
           }
+          if (data.funding) {
+            renderFundingStatus(data.funding);
+            saveAutoState({ funding: data.funding });
+          }
         } catch (error) {
           console.error("Failed to fetch learning status:", error);
         }
@@ -1717,7 +1818,7 @@
         const response = await fetch(`${apiBase}/api/autonomy/start`, { method: "POST" });
         const data = await response.json();
         if (!response.ok || data.status !== "started") throw new Error(data.detail || "Autonomy start failed");
-          saveAutoState({ autonomy: { state: data.state, settings: data.settings }, collab: { total: (data.events || []).length, events: data.events || [] }, governance: data.governance });
+          saveAutoState({ autonomy: { state: data.state, settings: data.settings }, collab: { total: (data.events || []).length, events: data.events || [] }, governance: data.governance, funding: data.funding });
         renderAutonomyStatus(data.state, data.settings);
         renderCollabFeed(data.events || []);
       }
@@ -1726,7 +1827,7 @@
         const response = await fetch(`${apiBase}/api/autonomy/stop`, { method: "POST" });
         const data = await response.json();
         if (!response.ok || data.status !== "stopped") throw new Error(data.detail || "Autonomy stop failed");
-          saveAutoState({ autonomy: { state: data.state, settings: data.settings }, collab: { total: (data.events || []).length, events: data.events || [] }, governance: data.governance });
+          saveAutoState({ autonomy: { state: data.state, settings: data.settings }, collab: { total: (data.events || []).length, events: data.events || [] }, governance: data.governance, funding: data.funding });
         renderAutonomyStatus(data.state, data.settings);
         renderCollabFeed(data.events || []);
       }
@@ -1744,7 +1845,7 @@
         });
         const data = await response.json();
         if (!response.ok || data.status !== "updated") throw new Error(data.detail || "Settings update failed");
-        saveAutoState({ autonomy: { state: data.state, settings: data.settings }, collab: { total: (data.events || []).length, events: data.events || [] }, governance: data.governance });
+        saveAutoState({ autonomy: { state: data.state, settings: data.settings }, collab: { total: (data.events || []).length, events: data.events || [] }, governance: data.governance, funding: data.funding });
         renderAutonomyStatus(data.state, data.settings);
       }
 
@@ -1765,7 +1866,7 @@
           status.textContent = data.summary || "Automation sweep completed.";
           if (data.dashboard) {
             const snapshot = data.dashboard;
-            saveAutoState({ workflows: snapshot.workflows, tasks: snapshot.tasks, collab: snapshot.collab, messages: snapshot.messages, autonomy: snapshot.autonomy, learning: snapshot.learning, governance: snapshot.governance, pipelines: snapshot.pipelines, campaigns: snapshot.campaigns, n8n: snapshot.n8n, briefs: snapshot.briefs, content: snapshot.content, grants: snapshot.grants, experiments: snapshot.experiments, generated: snapshot.generated, weekly: snapshot.weekly });
+            saveAutoState({ workflows: snapshot.workflows, tasks: snapshot.tasks, collab: snapshot.collab, messages: snapshot.messages, autonomy: snapshot.autonomy, learning: snapshot.learning, governance: snapshot.governance, funding: snapshot.funding, pipelines: snapshot.pipelines, campaigns: snapshot.campaigns, n8n: snapshot.n8n, briefs: snapshot.briefs, content: snapshot.content, grants: snapshot.grants, experiments: snapshot.experiments, generated: snapshot.generated, weekly: snapshot.weekly });
             if (snapshot.workflows) renderWorkflows(snapshot.workflows.workflows || []);
             if (snapshot.tasks) renderTasks(snapshot.tasks.tasks || []);
             if (snapshot.collab) renderCollabFeed(snapshot.collab.events || []);
@@ -2254,11 +2355,13 @@
           if (data.content) renderContentBriefs(data.content.briefs || []);
           if (data.grants) renderGrants(data.grants.grants || []);
           if (data.experiments) renderPricingExperiments(data.experiments.experiments || []);
+          if (data.funding) renderFundingStatus(data.funding);
           if (data.integrations) renderIntegrationStatus(data.integrations);
           if (data.anomalies) renderAnomalies(data.anomalies.anomalies || []);
           if (data.brief) document.getElementById("weekly-brief").textContent = data.brief.summary || "No summary.";
           if (data.learning) saveAutoState({ learning: data.learning });
           if (data.governance) saveAutoState({ governance: data.governance });
+          if (data.funding) saveAutoState({ funding: data.funding });
 
           console.log("Dashboard consolidated heartbeat successful");
         } catch (error) {
@@ -2333,6 +2436,7 @@
       setInterval(fetchIntegrationStatus, 30000);
       setInterval(fetchLearningStatus, 15000);
       setInterval(fetchGovernanceStatus, 30000);
+      setInterval(fetchFundingStatus, 30000);
       setInterval(maybeAutoSweep, 60000);
 
       // Initial load
@@ -2341,6 +2445,7 @@
       fetchIntegrationStatus();
       fetchLearningStatus();
       fetchGovernanceStatus();
+      fetchFundingStatus();
 
       if ("serviceWorker" in navigator) {
         window.addEventListener("load", () => {
