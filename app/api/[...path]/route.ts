@@ -22,6 +22,21 @@ const grants: RecordValue[] = [];
 const experiments: RecordValue[] = [];
 const generated: RecordValue = { type: '', draft: '' };
 const launchRuns: RecordValue[] = [];
+const fundingRuns: RecordValue[] = [];
+const funding = {
+  last_run_at: null as string | null,
+  last_status: 'idle',
+  last_recipients: [] as string[],
+  last_package: {
+    proposal: '',
+    pitch: '',
+    email: '',
+    social: '',
+    grant_notes: '',
+    outreach_steps: [] as string[],
+  },
+  last_summary: '',
+};
 const pipelines: RecordValue[] = [{ name: 'Revenue Autopilot', status: 'active', progress: 41, stages: [{ name: 'Offer optimization', status: 'active' }, { name: 'Pricing experiments', status: 'queued' }] }];
 const autonomy = { state: { running: false, mode: 'production-dashboard', loop_interval_sec: 60, last_tick: null as string | null, last_sweep_at: null as string | null, last_sweep_summary: '' }, settings: { daily_budget: 250, risk_guardrails: 'conservative', primary_channel: 'email' } };
 const learning = {
@@ -65,13 +80,28 @@ function appendPublicLinks(text: string) {
   if (hasNarcoguard && hasFunding) return text;
   return `${text}\n\n${footer}`;
 }
-function stateSnapshot() { return { workflows, tasks, collabEvents, promptHistory, messages, campaigns, n8nWorkflows, briefs, grants, experiments, pipelines, autonomy, learning, generated, launchRuns }; }
+function parseEmailList(value: unknown) {
+  if (Array.isArray(value)) {
+    return value.map((item) => String(item || '').trim()).filter((item) => item.includes('@'));
+  }
+  return String(value || '')
+    .split(/[\n,;]/g)
+    .map((item) => item.trim())
+    .filter((item) => item.includes('@'));
+}
+function stateSnapshot() { return { workflows, tasks, collabEvents, promptHistory, messages, campaigns, n8nWorkflows, briefs, grants, experiments, pipelines, autonomy, learning, generated, launchRuns, fundingRuns, funding }; }
 function replaceArray(target: RecordValue[], source: unknown) { if (Array.isArray(source)) { target.splice(0, target.length, ...source); } }
 function hydrateSnapshot(payload: RecordValue) {
   replaceArray(workflows, payload.workflows); replaceArray(tasks, payload.tasks); replaceArray(collabEvents, payload.collabEvents); replaceArray(promptHistory, payload.promptHistory); replaceArray(messages, payload.messages); replaceArray(campaigns, payload.campaigns); replaceArray(n8nWorkflows, payload.n8nWorkflows); replaceArray(briefs, payload.briefs); replaceArray(grants, payload.grants); replaceArray(experiments, payload.experiments); replaceArray(pipelines, payload.pipelines);
   replaceArray(launchRuns, payload.launchRuns);
+  replaceArray(fundingRuns, payload.fundingRuns);
   if (payload.generated) Object.assign(generated, payload.generated);
   if (payload.autonomy) { Object.assign(autonomy, payload.autonomy); Object.assign(autonomy.state, payload.autonomy.state || {}); Object.assign(autonomy.settings, payload.autonomy.settings || {}); }
+  if (payload.funding) {
+    Object.assign(funding, payload.funding);
+    Object.assign(funding.last_package, payload.funding.last_package || {});
+    funding.last_recipients = Array.isArray(payload.funding.last_recipients) ? payload.funding.last_recipients : funding.last_recipients;
+  }
   if (payload.learning) {
     Object.assign(learning, payload.learning);
     Object.assign(learning.signals, payload.learning.signals || {});
@@ -454,6 +484,168 @@ function learnFromSignals(trigger = 'heartbeat') {
   }
   return learning;
 }
+function fundingStatus() {
+  return {
+    ready: Boolean(funding.last_package.proposal || funding.last_package.pitch || funding.last_recipients.length || fundingRuns.length),
+    last_run_at: funding.last_run_at,
+    last_status: funding.last_status,
+    last_recipients: funding.last_recipients,
+    contacts_configured: funding.last_recipients.length > 0,
+    package_ready: Boolean(funding.last_package.proposal || funding.last_package.pitch || funding.last_package.email),
+    runs: fundingRuns.length,
+    public_links: {
+      narcoguard: narcoguardUrl,
+      funding: fundingUrl,
+    },
+  };
+}
+async function runFundingCampaign(trigger = 'manual', options: RecordValue = {}) {
+  const recipients = parseEmailList(options.recipients || process.env.FUNDING_OUTREACH_EMAILS || '');
+  const notifyEmail = String(options.notify_email || process.env.FUNDING_NOTIFY_EMAIL || process.env.ADMIN_EMAIL || '').trim();
+  const sendNow = options.send_now !== false;
+  const timestamp = now();
+
+  const packagePrompt = `Return strict JSON with keys proposal, pitch, email, social, grant_notes, outreach_steps.
+Use only these live facts: NarcoGuard is hosted at ${narcoguardUrl}. Funding page: ${fundingUrl}.
+Keep the tone factual and concise. Do not invent metrics, awards, or results.
+The package is for fundraising and supervised pilot support.
+Include a donor/investor-facing email draft, a short pitch, a proposal summary, and a social post.
+`;
+
+  const result = await generateWithProvider(packagePrompt);
+  let packageData: RecordValue = {};
+  try {
+    packageData = JSON.parse(result.text);
+  } catch {
+    packageData = {
+      proposal: result.text,
+      pitch: result.text,
+      email: result.text,
+      social: result.text,
+      grant_notes: '',
+      outreach_steps: [],
+    };
+  }
+
+  const proposal = String(packageData.proposal || result.text || '').trim();
+  const pitch = String(packageData.pitch || proposal).trim();
+  const emailDraft = String(packageData.email || proposal).trim();
+  const socialDraft = String(packageData.social || pitch).trim();
+
+  funding.last_run_at = timestamp;
+  funding.last_status = 'drafted';
+  funding.last_recipients = recipients;
+  funding.last_package = {
+    proposal,
+    pitch,
+    email: emailDraft,
+    social: socialDraft,
+    grant_notes: String(packageData.grant_notes || '').trim(),
+    outreach_steps: Array.isArray(packageData.outreach_steps) ? packageData.outreach_steps : [],
+  };
+
+  const campaign = {
+    id: Date.now(),
+    name: 'Narcoguard Funding Drive',
+    channel: recipients.length ? 'fundraising-email' : 'grant-writing',
+    goal: 'funding',
+    owner: 'investor_relations',
+    status: recipients.length ? 'active' : 'planned',
+    created_at: timestamp,
+  };
+  campaigns.unshift(campaign);
+  grants.unshift({
+    id: Date.now() + 1,
+    name: 'Narcoguard funding package',
+    deadline: 'TBD',
+    status: 'tracking',
+    created_at: timestamp,
+  });
+  briefs.unshift({
+    id: Date.now() + 2,
+    title: 'Narcoguard funding package',
+    source: 'CHATTY investor relations',
+    status: 'ready',
+    created_at: timestamp,
+  });
+  n8nWorkflows.unshift({
+    id: Date.now() + 3,
+    name: 'Narcoguard Funding Outreach Workflow',
+    description: 'Generate and distribute fundraising materials, track responses, and log follow-ups.',
+    trigger: 'manual',
+    status: 'ready',
+    created_at: timestamp,
+  });
+
+  const sendResults: RecordValue[] = [];
+  if (sendNow && recipients.length) {
+    for (const recipient of recipients) {
+      try {
+        const message = `Narcoguard funding package:\n\n${emailDraft}\n\nProposal:\n${proposal}\n\nPitch:\n${pitch}\n\nSocial:\n${socialDraft}\n\n${publicLinksFooter()}`;
+        const sent = await sendOutboundEmail({
+          to: recipient,
+          subject: 'Narcoguard funding package',
+          text: message,
+        });
+        sendResults.push({ recipient, status: 'sent', provider: sent.provider });
+      } catch (error) {
+        sendResults.push({ recipient, status: 'failed', error: error instanceof Error ? error.message : 'send failed' });
+      }
+    }
+    funding.last_status = sendResults.some((item) => item.status === 'sent') ? 'sent' : 'drafted';
+  } else if (notifyEmail) {
+    try {
+      const summary = `Funding package drafted for Narcoguard.\n\nRecipients: ${recipients.length ? recipients.join(', ') : 'none'}\n\nProposal:\n${proposal}\n\nPitch:\n${pitch}\n\n${publicLinksFooter()}`;
+      const sent = await sendOutboundEmail({
+        to: notifyEmail,
+        subject: 'Narcoguard funding package drafted',
+        text: summary,
+      });
+      sendResults.push({ recipient: notifyEmail, status: 'sent', provider: sent.provider, role: 'notify' });
+      funding.last_status = 'sent';
+    } catch (error) {
+      sendResults.push({ recipient: notifyEmail, status: 'failed', error: error instanceof Error ? error.message : 'notify failed', role: 'notify' });
+    }
+  }
+
+  if (!sendNow && !notifyEmail) {
+    funding.last_status = 'drafted';
+  } else if (sendResults.some((item) => item.status === 'sent')) {
+    funding.last_status = 'sent';
+  }
+
+  const run = {
+    id: Date.now(),
+    trigger,
+    status: funding.last_status,
+    recipients,
+    send_now: sendNow,
+    campaign_id: campaign.id,
+    package: funding.last_package,
+    send_results: sendResults,
+    created_at: timestamp,
+  };
+  fundingRuns.unshift(run);
+  fundingRuns.splice(20);
+
+  const summary = recipients.length
+    ? `Funding campaign drafted for ${recipients.length} recipient(s).`
+    : 'Funding package drafted and queued for review.';
+  funding.last_summary = summary;
+  record('funding_campaign', 'investor_relations', summary);
+  return {
+    status: funding.last_status,
+    summary,
+    run,
+    campaign,
+    grants,
+    briefs,
+    workflows: n8nWorkflows,
+    package: funding.last_package,
+    send_results: sendResults,
+    funding: fundingStatus(),
+  };
+}
 function governanceStatus() {
   const emailReady = Boolean(process.env.SENDGRID_API_KEY || resendApiKey);
   const executorReady = Boolean(
@@ -564,11 +756,11 @@ function integrationStatus() {
 }
 function dashboardPayload() {
   learnFromSignals('dashboard');
-  return { status: { status: 'running', systems_active: agents.length, total_automations: workflows.length, uptime_hours: 0, revenue_generated: 0 }, leads: leadsPayload(), workflows: { workflows }, agents: { agents }, tasks: { total: tasks.length, tasks }, collab: { total: collabEvents.length, events: collabEvents }, messages: { total: messages.length, messages }, autonomy, learning, governance: governanceStatus(), pipelines: { pipelines }, campaigns: { total: campaigns.length, campaigns }, n8n: { total: n8nWorkflows.length, workflows: n8nWorkflows }, transparency: { completed: collabEvents }, briefs: { briefs }, content: { briefs }, grants: { grants }, experiments: { experiments }, generated, integrations: integrationStatus(), anomalies: { anomalies: [] }, kpi: { anomalies: [] }, weekly: weeklyPayload(), weekly_brief: weeklyPayload(), timestamp: now() };
+  return { status: { status: 'running', systems_active: agents.length, total_automations: workflows.length, uptime_hours: 0, revenue_generated: 0 }, leads: leadsPayload(), workflows: { workflows }, agents: { agents }, tasks: { total: tasks.length, tasks }, collab: { total: collabEvents.length, events: collabEvents }, messages: { total: messages.length, messages }, autonomy, learning, governance: governanceStatus(), funding: fundingStatus(), pipelines: { pipelines }, campaigns: { total: campaigns.length, campaigns }, n8n: { total: n8nWorkflows.length, workflows: n8nWorkflows }, transparency: { completed: collabEvents }, briefs: { briefs }, content: { briefs }, grants: { grants }, experiments: { experiments }, generated, integrations: integrationStatus(), anomalies: { anomalies: [] }, kpi: { anomalies: [] }, weekly: weeklyPayload(), weekly_brief: weeklyPayload(), timestamp: now() };
 }
 function getPayload(path: string[]) {
   switch (path.join('/')) {
-    case 'dashboard/all': return dashboardPayload(); case 'leads': return leadsPayload(); case 'learning/status': return { learning: learnFromSignals('status'), timestamp: now() }; case 'automation/status': return { autonomy, learning: learnFromSignals('status'), governance: governanceStatus(), timestamp: now() }; case 'governance/status': return { governance: governanceStatus(), timestamp: now() }; case 'narcoguard/workflows': return { project: 'Narcoguard', workflows }; case 'narcoguard/launch/status': return { latest: launchRuns[0] || null, runs: launchRuns, events: collabEvents }; case 'agents': return { total: agents.length, agents }; case 'tasks': return { total: tasks.length, tasks }; case 'agents/collab': return { total: collabEvents.length, events: collabEvents }; case 'user/messages': return { total: messages.length, messages }; case 'autonomy/status': return autonomy; case 'pipelines': return { pipelines }; case 'campaigns': return { total: campaigns.length, campaigns }; case 'n8n/workflows': return { total: n8nWorkflows.length, workflows: n8nWorkflows }; case 'integrations/status': return integrationStatus(); case 'transparency/report': return { completed: collabEvents }; case 'content/briefs': return { briefs }; case 'grants': return { grants }; case 'experiments/pricing': return { experiments }; case 'kpi/anomalies': return { anomalies: [] }; case 'weekly/brief': return weeklyPayload(); default: return { status: 'ok', route: path.join('/') };
+    case 'dashboard/all': return dashboardPayload(); case 'leads': return leadsPayload(); case 'learning/status': return { learning: learnFromSignals('status'), timestamp: now() }; case 'automation/status': return { autonomy, learning: learnFromSignals('status'), governance: governanceStatus(), funding: fundingStatus(), timestamp: now() }; case 'governance/status': return { governance: governanceStatus(), timestamp: now() }; case 'funding/status': return { funding: fundingStatus(), funding_runs: fundingRuns, timestamp: now() }; case 'narcoguard/workflows': return { project: 'Narcoguard', workflows }; case 'narcoguard/launch/status': return { latest: launchRuns[0] || null, runs: launchRuns, events: collabEvents }; case 'agents': return { total: agents.length, agents }; case 'tasks': return { total: tasks.length, tasks }; case 'agents/collab': return { total: collabEvents.length, events: collabEvents }; case 'user/messages': return { total: messages.length, messages }; case 'autonomy/status': return autonomy; case 'pipelines': return { pipelines }; case 'campaigns': return { total: campaigns.length, campaigns }; case 'n8n/workflows': return { total: n8nWorkflows.length, workflows: n8nWorkflows }; case 'integrations/status': return integrationStatus(); case 'transparency/report': return { completed: collabEvents }; case 'content/briefs': return { briefs }; case 'grants': return { grants }; case 'experiments/pricing': return { experiments }; case 'kpi/anomalies': return { anomalies: [] }; case 'weekly/brief': return weeklyPayload(); default: return { status: 'ok', route: path.join('/') };
   }
 }
 async function body(request: Request): Promise<RecordValue> { try { return await request.json() as RecordValue; } catch { return {}; } }
@@ -633,6 +825,19 @@ export function POST(request: Request, context: { params: Promise<{ path: string
       return finish({ status: result.ran ? 'completed' : 'skipped', ...result, dashboard: await dashboardPayload(), events: collabEvents });
     }
     if (route === 'autonomy/settings') { if (typeof data.daily_budget === 'number') autonomy.settings.daily_budget = data.daily_budget; if (typeof data.primary_channel === 'string' && data.primary_channel) autonomy.settings.primary_channel = data.primary_channel; record('settings', 'operator', 'Autonomy settings updated.'); return finish({ status: 'updated', ...autonomy, events: collabEvents }); }
+    if (route === 'funding/run') {
+      try {
+        const result = await runFundingCampaign('manual', {
+          recipients: data.recipients,
+          notify_email: data.notify_email,
+          send_now: data.send_now,
+        });
+        return finish({ ...result, dashboard: await dashboardPayload(), events: collabEvents });
+      } catch (error) {
+        record('funding_failed', 'investor_relations', `Funding campaign failed: ${error instanceof Error ? error.message : 'unknown error'}`);
+        return finish({ status: 'failed', detail: error instanceof Error ? error.message : 'Funding campaign failed' }, 502);
+      }
+    }
     if (route === 'pipelines/refresh') { pipelines.forEach((pipeline) => { pipeline.progress = Math.min(100, Number(pipeline.progress || 0) + 7); }); record('pipeline', 'orchestrator', 'Pipelines advanced.'); return finish({ status: 'refreshed', pipelines, events: collabEvents }); }
     if (route === 'campaigns') { const campaign = { id: Date.now(), name: String(data.name || 'Untitled campaign'), channel: String(data.channel || 'email'), goal: String(data.goal || 'leads'), owner: 'content_engine', status: 'planned', created_at: now() }; campaigns.unshift(campaign); record('campaign', 'content_engine', `Planned campaign: ${campaign.name}`); return finish({ status: 'planned', campaign, total: campaigns.length, campaigns, events: collabEvents }); }
     if (route === 'n8n/workflows') {
