@@ -1,0 +1,233 @@
+[
+  {
+    "id": "seed-yipfaA-GXPg",
+    "title": "DeepSeek Just Built the Next Generation of Coding Agents",
+    "url": "https://www.youtube.com/watch?v=yipfaA-GXPg",
+    "summary": "The video focuses on practical coding-agent systems and the engineering tradeoffs that separate useful automation from hype.",
+    "insights": [
+      "Agent systems need clear task boundaries and validation.",
+      "Reliable automation depends on repeatable workflows and check steps."
+    ],
+    "actions": [
+      "Add validation before accepting generated output.",
+      "Break automation into small, testable agent tasks."
+    ],
+    "keywords": ["agents", "coding", "validation", "workflow"],
+    "themes": ["Agent orchestration", "Automation", "Workflow automation"],
+    "implementation_targets": ["Task validation", "Workflow decomposition"],
+    "source_run_id": "yipfaA-GXPg",
+    "learned_at": "2026-08-25T07:42:09.696Z",
+    "updated_at": "2026-08-25T07:42:09.696Z",
+    "seed": true
+  },
+  {
+    "id": "seed-eecUhBpTz_g",
+    "title": "How to Build the Most Powerful System for AI Coding (Full Breakdown)",
+    "url": "https://www.youtube.com/watch?v=eecUhBpTz_g",
+    "summary": "A practical breakdown of agentic coding systems, harnesses, and spec-driven development.",
+    "insights": [
+      "Spec-first planning improves coding agent output.",
+      "A harness is required for repeatable AI coding workflows."
+    ],
+    "actions": [
+      "Treat launch work as a spec-driven pipeline.",
+      "Encode repeatability into the build and review loop."
+    ],
+    "keywords": ["harness", "spec", "agents", "coding"],
+    "themes": ["Agent harnesses", "Spec-driven development", "Automation"],
+    "implementation_targets": ["Launch checklist", "Build/review loop"],
+    "source_run_id": "eecUhBpTz_g",
+    "learned_at": "2026-08-25T07:42:37.370Z",
+    "updated_at": "2026-08-25T07:42:37.370Z",
+    "seed": true
+  },
+  {
+    "id": "seed-MbiMwgbGdxw",
+    "title": "Every Claude Code Skill I Use to Drive My Entire Development Process",
+    "url": "https://www.youtube.com/watch?v=MbiMwgbGdxw",
+    "summary": "The video shows how reusable skills and prompts can automate an entire development process.",
+    "insights": [
+      "Reusable skills reduce repeated setup cost.",
+      "Code review and documentation can be standardized."
+    ],
+    "actions": [
+      "Capture repeatable Chatty workflows as reusable skills.",
+      "Add review and documentation steps to automation."
+    ],
+    "keywords": ["Claude Code", "skills", "automation", "documentation"],
+    "themes": ["Reusable workflows", "Automation", "Documentation"],
+    "implementation_targets": ["Skill templates", "Review automation"],
+    "source_run_id": "MbiMwgbGdxw",
+    "learned_at": "2026-08-25T07:42:37.370Z",
+    "updated_at": "2026-08-25T07:42:37.370Z",
+    "seed": true
+  },
+  {
+    "id": "seed-xOFkpf9KgKg",
+    "title": "Your AI Second Brain Is Slowly Rotting (Here's How to Fix It)",
+    "url": "https://www.youtube.com/watch?v=xOFkpf9KgKg",
+    "summary": "A second brain degrades without cleanup, curation, and periodic review.",
+    "insights": [
+      "Knowledge bases need regular pruning.",
+      "Automated capture needs structure to stay useful."
+    ],
+    "actions": [
+      "Schedule cleanup for stale knowledge entries.",
+      "Tag and summarize captured items automatically."
+    ],
+    "keywords": ["second brain", "knowledge base", "cleanup", "curation"],
+    "themes": ["Knowledge base ingestion", "Second brain / knowledge base"],
+    "implementation_targets": ["Cleanup routines", "Knowledge tagging"],
+    "source_run_id": "xOFkpf9KgKg",
+    "learned_at": "2026-08-25T07:42:37.370Z",
+    "updated_at": "2026-08-25T07:42:37.370Z",
+    "seed": true
+  },
+  {
+    "id": "seed-VnyGs43eiAA",
+    "title": "The Creator of Claude Code Said to Do What Now?!",
+    "url": "https://www.youtube.com/watch?v=VnyGs43eiAA",
+    "summary": "The video emphasizes periodic review of AI layers and keeping them lean enough to stay effective.",
+    "insights": [
+      "AI systems need maintenance, not just accumulation.",
+      "Simpler harnesses are often easier to trust."
+    ],
+    "actions": [
+      "Add a recurring review loop for automation layers.",
+      "Remove unnecessary complexity from the agent stack."
+    ],
+    "keywords": ["maintenance", "review", "harness", "automation"],
+    "themes": ["Automation", "Workflow automation", "Agent harnesses"],
+    "implementation_targets": ["Review loop", "Simplification audit"],
+    "source_run_id": "VnyGs43eiAA",
+    "learned_at": "2026-08-25T07:42:43.500Z",
+    "updated_at": "2026-08-25T07:42:43.500Z",
+    "seed": true
+  },
+  {
+    "id": "seed-8JWhwhxWtJw",
+    "title": "The Ultimate Knowledge Base: Bring YouTube Into Your AI Second Brain",
+    "url": "https://www.youtube.com/watch?v=8JWhwhxWtJw",
+    "summary": "YouTube content can become a structured, searchable knowledge base for an AI system.",
+    "insights": [
+      "Transcripts and metadata should be stored as reusable memory.",
+      "Video knowledge should be searchable and tagged."
+    ],
+    "actions": [
+      "Convert YouTube learnings into persistent knowledge entries.",
+      "Expose knowledge through a queryable dashboard."
+    ],
+    "keywords": ["knowledge base", "YouTube", "transcripts", "metadata"],
+    "themes": ["Knowledge base ingestion", "Second brain / knowledge base"],
+    "implementation_targets": ["Knowledge base view", "Searchable transcript memory"],
+    "source_run_id": "8JWhwhxWtJw",
+    "learned_at": "2026-08-25T07:42:41.728Z",
+    "updated_at": "2026-08-25T07:42:41.728Z",
+    "seed": true
+  },
+  {
+    "id": "seed-SA3TxPLLB08",
+    "title": "Is Kimi K3 Really That Good?! (Don't Just Believe The Hype)",
+    "url": "https://www.youtube.com/watch?v=SA3TxPLLB08",
+    "summary": "The video stresses grounded evaluation over marketing claims when choosing AI models.",
+    "insights": [
+      "Benchmarks are not enough without real-world checks.",
+      "Model selection should include failure mode analysis."
+    ],
+    "actions": [
+      "Add model validation checks before adopting new providers.",
+      "Use test prompts to compare actual failure modes."
+    ],
+    "keywords": ["model evaluation", "benchmarks", "validation", "failures"],
+    "themes": ["Model evaluation", "Automation"],
+    "implementation_targets": ["Provider failover checks", "Validation prompts"],
+    "source_run_id": "SA3TxPLLB08",
+    "learned_at": "2026-08-25T07:42:39.788Z",
+    "updated_at": "2026-08-25T07:42:39.788Z",
+    "seed": true
+  },
+  {
+    "id": "seed-E5qThSVlFzY",
+    "title": "The Complete Local AI System with A Single NPM Install!",
+    "url": "https://www.youtube.com/watch?v=E5qThSVlFzY",
+    "summary": "Local AI stacks work best when setup is modular and installable in one step.",
+    "insights": [
+      "One-command installs reduce setup friction.",
+      "Local-first AI can improve reliability and control."
+    ],
+    "actions": [
+      "Keep the local setup path simple and reproducible.",
+      "Prefer modular install steps over manual setup."
+    ],
+    "keywords": ["local AI", "npm install", "modular", "deployment"],
+    "themes": ["Local AI deployment", "One-click install"],
+    "implementation_targets": ["One-click install path", "Local-first setup"],
+    "source_run_id": "E5qThSVlFzY",
+    "learned_at": "2026-08-25T07:42:43.500Z",
+    "updated_at": "2026-08-25T07:42:43.500Z",
+    "seed": true
+  },
+  {
+    "id": "seed-4vpdYgVjVKw",
+    "title": "The Biggest Cloud Conference in the World Is 70% Hands On",
+    "url": "https://www.youtube.com/watch?v=4vpdYgVjVKw",
+    "summary": "Hands-on learning beats passive consumption when the goal is practical adoption.",
+    "insights": [
+      "Interactive labs improve retention.",
+      "Practical learning should be preferred over pure theory."
+    ],
+    "actions": [
+      "Prioritize hands-on workflow tests over passive docs.",
+      "Surface interactive steps in the automation dashboard."
+    ],
+    "keywords": ["hands-on", "workshops", "learning", "practical"],
+    "themes": ["Automation", "Workflow automation", "Hands-on learning"],
+    "implementation_targets": ["Interactive workflow tests", "Hands-on setup"],
+    "source_run_id": "4vpdYgVjVKw",
+    "learned_at": "2026-08-25T07:42:45.099Z",
+    "updated_at": "2026-08-25T07:42:45.099Z",
+    "seed": true
+  },
+  {
+    "id": "seed-m8VC2SV2igM",
+    "title": "This Completely Changes the Way We Build Production AI Agents (Vercel Eve)",
+    "url": "https://www.youtube.com/watch?v=m8VC2SV2igM",
+    "summary": "The video favors file-system-first agent design and composable project structure.",
+    "insights": [
+      "Agent behavior should be defined in files, not hidden in code.",
+      "Composable folders make agents easier to scale and maintain."
+    ],
+    "actions": [
+      "Keep agent configuration file-based.",
+      "Use composable structures for future automation expansion."
+    ],
+    "keywords": ["agent", "filesystem", "composable", "deployment"],
+    "themes": ["Agent orchestration", "Workflow automation"],
+    "implementation_targets": ["File-based agent config", "Composable agent layout"],
+    "source_run_id": "m8VC2SV2igM",
+    "learned_at": "2026-08-15T22:57:57.429618",
+    "updated_at": "2026-08-15T22:57:57.429618",
+    "seed": true
+  },
+  {
+    "id": "seed-T33iI6izAKw",
+    "title": "Finally, an Open Standard for the Karpathy LLM Wiki is HERE",
+    "url": "https://www.youtube.com/watch?v=T33iI6izAKw",
+    "summary": "An open knowledge format makes second-brain systems easier to share and extend.",
+    "insights": [
+      "Structured knowledge graphs scale better than scattered notes.",
+      "Open standards help content move between tools."
+    ],
+    "actions": [
+      "Represent knowledge in a reusable structure.",
+      "Make learning output portable across tools and agents."
+    ],
+    "keywords": ["knowledge graph", "open standard", "wiki", "second brain"],
+    "themes": ["Knowledge base ingestion", "Second brain / knowledge base"],
+    "implementation_targets": ["Portable knowledge format", "Knowledge graph"],
+    "source_run_id": "T33iI6izAKw",
+    "learned_at": "2026-08-15T22:59:30.000Z",
+    "updated_at": "2026-08-15T22:59:30.000Z",
+    "seed": true
+  }
+]
