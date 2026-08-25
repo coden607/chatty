@@ -1321,7 +1321,9 @@
         const list = document.getElementById("integration-status");
         if (!list) return;
         const entries = [
+          { name: "Email", ready: data?.email?.ready, detail: data?.email?.ready ? `Primary: ${data?.email?.primary || "unknown"}${(data?.email?.fallbacks || []).length ? ` • Fallbacks: ${(data.email.fallbacks || []).join(", ")}` : ""}` : "Configure SendGrid or Resend." },
           { name: "SendGrid", ready: data?.sendgrid?.ready, detail: data?.sendgrid?.ready ? "Configured for outbound email." : "Configure sender and API key." },
+          { name: "Resend", ready: data?.resend?.ready, detail: data?.resend?.ready ? "Configured as email fallback." : "Configure RESEND_API_KEY for fallback delivery." },
           { name: "n8n", ready: data?.n8n?.configured, detail: data?.n8n?.configured ? "Remote workflow activation available." : "Configure base URL and API key." },
           { name: "AI providers", ready: data?.ai?.configured, detail: data?.ai?.configured ? `Live providers: ${(data.ai.providers || []).join(", ")}` : "No live model provider configured." },
           { name: "Social", ready: data?.social?.ready, detail: data?.social?.ready ? "Posting integrations available." : "No social credentials configured." }
