@@ -1743,12 +1743,16 @@
         const insights = Array.isArray(youtube?.last_insights) ? youtube.last_insights : [];
         const cole = youtube?.cole_medin || {};
         const pendingCole = Array.isArray(cole?.pending_videos) ? cole.pending_videos : [];
+        const kb = cole?.knowledge_base || {};
+        const kbThemes = Array.isArray(kb?.themes) ? kb.themes : [];
+        const kbRecent = Array.isArray(kb?.recent) ? kb.recent : [];
         status.innerHTML = `
           <div class="log-entry"><strong>Status</strong> • ${escapeHTML(youtube?.last_status || "idle")}<br>Last run: ${escapeHTML(youtube?.last_run_at || "n/a")}</div>
           <div class="log-entry"><strong>Last video</strong> • ${escapeHTML(youtube?.last_video_title || "No video yet.")}<br>${escapeHTML(youtube?.last_video_url || "")}</div>
           <div class="log-entry"><strong>Summary</strong> • ${escapeHTML(youtube?.last_summary || "No YouTube learning yet.")}</div>
           <div class="log-entry"><strong>Insights</strong><br>${insights.length ? insights.map((item) => escapeHTML(item)).join("<br>") : "No insights yet."}</div>
           <div class="log-entry"><strong>Cole Medin</strong> • ${escapeHTML(String(cole?.seeded_videos || 0))} seeded, ${escapeHTML(String(cole?.learned_videos || 0))} learned<br>${pendingCole.length ? escapeHTML(pendingCole.slice(0, 3).map((item) => item.title || item.url).join(" | ")) : "No pending Cole Medin videos."}</div>
+          <div class="log-entry"><strong>Knowledge base</strong> • ${escapeHTML(String(kb?.total || 0))} entries<br>${kbThemes.length ? escapeHTML(kbThemes.slice(0, 4).map((item) => `${item.theme} (${item.count})`).join(" | ")) : "No knowledge themes yet."}<br>${kbRecent.length ? escapeHTML(kbRecent.slice(0, 2).map((item) => item.title || item.url).join(" | ")) : ""}</div>
           <div class="log-entry"><strong>Watchlist</strong> • ${watchlist.length ? escapeHTML(watchlist.map((item) => String(item.url || "")).join(" | ")) : "No queued videos."}</div>
         `;
       }

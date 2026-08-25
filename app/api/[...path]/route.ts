@@ -40,6 +40,7 @@ const funding = {
 };
 const youtubeWatchlist: RecordValue[] = [];
 const youtubeLearningRuns: RecordValue[] = [];
+const coleMedinKnowledgeBase: RecordValue[] = [];
 const youtubeLearning = {
   last_run_at: null as string | null,
   last_status: 'idle',
@@ -332,13 +333,15 @@ async function runColeMedinLearning(limit = 3) {
   for (const video of videos.slice(0, limit)) {
     const result = await runYouTubeLearning([String(video.url || '')], 'cole_medin');
     const details = applyColeMedinInsights(result, video);
+    const knowledgeEntry = collectColeMedinKnowledgeBase(result.run || {}, video, details);
     learned.push({ url: video.url, title: video.title || result.run?.video_title || '', summary: result.summary, run: result.run });
-    applied.push(...details);
+    applied.push(...details, { type: 'knowledge_base', title: knowledgeEntry.title, id: knowledgeEntry.id });
     const watched = youtubeWatchlist.find((item) => String(item.url || '') === String(video.url || ''));
     if (watched) {
       watched.learned_at = now();
       watched.last_summary = result.summary;
       watched.last_applied = details.map((item) => item.title || item.name).filter(Boolean);
+      watched.knowledge_base_id = knowledgeEntry.id;
     }
   }
   youtubeLearning.last_status = learned.length ? 'cole_medin_learned' : youtubeLearning.last_status;
@@ -348,6 +351,7 @@ async function runColeMedinLearning(limit = 3) {
     summary: youtubeLearning.last_summary || 'No Cole Medin videos processed.',
     learned,
     applied,
+    knowledge_base: coleMedinKnowledgeBaseStatus(),
     youtube: youtubeStatus(),
     recent_runs: youtubeLearningRuns,
   };
@@ -376,7 +380,7 @@ function discoverPotentialRecipients(limit = maxAutoFundingRecipients) {
     created_at: lead.created_at || now(),
   }));
 }
-function stateSnapshot() { return { workflows, tasks, collabEvents, promptHistory, messages, campaigns, n8nWorkflows, briefs, grants, experiments, pipelines, autonomy, learning, generated, launchRuns, fundingRuns, funding, youtubeWatchlist, youtubeLearningRuns, youtubeLearning }; }
+function stateSnapshot() { return { workflows, tasks, collabEvents, promptHistory, messages, campaigns, n8nWorkflows, briefs, grants, experiments, pipelines, autonomy, learning, generated, launchRuns, fundingRuns, funding, youtubeWatchlist, youtubeLearningRuns, coleMedinKnowledgeBase, youtubeLearning }; }
 function replaceArray(target: RecordValue[], source: unknown) { if (Array.isArray(source)) { target.splice(0, target.length, ...source); } }
 function hydrateSnapshot(payload: RecordValue) {
   replaceArray(workflows, payload.workflows); replaceArray(tasks, payload.tasks); replaceArray(collabEvents, payload.collabEvents); replaceArray(promptHistory, payload.promptHistory); replaceArray(messages, payload.messages); replaceArray(campaigns, payload.campaigns); replaceArray(n8nWorkflows, payload.n8nWorkflows); replaceArray(briefs, payload.briefs); replaceArray(grants, payload.grants); replaceArray(experiments, payload.experiments); replaceArray(pipelines, payload.pipelines);
@@ -384,6 +388,7 @@ function hydrateSnapshot(payload: RecordValue) {
   replaceArray(fundingRuns, payload.fundingRuns);
   replaceArray(youtubeWatchlist, payload.youtubeWatchlist);
   replaceArray(youtubeLearningRuns, payload.youtubeLearningRuns);
+  replaceArray(coleMedinKnowledgeBase, payload.coleMedinKnowledgeBase);
   if (payload.generated) Object.assign(generated, payload.generated);
   if (payload.autonomy) { Object.assign(autonomy, payload.autonomy); Object.assign(autonomy.state, payload.autonomy.state || {}); Object.assign(autonomy.settings, payload.autonomy.settings || {}); }
   if (payload.funding) {
@@ -825,6 +830,65 @@ function fundingStatus() {
     },
   };
 }
+function coleMedinThemes(payload: RecordValue) {
+  const text = `${String(payload.summary || '')} ${JSON.stringify(payload.insights || [])} ${JSON.stringify(payload.actions || [])} ${JSON.stringify(payload.keywords || [])}`.toLowerCase();
+  return [
+    ['agent zero', 'Agent Zero coordination'],
+    ['archon', 'Archon orchestration'],
+    ['bmad', 'BMAD modeling'],
+    ['second brain', 'Second brain / knowledge base'],
+    ['knowledge base', 'Knowledge base ingestion'],
+    ['rag', 'Retrieval augmented generation'],
+    ['local ai', 'Local AI deployment'],
+    ['npm install', 'One-click install'],
+    ['claude code', 'Claude Code workflow'],
+    ['outreach', 'Outreach automation'],
+    ['workflow', 'Workflow automation'],
+    ['automation', 'Automation'],
+  ]
+    .filter(([needle]) => text.includes(needle))
+    .map(([, theme]) => theme);
+}
+function coleMedinKnowledgeBaseStatus() {
+  const themes = new Map<string, number>();
+  for (const entry of coleMedinKnowledgeBase) {
+    for (const theme of Array.isArray(entry.themes) ? entry.themes : []) {
+      themes.set(theme, (themes.get(theme) || 0) + 1);
+    }
+  }
+  return {
+    total: coleMedinKnowledgeBase.length,
+    themes: Array.from(themes.entries()).sort((a, b) => b[1] - a[1]).slice(0, 8).map(([theme, count]) => ({ theme, count })),
+    recent: coleMedinKnowledgeBase.slice(0, 5),
+  };
+}
+function collectColeMedinKnowledgeBase(run: RecordValue, video: RecordValue, applied: RecordValue[]) {
+  const themes = coleMedinThemes(run);
+  const implementationTargets = applied.map((item) => item.title || item.name || item.type).filter(Boolean);
+  const entry = {
+    id: `cole-${video.video_id || run.id || Date.now()}`,
+    title: String(video.title || run.video_title || 'Cole Medin video'),
+    url: String(video.url || run.video_url || ''),
+    summary: String(run.summary || ''),
+    insights: Array.isArray(run.insights) ? run.insights : [],
+    actions: Array.isArray(run.actions) ? run.actions : [],
+    keywords: Array.isArray(run.keywords) ? run.keywords : [],
+    themes,
+    implementation_targets: implementationTargets,
+    source_run_id: run.id,
+    learned_at: now(),
+    updated_at: now(),
+  };
+  const existingIndex = coleMedinKnowledgeBase.findIndex((item) => String(item.url || '') === entry.url || String(item.id || '') === entry.id);
+  if (existingIndex >= 0) {
+    coleMedinKnowledgeBase.splice(existingIndex, 1, { ...coleMedinKnowledgeBase[existingIndex], ...entry });
+  } else {
+    coleMedinKnowledgeBase.unshift(entry);
+  }
+  coleMedinKnowledgeBase.splice(50);
+  record('cole_medin_knowledge_base', 'orchestrator', `Updated Cole Medin knowledge base with ${entry.title}.`);
+  return entry;
+}
 function youtubeStatus() {
   return {
     last_run_at: youtubeLearning.last_run_at,
@@ -842,6 +906,7 @@ function youtubeStatus() {
       seeded_videos: youtubeWatchlist.filter((item) => String(item.source || '') === 'cole_medin').length,
       learned_videos: youtubeWatchlist.filter((item) => String(item.source || '') === 'cole_medin' && Boolean(item.learned_at)).length,
       pending_videos: youtubeWatchlist.filter((item) => String(item.source || '') === 'cole_medin' && !item.learned_at).slice(0, 5),
+      knowledge_base: coleMedinKnowledgeBaseStatus(),
     },
   };
 }
@@ -1178,7 +1243,7 @@ function dashboardPayload() {
 }
 function getPayload(path: string[]) {
   switch (path.join('/')) {
-    case 'dashboard/all': return dashboardPayload(); case 'leads': return leadsPayload(); case 'leads/prospects': return prospectsPayload(); case 'learning/status': return { learning: learnFromSignals('status'), youtube: youtubeStatus(), timestamp: now() }; case 'automation/status': return { autonomy, learning: learnFromSignals('status'), governance: governanceStatus(), funding: fundingStatus(), youtube: youtubeStatus(), timestamp: now() }; case 'governance/status': return { governance: governanceStatus(), timestamp: now() }; case 'funding/status': return { funding: fundingStatus(), funding_runs: fundingRuns, timestamp: now() }; case 'youtube/status': return { youtube: youtubeStatus(), recent_runs: youtubeLearningRuns, timestamp: now() }; case 'youtube/cole-medin/status': return { youtube: youtubeStatus(), recent_runs: youtubeLearningRuns.filter((run) => String(run.trigger || '').includes('cole')), timestamp: now() }; case 'narcoguard/workflows': return { project: 'Narcoguard', workflows }; case 'narcoguard/launch/status': return { latest: launchRuns[0] || null, runs: launchRuns, events: collabEvents }; case 'agents': return { total: agents.length, agents }; case 'tasks': return { total: tasks.length, tasks }; case 'agents/collab': return { total: collabEvents.length, events: collabEvents }; case 'user/messages': return { total: messages.length, messages }; case 'autonomy/status': return autonomy; case 'pipelines': return { pipelines }; case 'campaigns': return { total: campaigns.length, campaigns }; case 'n8n/workflows': return { total: n8nWorkflows.length, workflows: n8nWorkflows }; case 'integrations/status': return integrationStatus(); case 'transparency/report': return { completed: collabEvents }; case 'content/briefs': return { briefs }; case 'grants': return { grants }; case 'experiments/pricing': return { experiments }; case 'kpi/anomalies': return { anomalies: [] }; case 'weekly/brief': return weeklyPayload(); default: return { status: 'ok', route: path.join('/') };
+    case 'dashboard/all': return dashboardPayload(); case 'leads': return leadsPayload(); case 'leads/prospects': return prospectsPayload(); case 'learning/status': return { learning: learnFromSignals('status'), youtube: youtubeStatus(), timestamp: now() }; case 'automation/status': return { autonomy, learning: learnFromSignals('status'), governance: governanceStatus(), funding: fundingStatus(), youtube: youtubeStatus(), timestamp: now() }; case 'governance/status': return { governance: governanceStatus(), timestamp: now() }; case 'funding/status': return { funding: fundingStatus(), funding_runs: fundingRuns, timestamp: now() }; case 'youtube/status': return { youtube: youtubeStatus(), recent_runs: youtubeLearningRuns, timestamp: now() }; case 'youtube/cole-medin/status': return { youtube: youtubeStatus(), knowledge_base: coleMedinKnowledgeBaseStatus(), recent_runs: youtubeLearningRuns.filter((run) => String(run.trigger || '').includes('cole')), timestamp: now() }; case 'youtube/cole-medin/knowledge-base': return { knowledge_base: coleMedinKnowledgeBaseStatus(), youtube: youtubeStatus(), timestamp: now() }; case 'narcoguard/workflows': return { project: 'Narcoguard', workflows }; case 'narcoguard/launch/status': return { latest: launchRuns[0] || null, runs: launchRuns, events: collabEvents }; case 'agents': return { total: agents.length, agents }; case 'tasks': return { total: tasks.length, tasks }; case 'agents/collab': return { total: collabEvents.length, events: collabEvents }; case 'user/messages': return { total: messages.length, messages }; case 'autonomy/status': return autonomy; case 'pipelines': return { pipelines }; case 'campaigns': return { total: campaigns.length, campaigns }; case 'n8n/workflows': return { total: n8nWorkflows.length, workflows: n8nWorkflows }; case 'integrations/status': return integrationStatus(); case 'transparency/report': return { completed: collabEvents }; case 'content/briefs': return { briefs }; case 'grants': return { grants }; case 'experiments/pricing': return { experiments }; case 'kpi/anomalies': return { anomalies: [] }; case 'weekly/brief': return weeklyPayload(); default: return { status: 'ok', route: path.join('/') };
   }
 }
 async function body(request: Request): Promise<RecordValue> { try { return await request.json() as RecordValue; } catch { return {}; } }
