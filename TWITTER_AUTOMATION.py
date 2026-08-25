@@ -15,7 +15,7 @@ from pathlib import Path
 import tweepy
 from transparency_log import log_transparency
 
-NARCOGUARD_URL = os.getenv("NARCOGUARD_URL", "https://v0-narcoguard-pwa-build.vercel.app")
+NARCOGUARD_URL = os.getenv("NARCOGUARD_URL", "https://narcoguard-pwa.vercel.app")
 FUNDING_URL = os.getenv("NARCOGUARD_FUNDING_URL", os.getenv("GOFUNDME_URL", "https://gofund.me/e1a0b3f2"))
 
 # Setup logging

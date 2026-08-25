@@ -24,7 +24,7 @@ _secrets_file = os.getenv("CHATTY_SECRETS_FILE")
 if _secrets_file:
     load_dotenv(os.path.expanduser(_secrets_file), override=True)  # secrets always win
 
-NARCOGUARD_URL = os.getenv("NARCOGUARD_URL", "https://v0-narcoguard-pwa-build.vercel.app")
+NARCOGUARD_URL = os.getenv("NARCOGUARD_URL", "https://narcoguard-pwa.vercel.app")
 FUNDING_URL = os.getenv("NARCOGUARD_FUNDING_URL", os.getenv("GOFUNDME_URL", "https://gofund.me/e1a0b3f2"))
 
 # Heavy SDK imports moved to module level to reduce request-time latency

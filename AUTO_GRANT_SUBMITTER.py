@@ -13,7 +13,7 @@ from dotenv import load_dotenv
 
 load_dotenv()
 
-NARCOGUARD_URL = os.getenv("NARCOGUARD_URL", "https://v0-narcoguard-pwa-build.vercel.app")
+NARCOGUARD_URL = os.getenv("NARCOGUARD_URL", "https://narcoguard-pwa.vercel.app")
 FUNDING_URL = os.getenv("NARCOGUARD_FUNDING_URL", os.getenv("GOFUNDME_URL", "https://gofund.me/e1a0b3f2"))
 
 class AutoGrantSubmitter:
