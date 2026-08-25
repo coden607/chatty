@@ -76,7 +76,7 @@ const resendFromEmail = process.env.RESEND_FROM_EMAIL || sendgridFromEmail || de
 const resendFromName = process.env.RESEND_FROM_NAME || sendgridFromName || 'CHATTY';
 const narcoguardUrl = process.env.NARCOGUARD_URL || 'https://narcoguard-pwa.vercel.app';
 const fundingUrl = process.env.NARCOGUARD_FUNDING_URL || process.env.GOFUNDME_URL || 'https://gofund.me/e1a0b3f2';
-const coleMedinChannelId = 'UCZ92LYsgE9p2pZtF6LZ8B2A';
+const coleMedinChannelId = 'UCMwVTLZIRRUyyVrkjDpn4pA';
 const coleMedinChannelUrl = 'https://www.youtube.com/@ColeMedin';
 
 function redactEmail(email: unknown) { if (typeof email !== 'string' || !email.includes('@')) return ''; const [local, domain] = email.split('@'); return `${local.slice(0, 2)}***@${domain}`; }
@@ -177,11 +177,45 @@ function extractFeedEntries(xml: string) {
 async function fetchColeMedinFeed(limit = 5) {
   try {
     const response = await fetch(`https://www.youtube.com/feeds/videos.xml?channel_id=${coleMedinChannelId}`, { cache: 'no-store' });
-    if (!response.ok) return [];
-    const xml = await response.text();
-    return extractFeedEntries(xml).slice(0, limit);
+    if (response.ok) {
+      const xml = await response.text();
+      const entries = extractFeedEntries(xml);
+      if (entries.length) {
+        return entries.slice(0, limit);
+      }
+    }
   } catch (error) {
     console.error('Cole Medin feed fetch failed', error);
+  }
+  try {
+    const response = await fetch(`https://www.youtube.com/channel/${coleMedinChannelId}/videos`, { cache: 'no-store' });
+    if (!response.ok) return [];
+    const html = await response.text();
+    const initialDataMatch = html.match(/var ytInitialData = (\{[\s\S]*\});<\/script>/) || html.match(/window\["ytInitialData"\] = (\{[\s\S]*\});/);
+    if (!initialDataMatch) return [];
+    const data = JSON.parse(initialDataMatch[1]);
+    const tabs = data?.contents?.twoColumnBrowseResultsRenderer?.tabs || [];
+    const videosTab = tabs.find((tab: RecordValue) => String(tab?.tabRenderer?.title || '') === 'Videos' || Boolean(tab?.tabRenderer?.selected))?.tabRenderer?.content?.richGridRenderer?.contents || [];
+    const entries: Array<{ title: string; url: string; video_id: string; published: string; updated: string }> = [];
+    for (const item of videosTab) {
+      const lockup = item?.richItemRenderer?.content?.lockupViewModel;
+      const videoId = String(lockup?.contentId || '').trim();
+      const title = String(lockup?.metadata?.lockupMetadataViewModel?.title?.content || '').trim();
+      const rowParts = lockup?.metadata?.lockupMetadataViewModel?.metadata?.contentMetadataViewModel?.metadataRows?.[0]?.metadataParts || [];
+      const published = String(rowParts?.[1]?.text?.content || rowParts?.[0]?.text?.content || '').trim();
+      if (!videoId) continue;
+      entries.push({
+        title: title || `Cole Medin video ${videoId}`,
+        url: `https://www.youtube.com/watch?v=${videoId}`,
+        video_id: videoId,
+        published,
+        updated: published,
+      });
+      if (entries.length >= limit) break;
+    }
+    return entries;
+  } catch (error) {
+    console.error('Cole Medin page fetch failed', error);
     return [];
   }
 }
