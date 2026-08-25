@@ -1,6 +1,6 @@
 const CACHE_NAME = "chatty-pwa-v1";
 const CORE_ASSETS = [
-  "/leads_dashboard.html",
+  "/dashboard",
   "/pwa/manifest.json",
   "/pwa/icon.svg",
   "/pwa/icon-maskable.svg"
@@ -42,7 +42,7 @@ self.addEventListener("fetch", (event) => {
           caches.open(CACHE_NAME).then((cache) => cache.put(event.request, cloned));
           return response;
         })
-        .catch(() => caches.match("/leads_dashboard.html"));
+        .catch(() => caches.match("/dashboard"));
     })
   );
 });

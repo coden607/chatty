@@ -344,10 +344,14 @@ pipelines = {
 
 autonomy_task_handle: Optional[asyncio.Task] = None
 
-# In-memory cache for the expensive weekly brief AI generation
-_weekly_brief_cache = None
+# In-memory cache for the expensive weekly brief AI generation. Keep the
+# structure stable for weekly_brief(), which expects body/timestamp keys.
+_weekly_brief_cache = {
+    "body": None,
+    "timestamp": 0.0
+}
 _weekly_brief_time = 0
-_weekly_brief_lock = None
+_weekly_brief_lock = asyncio.Lock()
 
 narcoguard_workflows = [
     {
@@ -802,6 +806,11 @@ async def landing():
     """Serve the landing page explicitly"""
     return FileResponse(os.path.join(TEMPLATES_DIR, "landing_page.html"))
 
+@app.get("/dashboard")
+async def dashboard():
+    """Serve the lead intelligence dashboard"""
+    return FileResponse(os.path.join(os.path.dirname(__file__), "leads_dashboard.html"))
+
 @app.get("/api")
 async def api_root():
     """API root endpoint"""
@@ -908,6 +917,7 @@ async def get_dashboard_all():
         "grants": results[13],
         "experiments": results[14],
         "anomalies": results[15],
+        "weekly": results[16],
         "weekly_brief": results[16],
         "timestamp": datetime.now().isoformat()
     }

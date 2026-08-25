@@ -1,7 +1,7 @@
 {
   "name": "Chatty Autonomous Console",
   "short_name": "Chatty",
-  "start_url": "/leads_dashboard.html",
+  "start_url": "/dashboard",
   "display": "standalone",
   "background_color": "#0b0e14",
   "theme_color": "#0b0e14",
