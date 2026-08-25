@@ -1,4 +1,5 @@
 import leads from '../../../leads.json';
+import youtubeLearningSeed from '../../../generated_content/youtube_learnings.json';
 
 export const runtime = 'edge';
 
@@ -40,7 +41,6 @@ const funding = {
 };
 const youtubeWatchlist: RecordValue[] = [];
 const youtubeLearningRuns: RecordValue[] = [];
-const coleMedinKnowledgeBase: RecordValue[] = [];
 const youtubeLearning = {
   last_run_at: null as string | null,
   last_status: 'idle',
@@ -65,6 +65,40 @@ const learning = {
     pending_integrations: 0,
   },
 };
+function buildColeMedinKnowledgeBaseSeed() {
+  const entries = Array.isArray(youtubeLearningSeed) ? youtubeLearningSeed : [];
+  return entries
+    .filter((item) => {
+      const text = `${String(item?.title || '')} ${JSON.stringify(item?.insights || {})}`.toLowerCase();
+      return ['ai', 'agent', 'code', 'claude', 'archon', 'wiki', 'brain', 'pydantic', 'vercel', 'kimi', 'automation', 'local', 'harness', 'knowledge'].some((needle) => text.includes(needle));
+    })
+    .map((item) => {
+      const insights = item?.insights || {};
+      const summary = String(insights.summary || '').trim();
+      const keyTopics = Array.isArray(insights.key_topics) ? insights.key_topics.map((value: unknown) => String(value).trim()).filter(Boolean) : [];
+      const tips = Array.isArray(insights.actionable_tips) ? insights.actionable_tips.map((value: unknown) => String(value).trim()).filter(Boolean) : [];
+      const tools = Array.isArray(insights.tools_mentioned) ? insights.tools_mentioned.map((value: unknown) => String(value).trim()).filter(Boolean) : [];
+      const themes = coleMedinThemes({ summary, insights: keyTopics, actions: tips, keywords: tools, title: item?.title });
+      return {
+        id: `seed-${String(item?.video_id || item?.video_url || item?.title || Date.now())}`,
+        title: String(item?.title || 'Cole Medin video'),
+        url: String(item?.video_url || ''),
+        summary,
+        insights: keyTopics,
+        actions: tips,
+        keywords: tools,
+        themes,
+        implementation_targets: themes.length ? themes : ['Cole Medin learning'],
+        source_run_id: item?.video_id || item?.video_url || item?.title || '',
+        learned_at: item?.processed_at || now(),
+        updated_at: item?.processed_at || now(),
+        seed: true,
+      };
+    })
+    .filter((item) => String(item.url || '').includes('youtube.com/watch'))
+    .slice(0, 50);
+}
+const coleMedinKnowledgeBase: RecordValue[] = buildColeMedinKnowledgeBaseSeed();
 
 const supabaseUrl = process.env.SUPABASE_URL;
 const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
