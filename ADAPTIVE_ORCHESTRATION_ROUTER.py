@@ -244,6 +244,7 @@ class AdaptiveOrchestrationRouter:
         risk: Risk,
         context_budget: int,
         unavailable_providers: Iterable[str] = (),
+        allow_paid: bool = False,
     ) -> ModelCandidate:
         unavailable = {p.lower() for p in unavailable_providers}
         eligible = [
@@ -252,11 +253,6 @@ class AdaptiveOrchestrationRouter:
             and m.max_context >= context_budget
             and (strength in m.strengths or "reasoning" in m.strengths)
         ]
-        if not eligible:
-            eligible = [m for m in self.models if m.provider.lower() not in unavailable]
-        if not eligible:
-            raise RuntimeError("No model candidates available")
-
         # Cheapest capable first. Strong paid becomes eligible by policy only
         # for high-risk/strategic work; otherwise free tiers are preferred.
         max_tier = ModelTier.STRONG_PAID if (
@@ -269,6 +265,14 @@ class AdaptiveOrchestrationRouter:
             ModelTier.STRONG_PAID: 3,
         }
         eligible = [m for m in eligible if order[m.tier] <= order[max_tier]]
+        if not allow_paid:
+            eligible = [m for m in eligible if m.tier in {
+                ModelTier.FREE_LOCAL, ModelTier.FREE_CLOUD,
+            }]
+        if not eligible:
+            raise RuntimeError(
+                "No capable model available within context and paid-fallback policy"
+            )
         eligible.sort(key=lambda m: (order[m.tier], m.estimated_cost_per_million_input, m.priority))
         return eligible[0]
 
@@ -279,6 +283,7 @@ class AdaptiveOrchestrationRouter:
         project: Optional[str] = None,
         task_type: Optional[str] = None,
         unavailable_providers: Iterable[str] = (),
+        allow_paid: bool = False,
     ) -> RoutingPlan:
         detected_project = self.detect_project(request, project)
         detected_task = self.detect_task_type(request, task_type)
@@ -287,7 +292,8 @@ class AdaptiveOrchestrationRouter:
         context_budget, output_budget, parallel_agents = self.budgets(complexity)
         strength = self.desired_strength(detected_task, complexity)
         model = self.choose_model(
-            strength, complexity, risk, context_budget, unavailable_providers
+            strength, complexity, risk, context_budget, unavailable_providers,
+            allow_paid=allow_paid,
         )
 
         escalation: List[str] = []
@@ -317,5 +323,7 @@ class AdaptiveOrchestrationRouter:
                 "policy": "cheapest-capable-first",
                 "strength": strength,
                 "context_isolation": True,
+                "paid_fallback_allowed": allow_paid,
+                "execution_verified": False,
             },
         )

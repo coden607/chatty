@@ -52,9 +52,33 @@ class AdaptiveRouterTests(unittest.TestCase):
             "Prepare a legal filing and verify every citation",
             project="brendan440",
             task_type="research",
+            allow_paid=True,
         )
         self.assertEqual(plan.risk, Risk.HIGH)
         self.assertEqual(plan.model_tier, ModelTier.STRONG_PAID)
+
+    def test_unqualified_model_is_not_used_as_fallback(self):
+        router = AdaptiveOrchestrationRouter(models=(
+            ModelCandidate("quick-only", "local", ModelTier.FREE_LOCAL, ("quick",)),
+        ))
+        with self.assertRaisesRegex(RuntimeError, "No capable model"):
+            router.plan("Analyze this failure", task_type="analysis")
+
+    def test_context_overflow_is_not_used_as_fallback(self):
+        router = AdaptiveOrchestrationRouter(models=(
+            ModelCandidate("small", "local", ModelTier.FREE_LOCAL,
+                           ("coding",), max_context=1000),
+        ))
+        with self.assertRaisesRegex(RuntimeError, "No capable model"):
+            router.plan("Fix this code", task_type="coding")
+
+    def test_paid_fallback_requires_explicit_opt_in(self):
+        router = AdaptiveOrchestrationRouter(models=(
+            ModelCandidate("paid", "paid", ModelTier.FAST_PAID, ("quick",)),
+        ))
+        with self.assertRaisesRegex(RuntimeError, "No capable model"):
+            router.plan("Hello")
+        self.assertEqual(router.plan("Hello", allow_paid=True).provider, "paid")
 
     def test_provider_failure_can_be_excluded(self):
         plan = self.router.plan(
