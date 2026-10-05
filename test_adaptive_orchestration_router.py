@@ -89,5 +89,28 @@ class AdaptiveRouterTests(unittest.TestCase):
         self.assertIn("provider_failure", plan.escalation_reasons)
 
 
+    def test_quality_floor_rejects_low_quality_candidate(self):
+        router = AdaptiveOrchestrationRouter(models=(
+            ModelCandidate("weak", "free-a", ModelTier.FREE_CLOUD, ("coding",),
+                           quality_score=0.60, efficiency_score=1.0),
+            ModelCandidate("qualified", "free-b", ModelTier.FREE_CLOUD, ("coding",),
+                           quality_score=0.80, efficiency_score=0.5),
+        ))
+        plan = router.plan("Fix this code", task_type="coding")
+        self.assertEqual(plan.model, "qualified")
+
+    def test_efficiency_breaks_tie_after_quality_floor(self):
+        router = AdaptiveOrchestrationRouter(models=(
+            ModelCandidate("efficient", "free-a", ModelTier.FREE_CLOUD, ("coding",),
+                           quality_score=0.80, efficiency_score=0.9),
+            ModelCandidate("less-efficient", "free-b", ModelTier.FREE_CLOUD, ("coding",),
+                           quality_score=0.90, efficiency_score=0.2),
+        ))
+        plan = router.plan("Fix this code", task_type="coding")
+        self.assertEqual(plan.model, "efficient")
+        self.assertEqual(plan.metadata["selection_policy"],
+                         "quality-floor-then-token-efficiency")
+
+
 if __name__ == "__main__":
     unittest.main()
