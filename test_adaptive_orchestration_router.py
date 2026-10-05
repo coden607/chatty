@@ -1,4 +1,8 @@
 import unittest
+import asyncio
+from unittest.mock import AsyncMock
+
+from TOKENSPIN_BRIDGE import TokenspinBridge
 
 from ADAPTIVE_ORCHESTRATION_ROUTER import (
     AdaptiveOrchestrationRouter,
@@ -110,6 +114,30 @@ class AdaptiveRouterTests(unittest.TestCase):
         self.assertEqual(plan.model, "efficient")
         self.assertEqual(plan.metadata["selection_policy"],
                          "quality-floor-then-token-efficiency")
+
+
+class TokenspinPolicyTests(unittest.TestCase):
+    def test_default_path_never_probes_tokenspin_and_caps_output(self):
+        async def run():
+            bridge = TokenspinBridge()
+            bridge._ensure_tokenspin = AsyncMock(side_effect=AssertionError("must not probe"))
+            bridge._generate_via_free_router = AsyncMock(return_value={"text": "ok"})
+            result = await bridge.generate("system", "Summarize this short note", max_tokens=9999)
+            bridge._generate_via_free_router.assert_awaited_once()
+            args = bridge._generate_via_free_router.await_args
+            self.assertLessEqual(args.args[2], 800)
+            self.assertFalse(args.kwargs["allow_paid"])
+            self.assertIn("routing_plan", result)
+        asyncio.run(run())
+
+    def test_explicit_paid_policy_survives_tokenspin_failure(self):
+        async def run():
+            bridge = TokenspinBridge()
+            bridge._ensure_tokenspin = AsyncMock(return_value=True)
+            bridge._generate_via_tokenspin = AsyncMock(return_value={"text": "ok"})
+            await bridge.generate("system", "Analyze architecture", allow_paid=True)
+            bridge._generate_via_tokenspin.assert_awaited_once()
+        asyncio.run(run())
 
 
 if __name__ == "__main__":
