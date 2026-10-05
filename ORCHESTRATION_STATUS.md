@@ -1,34 +1,28 @@
 # Adaptive orchestration status
 
-The `feat/adaptive-orchestration-router` branch provides a deterministic planning
-policy. It is not yet an end-to-end execution integration.
+The `feat/adaptive-orchestration-router` branch now enforces the shared routing policy in the three known generation paths: `TOKENSPIN_BRIDGE.py`, `FREE_LLM_ROUTER.py`, and `CHATTY_MODEL_ROUTER.py`.
 
-## Verified policy behavior
+## Implemented
 
-- Task and project detection select persona, skills, and suggested token budgets.
-- Unavailable providers are excluded.
-- Candidates must satisfy capability and context requirements; there is no
-  fallback that discards these constraints.
-- Paid-tier candidates require explicit `allow_paid=True`. Risk classification
-  alone does not authorize paid fallback.
-- Plans report `execution_verified=False` and whether paid fallback is allowed.
+- Deterministic project/task/risk/complexity classification.
+- Quality-floor-first model eligibility followed by configured token-efficiency ranking.
+- Context capability checks; an undersized model is never selected as fallback.
+- Explicit `allow_paid=True` requirement for paid/known-paid paths.
+- Paid policy is preserved across FreeLLMRouter retries.
+- Tokenspin is treated as opaque and bypassed by default unless paid fallback is explicitly authorized.
+- Output budget is enforced by the Tokenspin bridge before execution.
+- Personas, skills, framework choice, verification requirements, and isolated project metadata are emitted in each routing plan.
+- Routing plans do not claim runtime provider availability, price, execution verification, or measured savings.
 
-Run `python3 -m unittest test_adaptive_orchestration_router -v` to check the policy.
+## Validation gates
 
-## Remaining execution work
+Focused unit tests cover project/risk classification, context overflow, paid opt-in, provider exclusion, quality-floor rejection, and token-efficiency selection.
 
-- Wire the plan into the actual generation entry points. The existing API uses
-  Tokenspin/FreeLLMRouter, and CHATTY_MODEL_ROUTER has a separate fallback path.
-- Enforce context/output and total workflow budgets before provider requests.
-- Use configured, runtime-validated models instead of assuming registry entries
-  remain available or free. In particular, FREE_LLM_ROUTER includes xAI entries
-  described as paid fallback; its name is not a spending guarantee.
-- Carry spending policy through every retry and fallback, including Tokenspin.
-- Bound retry counts and agent concurrency; preserve a queue and isolated project
-  context. A suggested `parallel_agents` value does not launch agents.
-- Record provider-reported usage and configured pricing, and verify savings using
-  measured comparable workloads.
-- Verify authenticated access and a real provider smoke test on the target
-  runtime before deploying. This branch does not change ChatGPT's own billing.
+Before release, exact-head validation must still prove:
+1. Python compile succeeds for all changed Python files.
+2. Focused unit tests pass.
+3. Retry/fallback integration cannot bypass `allow_paid`.
+4. Runtime provider smoke tests are performed only for configured/authenticated providers.
+5. Any claimed savings use measured provider usage or comparable workload telemetry, never assumed pricing.
 
-These checks remain release blockers for claiming cost-controlled execution.
+The repository currently has no GitHub Actions workflow attached to this PR head, so absence of CI is not evidence of a pass. Do not claim production readiness until the exact-head validation gates above are executed.
