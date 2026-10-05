@@ -51,6 +51,8 @@ class ModelCandidate:
     max_context: int = 128_000
     estimated_cost_per_million_input: float = 0.0
     priority: int = 100
+    quality_score: float = 0.0
+    efficiency_score: float = 0.0
 
 
 DEFAULT_MODELS: Sequence[ModelCandidate] = (
@@ -237,6 +239,16 @@ class AdaptiveOrchestrationRouter:
             return "reasoning"
         return "quick"
 
+    @staticmethod
+    def _quality_floor(complexity: Complexity, risk: Risk) -> float:
+        if risk == Risk.HIGH or complexity == Complexity.STRATEGIC:
+            return 0.90
+        if complexity == Complexity.HIGH:
+            return 0.82
+        if complexity == Complexity.MEDIUM:
+            return 0.70
+        return 0.55
+
     def choose_model(
         self,
         strength: str,
@@ -247,11 +259,13 @@ class AdaptiveOrchestrationRouter:
         allow_paid: bool = False,
     ) -> ModelCandidate:
         unavailable = {p.lower() for p in unavailable_providers}
+        quality_floor = self._quality_floor(complexity, risk)
         eligible = [
             m for m in self.models
             if m.provider.lower() not in unavailable
             and m.max_context >= context_budget
             and (strength in m.strengths or "reasoning" in m.strengths)
+            and (m.quality_score == 0.0 or m.quality_score >= quality_floor)
         ]
         # Cheapest capable first. Strong paid becomes eligible by policy only
         # for high-risk/strategic work; otherwise free tiers are preferred.
@@ -273,7 +287,16 @@ class AdaptiveOrchestrationRouter:
             raise RuntimeError(
                 "No capable model available within context and paid-fallback policy"
             )
-        eligible.sort(key=lambda m: (order[m.tier], m.estimated_cost_per_million_input, m.priority))
+        # Within the allowed spending policy, select for quality-adjusted token
+        # efficiency rather than blindly choosing the smallest/cheapest model.
+        # Unknown benchmark values (0.0) fall back to configured priority.
+        eligible.sort(key=lambda m: (
+            -(m.efficiency_score if m.efficiency_score > 0 else 0),
+            -(m.quality_score if m.quality_score > 0 else 0),
+            order[m.tier],
+            m.estimated_cost_per_million_input,
+            m.priority,
+        ))
         return eligible[0]
 
     def plan(
@@ -325,5 +348,6 @@ class AdaptiveOrchestrationRouter:
                 "context_isolation": True,
                 "paid_fallback_allowed": allow_paid,
                 "execution_verified": False,
+                "selection_policy": "quality-floor-then-token-efficiency",
             },
         )
