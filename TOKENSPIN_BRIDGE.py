@@ -194,7 +194,7 @@ class TokenspinBridge:
         except Exception as e:
             logger.warning(f"tokenspin call failed: {e}, falling back to free router")
             self._tokenspin_ok = False
-            return await self._generate_via_free_router(system, user, max_tokens)
+            return await self._generate_via_free_router(system, user, max_tokens, allow_paid=True)
 
     async def _generate_via_free_router(
         self, system: str, user: str, max_tokens: int, allow_paid: bool = False
