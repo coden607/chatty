@@ -22,6 +22,8 @@ import time
 from pathlib import Path
 from typing import Any, Dict, List, Optional
 
+from ADAPTIVE_ORCHESTRATION_ROUTER import AdaptiveOrchestrationRouter
+
 from dotenv import load_dotenv
 load_dotenv()
 
@@ -44,6 +46,7 @@ class TokenspinBridge:
         self._free_router: Optional[Any] = None
         self._tokenspin_ok: Optional[bool] = None
         self._proc: Optional[subprocess.Popen] = None
+        self._policy = AdaptiveOrchestrationRouter()
 
     # ── tokenspin health check ─────────────────────────────────
 
@@ -124,21 +127,37 @@ class TokenspinBridge:
         user_prompt: str,
         max_tokens: int = 1024,
         model: str = "auto",
+        allow_paid: bool = False,
+        project: Optional[str] = None,
+        task_type: Optional[str] = None,
         **kwargs,
     ) -> Dict[str, Any]:
+        """Generate under the shared quality-first spending policy.
+
+        Tokenspin is treated as an opaque provider rotator: unless paid fallback is
+        explicitly allowed, it is bypassed because this bridge cannot prove which
+        downstream provider/model it will choose.  The direct free router is the
+        fail-closed path.
         """
-        Generate a response. Prefers tokenspin proxy, falls back to free router.
-        """
-        tokenspin_up = await self._ensure_tokenspin()
+        plan = self._policy.plan(
+            user_prompt,
+            project=project,
+            task_type=task_type,
+            allow_paid=allow_paid,
+        )
+        max_tokens = min(max_tokens, plan.output_budget_tokens)
+        tokenspin_up = await self._ensure_tokenspin() if allow_paid else False
 
         if tokenspin_up:
             return await self._generate_via_tokenspin(
                 system_prompt, user_prompt, max_tokens, model
             )
         else:
-            return await self._generate_via_free_router(
-                system_prompt, user_prompt, max_tokens
+            result = await self._generate_via_free_router(
+                system_prompt, user_prompt, max_tokens, allow_paid=allow_paid
             )
+            result["routing_plan"] = plan.to_dict()
+            return result
 
     async def _generate_via_tokenspin(
         self,
@@ -178,10 +197,10 @@ class TokenspinBridge:
             return await self._generate_via_free_router(system, user, max_tokens)
 
     async def _generate_via_free_router(
-        self, system: str, user: str, max_tokens: int
+        self, system: str, user: str, max_tokens: int, allow_paid: bool = False
     ) -> Dict[str, Any]:
         router = self._get_free_router()
-        return await router.generate(system, user, max_tokens)
+        return await router.generate(system, user, max_tokens, allow_paid=allow_paid)
 
     async def stream(
         self,
