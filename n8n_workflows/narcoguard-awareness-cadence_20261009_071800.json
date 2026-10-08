@@ -1,0 +1,87 @@
+{
+  "name": "NarcoGuard Awareness Cadence",
+  "nodes": [
+    {
+      "parameters": {},
+      "id": "manual-trigger",
+      "name": "Manual Trigger",
+      "type": "n8n-nodes-base.manualTrigger",
+      "typeVersion": 1,
+      "position": [
+        240,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "functionCode": "return items;"
+      },
+      "id": "noop",
+      "name": "No-op",
+      "type": "n8n-nodes-base.function",
+      "typeVersion": 2,
+      "position": [
+        480,
+        300
+      ]
+    }
+  ],
+  "connections": {
+    "Manual Trigger": {
+      "main": [
+        [
+          {
+            "node": "No-op",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "timezone": "UTC"
+  },
+  "meta": {
+    "description": "Weekly NarcoGuard awareness cadence: one educational post per week per channel, human-approved before publish. No medical claims, no fear-bait, every overdose-safety mention carries the 911 notice.",
+    "trigger": "schedule",
+    "metadata": {
+      "campaign": "NarcoGuard Awareness",
+      "client": "narco",
+      "review_mode": "human_approval_required",
+      "cadence": "weekly",
+      "channels": [
+        "x",
+        "email",
+        "community"
+      ],
+      "weeks": [
+        {
+          "week": 1,
+          "theme": "Maslow framing — basic needs first",
+          "draft_asset": "CAMPAIGN.md#week-1"
+        },
+        {
+          "week": 2,
+          "theme": "Find Help + 211 resource literacy",
+          "draft_asset": "CAMPAIGN.md#week-2"
+        },
+        {
+          "week": 3,
+          "theme": "Angel AI + Guardian Stability planner",
+          "draft_asset": "CAMPAIGN.md#week-3"
+        },
+        {
+          "week": 4,
+          "theme": "Training, Hero certification, constitution",
+          "draft_asset": "CAMPAIGN.md#week-4"
+        }
+      ],
+      "required_credentials": [
+        "N8N_BASE_URL",
+        "N8N_API_KEY"
+      ],
+      "notes": "Posts are drafts until a human approves. X publishing currently goes through the manual publish_approved_x.py flow on the secure-key-setup branch."
+    }
+  }
+}
