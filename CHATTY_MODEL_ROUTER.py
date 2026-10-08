@@ -386,6 +386,7 @@ class ModelRouter:
         temperature: float = 0.7,
         model_preference: str = "default",
         require_confidence: bool = True,
+        allow_paid: bool = False,
     ) -> GenerationResult:
         """
         Generate content with automatic failover
@@ -409,6 +410,20 @@ class ModelRouter:
             ModelProvider.COHERE,
         ])
         
+        # Providers with clearly paid default paths require explicit authorization.
+        # OpenRouter's configured default is a :free model; NVIDIA cost is not
+        # inferred here, so deployments must validate provider terms separately.
+        if not allow_paid:
+            paid_providers = {
+                ModelProvider.XAI_GROK,
+                ModelProvider.OPENAI,
+                ModelProvider.ANTHROPIC,
+                ModelProvider.COHERE,
+            }
+            priority_list = [p for p in priority_list if p not in paid_providers]
+            if model_preference == "powerful":
+                model_preference = "cheap"
+
         # Try each provider in priority order
         last_error = None
         fallback_used = False

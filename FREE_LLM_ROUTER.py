@@ -596,6 +596,7 @@ class FreeLLMRouter:
         task_type: Optional[TaskType] = None,
         force_model: Optional[str] = None,
         tried: Optional[List[str]] = None,
+        allow_paid: bool = False,
     ) -> Dict[str, Any]:
         """
         Generate using the best available free model.
@@ -608,10 +609,23 @@ class FreeLLMRouter:
         if task_type is None:
             task_type = self._infer_task_type(system_prompt, user_prompt)
 
+        # xAI entries are not assumed free merely because they live in this file.
+        # Fail closed unless the caller explicitly authorizes paid fallback.
+        policy_excluded = list(tried)
+        if not allow_paid:
+            policy_excluded.extend(
+                m.id for m in self._available_models if m.provider == "xai"
+            )
+
         if force_model:
             model = next((m for m in self._available_models if m.id == force_model), None)
+            if model is not None and model.provider == "xai" and not allow_paid:
+                return {
+                    "text": "", "error": "Paid/unknown-cost model requires allow_paid=True",
+                    "model": model.id, "provider": model.provider,
+                }
         else:
-            model = await self._select_model(task_type, needed_tokens, exclude=tried)
+            model = await self._select_model(task_type, needed_tokens, exclude=policy_excluded)
 
         if model is None:
             return {
@@ -652,7 +666,8 @@ class FreeLLMRouter:
             tried.append(model.id)
             if len(tried) < 6:
                 return await self.generate(
-                    system_prompt, user_prompt, max_tokens, task_type, tried=tried
+                    system_prompt, user_prompt, max_tokens, task_type, tried=tried,
+                    allow_paid=allow_paid
                 )
             return {"text": "", "error": str(e), "model": model.id, "provider": model.provider}
 
