@@ -1,0 +1,43 @@
+name: Validate deployment workflow
+
+on:
+  push:
+    branches: [main, master, secure-key-setup, fix/deploy-workflow-validation, fix/default-deploy-workflow]
+    paths: ['.github/workflows/**', 'tests/test_deploy_workflow.py']
+  pull_request:
+    branches: [main, secure-key-setup]
+    paths: ['.github/workflows/**', 'tests/test_deploy_workflow.py']
+
+permissions:
+  contents: read
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Check workflow expressions
+        run: |
+          set -euo pipefail
+          tool_dir="$(mktemp -d)"
+          trap 'rm -rf "$tool_dir"' EXIT
+          cd "$tool_dir"
+          release=https://github.com/rhysd/actionlint/releases/download/v1.7.12
+          curl -fsSLO "$release/actionlint_1.7.12_linux_amd64.tar.gz"
+          curl -fsSLO "$release/actionlint_1.7.12_checksums.txt"
+          awk '$2 == "actionlint_1.7.12_linux_amd64.tar.gz"' actionlint_1.7.12_checksums.txt > selected-checksum.txt
+          test -s selected-checksum.txt
+          sha256sum -c selected-checksum.txt
+          tar --no-same-owner -xzf actionlint_1.7.12_linux_amd64.tar.gz actionlint
+          cd "$GITHUB_WORKSPACE"
+          "$tool_dir/actionlint" -shellcheck= -pyflakes= .github/workflows/*.yml
+      - name: Test deployment gates without live integrations
+        run: |
+          python -m pip install PyYAML==6.0.3
+          python -m unittest discover -s tests -p test_deploy_workflow.py -v
