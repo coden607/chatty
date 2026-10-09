@@ -1,62 +1,129 @@
-name: Deploy CHATTY
+name: Build and deploy CHATTY
 
 on:
   push:
-    branches: [ main, master ]
+    branches: [main, master]
   workflow_dispatch:
+    inputs:
+      target:
+        description: 'Explicitly approve deployment to this target (none builds only)'
+        required: true
+        default: none
+        type: choice
+        options: [none, oracle, railway]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: chatty-deploy
+  cancel-in-progress: false
 
 jobs:
   build-and-deploy:
     runs-on: ubuntu-latest
-    
+    timeout-minutes: 30
+    env:
+      DEPLOY_TARGET: ${{ github.event_name == 'workflow_dispatch' && inputs.target || 'none' }}
+      HAS_ORACLE_CONFIG: ${{ secrets.ORACLE_HOST != '' && secrets.ORACLE_USER != '' && secrets.ORACLE_SSH_KEY != '' }}
+      HAS_RAILWAY_TOKEN: ${{ secrets.RAILWAY_TOKEN != '' }}
+
     steps:
-    - name: Checkout code
-      uses: actions/checkout@v4
-      
-    - name: Set up Docker Buildx
-      uses: docker/setup-buildx-action@v3
-      
-    - name: Build Docker image
-      run: |
-        docker build -t chatty:latest .
-        
-    - name: Deploy to Oracle Cloud (if configured)
-      if: secrets.ORACLE_SSH_KEY != ''
-      env:
-        ORACLE_HOST: ${{ secrets.ORACLE_HOST }}
-        ORACLE_USER: ${{ secrets.ORACLE_USER }}
-        ORACLE_SSH_KEY: ${{ secrets.ORACLE_SSH_KEY }}
-      run: |
-        # Setup SSH
-        mkdir -p ~/.ssh
-        echo "$ORACLE_SSH_KEY" > ~/.ssh/oracle_key
-        chmod 600 ~/.ssh/oracle_key
-        
-        # Add host to known hosts
-        ssh-keyscan -H $ORACLE_HOST >> ~/.ssh/known_hosts
-        
-        # Deploy via SSH
-        ssh -i ~/.ssh/oracle_key $ORACLE_USER@$ORACLE_HOST << 'EOF'
+      - name: Validate deployment request
+        env:
+          DEPLOY_REF: ${{ github.ref }}
+        run: |
+          set -euo pipefail
+          if [[ "$DEPLOY_TARGET" != none && "$DEPLOY_REF" != refs/heads/main ]]; then
+            echo '::error::Deployment is allowed only from main; select main explicitly.'
+            exit 1
+          fi
+          case "$DEPLOY_TARGET" in
+            none) ;;
+            oracle)
+              [[ "$HAS_ORACLE_CONFIG" == true ]] || {
+                echo '::error::Oracle requires ORACLE_HOST, ORACLE_USER and ORACLE_SSH_KEY.'
+                exit 1
+              }
+              ;;
+            railway)
+              [[ "$HAS_RAILWAY_TOKEN" == true ]] || {
+                echo '::error::Railway requires RAILWAY_TOKEN.'
+                exit 1
+              }
+              ;;
+            *) echo '::error::Unknown deployment target.'; exit 1 ;;
+          esac
+
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Build Docker image
+        run: docker build -t "chatty:$GITHUB_SHA" .
+
+      - name: Deploy to Oracle Cloud
+        id: oracle
+        if: env.DEPLOY_TARGET == 'oracle' && env.HAS_ORACLE_CONFIG == 'true'
+        env:
+          ORACLE_HOST: ${{ secrets.ORACLE_HOST }}
+          ORACLE_USER: ${{ secrets.ORACLE_USER }}
+          ORACLE_SSH_KEY: ${{ secrets.ORACLE_SSH_KEY }}
+        run: |
+          set -euo pipefail
+          key_file="$RUNNER_TEMP/chatty_oracle_key"
+          hosts_file="$RUNNER_TEMP/chatty_known_hosts"
+          trap 'rm -f "$key_file" "$hosts_file"' EXIT
+          umask 077
+          printf '%s\n' "$ORACLE_SSH_KEY" > "$key_file"
+          ssh-keyscan -H "$ORACLE_HOST" > "$hosts_file"
+          ssh -o BatchMode=yes -o StrictHostKeyChecking=yes \
+            -o "UserKnownHostsFile=$hosts_file" -i "$key_file" \
+            "$ORACLE_USER@$ORACLE_HOST" bash -s -- "$GITHUB_SHA" <<'EOF'
+          set -euo pipefail
           cd /opt/chatty
-          git pull origin main
-          docker-compose down
-          docker-compose build --no-cache
-          docker-compose up -d
-          docker system prune -f
-        EOF
-        
-    - name: Deploy to Railway (if configured)
-      if: secrets.RAILWAY_TOKEN != ''
-      env:
-        RAILWAY_TOKEN: ${{ secrets.RAILWAY_TOKEN }}
-      run: |
-        npm install -g @railway/cli
-        railway up --detach
-      
-    - name: Notify on success
-      if: success()
-      run: echo "✅ CHATTY deployment successful"
-      
-    - name: Notify on failure
-      if: failure()
-      run: echo "❌ CHATTY deployment failed"
+          git fetch origin main
+          git merge --ff-only "$1"
+          [[ "$(git rev-parse HEAD)" == "$1" ]] || {
+            echo 'Requested revision is not checked out; refusing deployment.'
+            exit 1
+          }
+          if docker compose version >/dev/null 2>&1; then
+            compose=(docker compose)
+          else
+            compose=(docker-compose)
+          fi
+          "${compose[@]}" build
+          "${compose[@]}" up -d
+          EOF
+
+      - name: Deploy to Railway
+        id: railway
+        if: env.DEPLOY_TARGET == 'railway' && env.HAS_RAILWAY_TOKEN == 'true'
+        env:
+          RAILWAY_TOKEN: ${{ secrets.RAILWAY_TOKEN }}
+        run: |
+          set -euo pipefail
+          npm install -g @railway/cli
+          railway up
+
+      - name: Report result
+        if: success()
+        env:
+          ORACLE_OUTCOME: ${{ steps.oracle.outcome }}
+          RAILWAY_OUTCOME: ${{ steps.railway.outcome }}
+        run: |
+          set -euo pipefail
+          if [[ "$ORACLE_OUTCOME" == success || "$RAILWAY_OUTCOME" == success ]]; then
+            echo "Build and $DEPLOY_TARGET deployment command succeeded; live health is not verified." >> "$GITHUB_STEP_SUMMARY"
+          else
+            echo 'Build succeeded. No deployment was requested or performed.' >> "$GITHUB_STEP_SUMMARY"
+          fi
+
+      - name: Report failure
+        if: failure()
+        run: echo 'Build or deployment failed; inspect the failed step.' >> "$GITHUB_STEP_SUMMARY"
