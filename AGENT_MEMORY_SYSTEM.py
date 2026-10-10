@@ -5,6 +5,7 @@ Uses ChromaDB to provide long-term memory and learning capabilities to AI agents
 Agents can store experiences, retrieve successful strategies, and avoid past mistakes.
 """
 
+from chatty_paths import home_path
 import os
 import chromadb
 from chromadb.config import Settings
@@ -19,7 +20,7 @@ logger = logging.getLogger(__name__)
 class AgentMemory:
     """Long-term memory for AI agents using Vector Database"""
     
-    def __init__(self, persistence_path="/home/coden809/CHATTY/chroma_db"):
+    def __init__(self, persistence_path=home_path("chroma_db")):
         telemetry_disabled = os.getenv("CHATTY_DISABLE_TELEMETRY", "true").lower() in ("1", "true", "yes")
         settings = Settings(anonymized_telemetry=not telemetry_disabled)
         self.client = chromadb.PersistentClient(path=persistence_path, settings=settings)

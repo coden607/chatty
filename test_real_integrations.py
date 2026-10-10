@@ -4,6 +4,7 @@ CHATTY Real Data Integration Tests
 Verifies ALL features work with REAL data only
 """
 
+from chatty_paths import home_path
 import asyncio
 import json
 import os
@@ -15,7 +16,7 @@ from pathlib import Path
 from dotenv import load_dotenv
 load_dotenv('.env')
 
-sys.path.insert(0, '/home/coden809/Projects/chatty')
+sys.path.insert(0, home_path())
 
 
 class RealDataTest:
@@ -210,7 +211,7 @@ async def test_mcp_real() -> RealDataTest:
         client = await get_real_mcp_client()
         
         # Real file read
-        content = await client.read_file("/home/coden809/Projects/chatty/README.md")
+        content = await client.read_file(home_path("README.md"))
         
         if len(content) > 0:
             test.passed = True
@@ -257,7 +258,7 @@ async def test_leads_real() -> RealDataTest:
     test = RealDataTest("Leads Database - Real Data")
     
     try:
-        leads_file = Path('/home/coden809/Projects/chatty/leads.json')
+        leads_file = Path(home_path("leads.json"))
         
         if not leads_file.exists():
             test.error = "leads.json not found"

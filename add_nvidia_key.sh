@@ -1,7 +1,7 @@
 #!/bin/bash
 # Add NVIDIA API Key to your secrets file
 
-SECRETS_FILE="/home/coden809/.config/chatty/secrets.env"
+SECRETS_FILE="${CHATTY_SECRETS_FILE:-$HOME/.config/chatty/secrets.env}"
 
 echo "=========================================="
 echo "Add NVIDIA API Key to CHATTY"
@@ -47,7 +47,7 @@ echo "✅ Key exported for current session"
 # Test the key
 echo ""
 echo "🔄 Testing API connection..."
-cd /home/coden809/Projects/chatty
+cd "$(dirname "$0")"
 source .venv/bin/activate
 
 python3 -c "

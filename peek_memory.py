@@ -1,7 +1,8 @@
+from chatty_paths import home_path
 import chromadb
 from chromadb.config import Settings
 
-client = chromadb.PersistentClient(path="/home/coden809/CHATTY/chroma_db")
+client = chromadb.PersistentClient(path=home_path("chroma_db"))
 collections = client.list_collections()
 
 for coll in collections:

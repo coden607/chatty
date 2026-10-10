@@ -4,6 +4,7 @@ Advanced AI Workflows - Enhanced Multi-AI Collaboration System
 Additional specialized workflows for different use cases and enhanced features
 """
 
+from chatty_paths import home_path
 import json
 import os
 import time
@@ -353,7 +354,7 @@ class AdvancedAIWorkflows:
 </body>
 </html>"""
 
-        with open('/home/coden809/CHATTY/ai_workflow_selector.html', 'w') as f:
+        with open(home_path("ai_workflow_selector.html"), 'w') as f:
             f.write(html_content)
 
         print("✅ Created AI Workflow Selector Interface")
@@ -428,10 +429,10 @@ echo "• Add custom prompt templates per workflow type"
 echo "• Enable real-time progress tracking"
 """
 
-        with open('/home/coden809/CHATTY/monitor_ai_performance.sh', 'w') as f:
+        with open(home_path("monitor_ai_performance.sh"), 'w') as f:
             f.write(monitoring_script)
 
-        os.chmod('/home/coden809/CHATTY/monitor_ai_performance.sh', 0o755)
+        os.chmod(home_path("monitor_ai_performance.sh"), 0o755)
         print("✅ Created Performance Monitoring Script")
 
     def create_backup_recovery_system(self):
@@ -512,10 +513,10 @@ echo "🔄 Recovery script: recovery_$TIMESTAMP.sh"
 echo "🧹 Cleaned old backups (keeping last 10)"
 """
 
-        with open('/home/coden809/CHATTY/backup_ai_workflows.sh', 'w') as f:
+        with open(home_path("backup_ai_workflows.sh"), 'w') as f:
             f.write(backup_script)
 
-        os.chmod('/home/coden809/CHATTY/backup_ai_workflows.sh', 0o755)
+        os.chmod(home_path("backup_ai_workflows.sh"), 0o755)
         print("✅ Created Backup & Recovery System")
 
     def create_advanced_features(self):
@@ -543,7 +544,7 @@ echo "🧹 Cleaned old backups (keeping last 10)"
             }
         }
 
-        with open('/home/coden809/CHATTY/ai_prompt_templates.json', 'w') as f:
+        with open(home_path("ai_prompt_templates.json"), 'w') as f:
             json.dump(prompt_templates, f, indent=2)
 
         print("✅ Created Advanced Prompt Templates")
@@ -560,7 +561,7 @@ echo "🧹 Cleaned old backups (keeping last 10)"
             "synthetic": "Combine multiple perspectives into unified solution"
         }
 
-        with open('/home/coden809/CHATTY/ai_collaboration_patterns.json', 'w') as f:
+        with open(home_path("ai_collaboration_patterns.json"), 'w') as f:
             json.dump(patterns, f, indent=2)
 
         print("✅ Created Advanced Collaboration Patterns")
@@ -595,7 +596,7 @@ echo "🧹 Cleaned old backups (keeping last 10)"
             }
         }
 
-        with open('/home/coden809/CHATTY/ai_integration_hub.json', 'w') as f:
+        with open(home_path("ai_integration_hub.json"), 'w') as f:
             json.dump(integration_config, f, indent=2)
 
         print("✅ Created Integration Hub for External Tools")
@@ -680,7 +681,7 @@ to provide the most advanced AI collaboration platform available.
 CHATTY: Building the future of AI collaboration, one enhancement at a time.
 """
 
-        with open('/home/coden809/CHATTY/chatty_enhancement_report.md', 'w') as f:
+        with open(home_path("chatty_enhancement_report.md"), 'w') as f:
             f.write(report)
 
         print("✅ Generated Comprehensive Enhancement Report")
