@@ -4,7 +4,7 @@ import coleMedinKnowledgeBaseSeed from '../../../cole_medin_knowledge_base_seed.
 export const runtime = 'edge';
 
 type Lead = { id?: number | string; name?: string; email?: string; source?: string; lead_score?: number; status?: string; created_at?: string; [key: string]: unknown };
-type RecordValue = Record<string, any>;
+type RecordValue = Record<string, any>; // eslint-disable-line @typescript-eslint/no-explicit-any -- dynamic JSON payloads from external APIs
 const leadList = leads as Lead[];
 const maxAutoFundingRecipients = 8;
 
