@@ -1,0 +1,93 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Opportunities · CHATTY</title>
+<style>
+  :root { --bg:#0f1220; --card:#181c2f; --text:#e8eaf6; --muted:#9aa0c3; --accent:#7c8cff; --a:#3ecf8e; --b:#f5c451; --c:#8a8fa8; }
+  * { box-sizing:border-box } body { margin:0; font-family:system-ui,-apple-system,Segoe UI,Roboto,sans-serif; background:var(--bg); color:var(--text) }
+  header { display:flex; justify-content:space-between; align-items:center; padding:16px 24px; border-bottom:1px solid #262b45 }
+  header a { color:var(--muted); text-decoration:none; margin-right:16px } .logo { font-weight:700; letter-spacing:.5px }
+  .tabs { display:flex; gap:8px; padding:16px 24px 0 } .tab { background:var(--card); border:1px solid #262b45; color:var(--text); padding:8px 14px; border-radius:8px; cursor:pointer }
+  .tab[aria-selected=true] { border-color:var(--accent); color:var(--accent) }
+  main { padding:16px 24px } .bar { display:flex; gap:8px; flex-wrap:wrap; align-items:center; margin-bottom:12px }
+  input, select, button { background:var(--card); color:var(--text); border:1px solid #262b45; border-radius:6px; padding:7px 10px }
+  button { cursor:pointer } button:hover { border-color:var(--accent) }
+  table { width:100%; border-collapse:collapse; font-size:14px } th, td { text-align:left; padding:8px; border-bottom:1px solid #22263d; vertical-align:top }
+  th { color:var(--muted); font-weight:600 } a { color:var(--accent) } .muted { color:var(--muted); font-size:12px }
+  .grade { font-weight:700; padding:2px 8px; border-radius:10px; color:#111 } .gA{background:var(--a)} .gB{background:var(--b)} .gC{background:var(--c)}
+  .notice { background:#1d2240; border:1px solid #2d3463; padding:10px 12px; border-radius:8px; margin-bottom:12px; font-size:13px; color:var(--muted) }
+  pre { white-space:pre-wrap; background:var(--card); padding:12px; border-radius:8px; border:1px solid #262b45 }
+</style>
+</head>
+<body>
+<header><div class="logo">CHATTY · Opportunities</div><nav><a href="/dashboard">← Main dashboard</a><span id="status" class="muted" aria-live="polite"></span></nav></header>
+<div class="tabs" role="tablist">
+  <button class="tab" role="tab" aria-selected="true" data-tab="jobs">Coding jobs</button>
+  <button class="tab" role="tab" aria-selected="false" data-tab="prospects">Cortese prospects</button>
+  <button class="tab" role="tab" aria-selected="false" data-tab="drafts">Email drafts</button>
+  <button class="tab" role="tab" aria-selected="false" data-tab="config">Setup</button>
+</div>
+<main>
+  <section id="jobs">
+    <div class="bar"><input id="jq" placeholder="filter title/company…" aria-label="Filter jobs"><label class="muted">min score <input id="jmin" type="number" value="40" style="width:70px"></label>
+      <button onclick="loadJobs()">Refresh</button><button onclick="runNow('jobs', this)">Run job search now</button></div>
+    <div class="notice">Listings are credited to and link back to their source (Remotive, Remote OK, Himalayas, Hacker News, USAJOBS, Adzuna, company boards).</div>
+    <table><thead><tr><th>Score</th><th>Role</th><th>Location / type</th><th>Source</th></tr></thead><tbody id="jobs-body"><tr><td colspan="4">Loading…</td></tr></tbody></table>
+  </section>
+  <section id="prospects" hidden>
+    <div class="bar"><select id="pg" aria-label="Grade"><option value="">All grades</option><option>A</option><option>B</option><option>C</option></select>
+      <select id="pv" aria-label="Vertical"><option value="">All verticals</option><option value="dental">Dental</option><option value="med_spa">Med spa</option><option value="home_services">Home services</option><option value="law_firm">Law firm</option><option value="auto_repair">Auto repair</option></select>
+      <button onclick="loadProspects()">Refresh</button><a id="csv" href="/api/opportunities/prospects.csv"><button>Download CSV</button></a><button onclick="runNow('prospects', this)">Run prospect search now</button></div>
+    <div class="notice">No automated calls or texts. Outreach is by email drafts you review and send yourself (CAN-SPAM: include your postal address and honor opt-outs).</div>
+    <table><thead><tr><th>Grade</th><th>Business</th><th>Phone / site</th><th>Why</th></tr></thead><tbody id="prospects-body"></tbody></table>
+  </section>
+  <section id="drafts" hidden><div class="notice">Drafts only. This app never sends email to prospects.</div><div id="drafts-body"></div></section>
+  <section id="config" hidden><pre id="config-body">Loading…</pre></section>
+</main>
+<script>
+const esc = (s) => String(s ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const safeUrl = (u) => /^https?:\/\//i.test(u || '') ? esc(u) : '#';
+let JOBS = [];
+document.querySelectorAll('.tab').forEach(t => t.onclick = () => {
+  document.querySelectorAll('.tab').forEach(x => x.setAttribute('aria-selected', x === t));
+  document.querySelectorAll('main > section').forEach(s => s.hidden = s.id !== t.dataset.tab);
+  ({jobs: loadJobs, prospects: loadProspects, drafts: loadDrafts, config: loadConfig})[t.dataset.tab]();
+});
+async function loadJobs() {
+  const r = await fetch('/api/opportunities/jobs?min_score=' + (document.getElementById('jmin').value || 0)); JOBS = (await r.json()).jobs || []; renderJobs();
+}
+function renderJobs() {
+  const q = document.getElementById('jq').value.toLowerCase();
+  const rows = JOBS.filter(j => !q || (j.title + ' ' + j.company).toLowerCase().includes(q));
+  document.getElementById('jobs-body').innerHTML = rows.length ? rows.map(j => `<tr><td><b>${j.score}</b></td>
+    <td><a href="${safeUrl(j.url || j.source_url)}" target="_blank" rel="noopener">${esc(j.title)}</a><div class="muted">${esc(j.company)} · ${esc((j.reasons||[]).slice(0,3).join('; '))}</div></td>
+    <td>${esc(j.location || 'Remote')}<div class="muted">${esc((j.job_type||'').replace('_',' '))}${j.salary_max||j.salary_min ? ' · $' + Number(j.salary_min||j.salary_max).toLocaleString() + (j.salary_max && j.salary_max!==j.salary_min ? '–$' + Number(j.salary_max).toLocaleString() : '') : ''}</div></td>
+    <td>via <a href="${safeUrl(j.source_url || j.url)}" target="_blank" rel="noopener">${esc(j.source)}</a>${(j.also_on||[]).length ? '<div class="muted">also: ' + esc(j.also_on.join(', ')) + '</div>' : ''}</td></tr>`).join('') : '<tr><td colspan="4">No jobs yet. Click "Run job search now".</td></tr>';
+}
+document.getElementById('jq').oninput = renderJobs;
+async function loadProspects() {
+  const g = document.getElementById('pg').value, v = document.getElementById('pv').value;
+  const qs = new URLSearchParams(); if (g) qs.set('grade', g); if (v) qs.set('vertical', v);
+  document.getElementById('csv').href = '/api/opportunities/prospects.csv' + (g ? '?grade=' + g : '');
+  const r = await fetch('/api/opportunities/prospects?' + qs); const ps = (await r.json()).prospects || [];
+  document.getElementById('prospects-body').innerHTML = ps.length ? ps.map(p => `<tr><td><span class="grade g${esc(p.grade)}">${esc(p.grade)}</span> <span class="muted">${p.score}</span></td>
+    <td>${esc(p.name)}<div class="muted">${esc(p.vertical)} · ${esc(p.city)}, ${esc(p.state)} · ${esc(p.source)}</div></td>
+    <td>${esc(p.phone)}<div class="muted">${p.website ? `<a href="${safeUrl(p.website)}" target="_blank" rel="noopener">${esc(p.website.replace(/^https?:\/\//,'').slice(0,40))}</a>` : 'no website'}</div></td>
+    <td class="muted">${esc((p.reasons||[]).join('; '))}</td></tr>`).join('') : '<tr><td colspan="4">No prospects yet.</td></tr>';
+}
+async function loadDrafts() {
+  const r = await fetch('/api/opportunities/drafts'); const ds = (await r.json()).drafts || [];
+  document.getElementById('drafts-body').innerHTML = ds.length ? ds.map(d => `<h3>${esc(d.subject)}</h3><div class="muted">${esc(d.prospect_key)} · ${esc(d.generator)} · ${esc(d.status)}</div><pre>${esc(d.body)}</pre>`).join('') : '<p>No drafts yet.</p>';
+}
+async function loadConfig() { const r = await fetch('/api/opportunities/status'); document.getElementById('config-body').textContent = JSON.stringify(await r.json(), null, 2); }
+async function runNow(kind, btn) {
+  btn.disabled = true; const st = document.getElementById('status'); st.textContent = ` running ${kind}…`;
+  try { const r = await fetch('/api/opportunities/run/' + kind, {method: 'POST'}); const j = await r.json(); st.textContent = ` ${kind}: ${j.status}`; }
+  catch (e) { st.textContent = ` ${kind} failed`; }
+  btn.disabled = false; kind === 'jobs' ? loadJobs() : loadProspects();
+}
+loadJobs();
+</script>
+</body>
+</html>

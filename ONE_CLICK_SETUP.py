@@ -4,6 +4,7 @@ ONE-CLICK COMPLETE AUTOMATION SETUP
 Just press ENTER to get everything automated
 """
 
+from chatty_paths import home_path
 import os
 import sys
 import time
@@ -16,7 +17,7 @@ class OneClickSetup:
     """Complete automation setup with one click"""
     
     def __init__(self):
-        self.chatty_dir = Path("/home/coden809/CHATTY")
+        self.chatty_dir = Path(home_path())
         self.secrets_file = Path.home() / ".config/chatty/secrets.env"
         
     def run(self):

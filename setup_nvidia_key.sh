@@ -31,7 +31,7 @@ if [[ ! "$api_key" =~ ^nvapi- ]]; then
 fi
 
 # Add to .env file
-ENV_FILE="/home/coden809/Projects/chatty/.env"
+ENV_FILE="$(cd "$(dirname "$0")" && pwd)/.env"
 
 # Remove old NVIDIA_API_KEY if exists
 sed -i '/^NVIDIA_API_KEY=/d' "$ENV_FILE"
@@ -49,7 +49,7 @@ export NVIDIA_API_KEY="$api_key"
 echo "✅ API Key exported for current session"
 
 # Add to .bashrc for persistence
-BASHRC="/home/coden809/.bashrc"
+BASHRC="$HOME/.bashrc"
 if ! grep -q "NVIDIA_API_KEY=" "$BASHRC"; then
     echo "" >> "$BASHRC"
     echo "# NVIDIA Build API Key" >> "$BASHRC"

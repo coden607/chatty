@@ -172,7 +172,7 @@ export ANTHROPIC_API_KEY="sk-ant-..."
 - Status: ✅ Valid and working
 
 ### NVIDIA Build (Already Configured)
-- Your key is: `***REMOVED***`
+- Your key is: `nvapi-YOUR-NVIDIA-API-KEY` (set it in your secrets file; never commit real keys)
 - Status: ✅ Valid and working
 
 ---

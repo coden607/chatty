@@ -21,6 +21,9 @@ To use this test:
 
 The system requires REAL API access - no demo mode available.
 """)
+    if "pytest" in sys.modules:
+        import pytest
+        pytest.skip("NVIDIA_API_KEY not set", allow_module_level=True)
     sys.exit(1)
 
 from NVIDIA_REAL_AI_ORCHESTRATION import (

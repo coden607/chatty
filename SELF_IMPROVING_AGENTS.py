@@ -182,9 +182,20 @@ class SelfImprovingAgentSystem:
         self.message_queue = asyncio.Queue()
         self.system_state = SystemState()
         self.is_running = False
-        
+
+        if self.llm is None:
+            # Without an explicit LLM, CrewAI silently falls back to OpenAI and
+            # raises "OPENAI_API_KEY is required", which used to abort startup.
+            self.disabled = True
+            logger.warning("⚠️ Self-improving agents disabled: no LLM key (XAI/OPENROUTER/COHERE) configured.")
+            return
+
         # Initialize agent crews
-        self.initialize_agent_crews()
+        try:
+            self.initialize_agent_crews()
+        except Exception as e:
+            self.disabled = True
+            logger.warning(f"⚠️ Self-improving agents disabled: crew initialization failed: {e}")
 
     def _init_llm_with_rotation(self):
         """Initialize the first available LLM, rotating through keys/providers on failure."""

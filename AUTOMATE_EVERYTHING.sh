@@ -11,7 +11,7 @@ echo ""
 echo "Press ENTER to start..."
 read
 
-cd /home/coden809/CHATTY
+cd "$(dirname "$0")"
 python3 ONE_CLICK_SETUP.py
 
 echo ""
