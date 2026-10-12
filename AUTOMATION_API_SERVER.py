@@ -54,6 +54,13 @@ app = FastAPI(
     version="1.0.0"
 )
 
+# Opportunity finder (coding jobs + Cortese prospects): /opportunities and /api/opportunities/*
+try:
+    from opportunities.api import router as opportunities_router
+    app.include_router(opportunities_router)
+except Exception as _opp_exc:  # never block the API on an optional module
+    logging.getLogger(__name__).warning(f"Opportunity finder routes unavailable: {_opp_exc}")
+
 @app.get("/health")
 def health_check():
     return {

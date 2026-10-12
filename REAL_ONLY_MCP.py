@@ -4,6 +4,7 @@ CHATTY MCP Integration - REAL DATA ONLY
 Uses actual MCP servers and tools - NO simulations
 """
 
+from chatty_paths import home_path
 import asyncio
 import json
 import logging
@@ -300,11 +301,11 @@ if __name__ == "__main__":
             print("\n📁 Testing real filesystem...")
             
             # Read real file
-            content = await client.read_file("/home/coden809/Projects/chatty/README.md")
+            content = await client.read_file(home_path("README.md"))
             print(f"✅ Read README.md: {len(content)} characters")
             
             # List real directory
-            entries = await client.list_directory("/home/coden809/Projects/chatty")
+            entries = await client.list_directory(home_path())
             print(f"✅ Listed directory: {len(entries)} entries")
             
             print("\n✅ All MCP operations use REAL DATA")

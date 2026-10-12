@@ -33,7 +33,7 @@ pip install -r backend/requirements.txt  # Backend services
 
 ### Run tests
 ```bash
-python3 -m pytest
+python3 -m pytest -q                     # offline unit tests (see pytest.ini)
 python3 run_integration_tests.py         # Integration tests
 ```
 
@@ -49,6 +49,9 @@ python3 ACTION_CENTER.py                 # Generates status reports in generated
 - **`START_COMPLETE_AUTOMATION.py`** - Primary orchestrator that coordinates all automation engines in an async event loop with graceful shutdown
 - **`AUTOMATION_API_SERVER.py`** - FastAPI API for monitoring and controlling the system (port 8000)
 - **`backend/server.py`** - Flask + SQLAlchemy backend with user management, agent lifecycle, task orchestration (port 8181 in Docker, default Flask port locally)
+
+### Opportunity finder
+- `opportunities/`: coding-job finder + Cortese Digital prospect finder (CLI `python -m opportunities`, API `/api/opportunities/*`, dashboard `/opportunities`). Every source must degrade gracefully without keys. Prospect emails are drafts only: never add a send path, calls, or texts.
 
 ### Core Engines (wired into `START_COMPLETE_AUTOMATION.py`)
 - `AUTOMATED_REVENUE_ENGINE.py` - Revenue generation (Stripe, grants)

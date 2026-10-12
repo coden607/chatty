@@ -2,6 +2,8 @@ import unittest
 import asyncio
 from unittest.mock import AsyncMock
 
+from TOKENSPIN_BRIDGE import TokenspinBridge
+
 
 from ADAPTIVE_ORCHESTRATION_ROUTER import (
     AdaptiveOrchestrationRouter,
@@ -118,7 +120,6 @@ class AdaptiveRouterTests(unittest.TestCase):
 class TokenspinPolicyTests(unittest.TestCase):
     def test_default_path_never_probes_tokenspin_and_caps_output(self):
         async def run():
-            from TOKENSPIN_BRIDGE import TokenspinBridge
             bridge = TokenspinBridge()
             bridge._ensure_tokenspin = AsyncMock(side_effect=AssertionError("must not probe"))
             bridge._generate_via_free_router = AsyncMock(return_value={"text": "ok"})

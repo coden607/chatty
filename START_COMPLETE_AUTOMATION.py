@@ -15,6 +15,7 @@ import os
 from pathlib import Path
 from dotenv import load_dotenv
 from transparency_log import log_transparency
+from chatty_flags import narcoguard_enabled, opportunities_enabled, x_enabled, youtube_enabled
 
 # Add current directory to path
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
@@ -189,6 +190,9 @@ class ChattyCompleteAutomation:
                 logger.info("🧯 Offline mode enabled; skipping Twitter/X initialization")
                 print("⏭️ Twitter/X Automation skipped (offline mode)")
                 self.twitter_automation = None
+            elif not x_enabled():
+                logger.info("⏸️ X/Twitter posting disabled (set CHATTY_ENABLE_X=1 to enable)")
+                self.twitter_automation = None
             else:
                 await self.twitter_automation.initialize()
                 logger.info("✅ Twitter/X Automation Ready")
@@ -244,9 +248,14 @@ class ChattyCompleteAutomation:
         # Start all engines in parallel
         self._register_task("revenue_engine", self.revenue_engine.start)
         self._register_task("acquisition_engine", self.acquisition_engine.start)
-        self._register_task("investor_workflows", self.investor_workflows.start)
-        if self.twitter_automation:
+        if narcoguard_enabled():
+            self._register_task("investor_workflows", self.investor_workflows.start)
+        else:
+            logger.info("⏸️ NarcoGuard investor/funding loops disabled (set CHATTY_ENABLE_NARCOGUARD=1 to enable)")
+        if self.twitter_automation and x_enabled():
             self._register_task("twitter_automation", self.twitter_automation.start)
+        elif self.twitter_automation:
+            logger.info("⏸️ X/Twitter posting disabled (set CHATTY_ENABLE_X=1 to enable)")
         if self.ai_agents:
             self._register_task("ai_agents", self.ai_agents.start)
         self._register_task("status_reporter", self.report_status)
@@ -255,16 +264,21 @@ class ChattyCompleteAutomation:
         self._register_task("autonomous_fixer", self.autonomous_maintenance_loop)
         self._register_task("automation_scheduler", self.run_automation_scheduler)
         self._register_task("auto_lead_converter", self.auto_lead_conversion_task)
-        self._register_task("gofundme_updater", self.run_gofundme_automation)
-        self._register_task("viral_growth_engine", self.viral_growth.start)
-        if self.youtube_learner:
+        if narcoguard_enabled():
+            self._register_task("gofundme_updater", self.run_gofundme_automation)
+            self._register_task("viral_growth_engine", self.viral_growth.start)
+        if self.youtube_learner and youtube_enabled():
             self._register_task("youtube_learning", self.youtube_learner.start_continuous_learning)
+        elif self.youtube_learner:
+            logger.info("⏸️ YouTube learning disabled (set CHATTY_ENABLE_YOUTUBE=1 to enable)")
+        if opportunities_enabled():
+            self._register_task("opportunity_finder", self._run_opportunity_finder)
         if self.openclaw_system:
             self._register_task("openclaw_system", self.openclaw_system.start_autonomous_system)
         # New intelligent background systems
         if self.tokenspin_bridge:
             self._register_task("tokenspin_bridge", self._start_tokenspin_bridge, restartable=False)
-        if self.youtube_live:
+        if self.youtube_live and youtube_enabled():
             self._register_task("youtube_live_learner", self._run_youtube_live_learner)
         if self.task_queue:
             self._register_task("yolo_task_queue", self.task_queue.start)
@@ -313,6 +327,11 @@ class ChattyCompleteAutomation:
             # Keep alive - check every 5 minutes
             while self.is_running:
                 await asyncio.sleep(300)
+
+    async def _run_opportunity_finder(self):
+        """Run the job + Cortese prospect finder on a schedule (keyless sources always work)."""
+        from opportunities.scheduler import run_forever
+        await run_forever()
 
     async def _run_rag_ingestor(self):
         """Start RAG auto-ingest watcher on the project directory."""
@@ -956,7 +975,7 @@ async def main():
     # Initialize
     if not await system.initialize():
         logger.error("Failed to initialize system")
-        return
+        sys.exit(1)
     
     # Start
     await system.start()

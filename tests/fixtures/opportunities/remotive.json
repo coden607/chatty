@@ -1,0 +1,4 @@
+{"00-warning":"...","job-count":2,"jobs":[
+ {"id":1,"url":"https://remotive.com/remote-jobs/software-dev/python-ai-engineer-1","title":"Senior Python AI Automation Engineer","company_name":"Acme AI","job_type":"full_time","publication_date":"2026-10-09T10:00:00","candidate_required_location":"USA","salary":"$140k - $170k","tags":["python","llm"],"description":"<p>Build LLM agents with Python and FastAPI.</p>"},
+ {"id":2,"url":"https://remotive.com/remote-jobs/software-dev/react-dev-2","title":"React Developer","company_name":"EuroCo","job_type":"contract","publication_date":"2026-10-08T10:00:00","candidate_required_location":"Europe only","salary":"","tags":["react","typescript"],"description":"TypeScript React work."}
+]}

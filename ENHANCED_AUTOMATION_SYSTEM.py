@@ -4,6 +4,7 @@ ENHANCED AUTOMATION SYSTEM WITH REAL DATA INTEGRATION
 Replaces all simulations with real API integrations
 """
 
+from chatty_paths import home_path
 import asyncio
 import json
 import logging
@@ -26,7 +27,7 @@ logging.basicConfig(
     level=logging.DEBUG,
     format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
     handlers=[
-        logging.FileHandler('/home/coden809/CHATTY/logs/enhanced_automation.log'),
+        logging.FileHandler(home_path("logs/enhanced_automation.log")),
         logging.StreamHandler()
     ]
 )

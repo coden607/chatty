@@ -451,14 +451,14 @@ Get these API keys to enable full automation:
 1. Visit each link above
 2. Create account / sign in
 3. Generate API key
-4. Add to `/home/coden809/CHATTY/.env`
+4. Add to `<repo-root>/.env`
 5. Restart automation: `./launch_chatty.sh`
 
 ## Verification
 
 Run this to verify keys:
 ```bash
-cd /home/coden809/CHATTY
+cd <repo-root>
 python3 validate_all_keys.py
 ```
 
@@ -534,7 +534,7 @@ The system is now running with maximum automation enabled:
 ## Support
 
 For issues, check:
-- Logs: `/home/coden809/CHATTY/logs/`
+- Logs: `<repo-root>/logs/`
 - Status: `generated_content/earnings_status.md`
 - Actions: `generated_content/action_feed.md`
 """

@@ -4,6 +4,7 @@ AUTOMATION STATUS CHECKER
 Quick check to see what's configured and what's running
 """
 
+from chatty_paths import home_path
 import os
 import sys
 from pathlib import Path
@@ -135,7 +136,7 @@ def check_status():
     
     # Check generated content
     print("\n📄 Generated Content:")
-    content_dir = Path("/home/coden809/CHATTY/generated_content")
+    content_dir = Path(home_path("generated_content"))
     if content_dir.exists():
         files = list(content_dir.glob("**/*"))
         file_count = len([f for f in files if f.is_file()])
@@ -146,7 +147,7 @@ def check_status():
     
     # Check logs
     print("\n📋 Logs:")
-    log_dir = Path("/home/coden809/CHATTY/logs")
+    log_dir = Path(home_path("logs"))
     if log_dir.exists():
         log_files = list(log_dir.glob("*.log"))
         if log_files:

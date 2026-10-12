@@ -4,6 +4,7 @@ CHATTY MCP (Model Context Protocol) Integration
 Standardized tool connectivity for AI agents - Anthropic's open protocol
 """
 
+from chatty_paths import home_path
 import asyncio
 import json
 import logging
@@ -223,7 +224,7 @@ class ChattyMCPTools:
     """
     
     @staticmethod
-    def filesystem_tools(root_path: str = "/home/coden809/Projects/chatty") -> MCPServer:
+    def filesystem_tools(root_path: str = home_path()) -> MCPServer:
         """File system operations via MCP"""
         return MCPServer(
             name="filesystem",
@@ -232,7 +233,7 @@ class ChattyMCPTools:
         )
     
     @staticmethod
-    def sqlite_tools(db_path: str = "/home/coden809/Projects/chatty/chatty.db") -> MCPServer:
+    def sqlite_tools(db_path: str = home_path("chatty.db")) -> MCPServer:
         """SQLite database operations via MCP"""
         return MCPServer(
             name="sqlite",
@@ -433,7 +434,7 @@ if __name__ == "__main__":
         
         # Test filesystem tool
         try:
-            entries = await mcp_list_directory("/home/coden809/Projects/chatty")
+            entries = await mcp_list_directory(home_path())
             print(f"\n📁 Root directory entries: {len(entries)}")
         except Exception as e:
             print(f"⚠️ Filesystem test: {e}")

@@ -4,6 +4,7 @@ AUTOMATED API KEY SETUP
 One-click setup for all API keys with browser automation
 """
 
+from chatty_paths import home_path
 import os
 import sys
 import time
@@ -323,7 +324,7 @@ class AutoAPIKeySetup:
                 import subprocess
                 subprocess.run(
                     [sys.executable, "secure_key_backup.py", "auto"],
-                    cwd="/home/coden809/CHATTY",
+                    cwd=home_path(),
                     capture_output=True,
                     timeout=5
                 )

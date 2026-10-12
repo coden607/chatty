@@ -134,17 +134,12 @@ class TestOpenClaw:
 
 class TestNoFakeData:
 
-    def test_search_methods_return_empty(self):
+    def test_lead_blitz_does_not_fabricate_leads(self):
+        """The acquisition engine must never invent contacts during a blitz."""
         from AUTOMATED_CUSTOMER_ACQUISITION import AutomatedCustomerAcquisition as CustomerAcquisitionEngine
         engine = CustomerAcquisitionEngine()
-        assert _run(engine._search_public_health_organizations("opioid")) == []
-        assert _run(engine._search_academic_institutions("opioid")) == []
-        assert _run(engine._search_nonprofit_organizations("opioid")) == []
-
-    def test_social_discovery_returns_zero(self):
-        from AUTOMATED_CUSTOMER_ACQUISITION import AutomatedCustomerAcquisition as CustomerAcquisitionEngine
-        engine = CustomerAcquisitionEngine()
-        assert _run(engine._automate_social_prospect_discovery()) == 0
+        result = _run(engine.run_lead_blitz())
+        assert result["added"] == 0
 
     def test_publishers_do_not_claim_success(self):
         source = Path("AUTOMATED_CUSTOMER_ACQUISITION.py").read_text()
