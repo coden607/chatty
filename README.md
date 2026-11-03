@@ -3,6 +3,8 @@
 > **Auto marketing app** — autonomous AI marketing automation system.
 > **Status: NEEDS-HOST** — server-side app; requires a host with Docker and ~20+ API keys. **Not** a static site / PWA; GitHub Pages does not apply.
 
+**Control plane:** Chatty is the first application porting onto [coden607/continuityos](https://github.com/coden607/continuityos) — the canonical local-first plane for routing, memory, guardrails, and provider failover. Product intent for the combined line lives in the continuityos PRD [`docs/chatty-on-continuityos.prd.md`](https://github.com/coden607/continuityos/pull/100). Point new Chatty work at that PRD; bespoke substrate re-implementations (router/orchestrator/memory) are slated for retirement as flows port.
+
 ## What this is
 
 Chatty is a 24/7 autonomous AI marketing agent: it plans, generates, and publishes
