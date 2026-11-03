@@ -3,7 +3,9 @@ from provider_economics import Usage, Rates, estimated_usd, prepare_parameters, 
 
 class ProviderEconomicsTests(unittest.TestCase):
     def test_cached_input_not_double_counted(self):
-        self.assertAlmostEqual(estimated_usd(Usage(1000, 500, 300, 100), Rates(2, 8, .2, 3)), .00656)
+        # uncached=(1000-300-100)=600 @2/M + read 300 @0.2/M + write 100 @3/M + output 500 @8/M
+        # = 0.0012 + 0.00006 + 0.0003 + 0.004 = 0.00556
+        self.assertAlmostEqual(estimated_usd(Usage(1000, 500, 300, 100), Rates(2, 8, .2, 3)), .00556)
     def test_invalid_cache_accounting(self):
         with self.assertRaises(ValueError):
             Usage(10, 0, 11)
