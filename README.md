@@ -16,14 +16,11 @@ web dashboard. The codebase is a hybrid:
 - **Docker** — `Dockerfile` + `docker-compose.yml` (ports 8000/5000), health check on `/health`.
 - **Deploy automation** — `.github/workflows/deploy.yml` (Oracle Cloud over SSH, or Railway with a token), plus `deploy-oracle-cloud.sh`, `deploy-railway.sh`, `deploy-render.sh`, `cloud-init.sh`.
 
-## Branch map (read this first!)
+## Repository orientation
 
-| Branch | Content |
-|--------|---------|
-| `secure-key-setup` ← **default** | X (Twitter) credential setup only: `configure_x_keys.py`, `publish_approved_x.py`, agent-instruction files. No app code. |
-| `main` | The full application (1,719 files, ~19 MB). This README describes `main`. |
-| `feat/adaptive-orchestration-router` | `main` + `ADAPTIVE_ORCHESTRATION_ROUTER.py` (1,723 files). |
-| `design/portable-orchestration-20261003` | Design doc only: `docs/superpowers/specs/2026-10-03-portable-orchestration-design.md`. |
+- **Default branch:** `main` — the application source and this README.
+- Historical feature/utility branches are not authoritative descriptions of the current default tree; inspect the current branch and PR diff before making claims.
+- The supported public evidence is source code and CI. A continuously running production instance has **not** been verified here.
 
 ## What exists (verified 2026-10-08, wave-2 factory audit)
 
@@ -50,8 +47,8 @@ web dashboard. The codebase is a hybrid:
 ## Known issues found in audit
 
 - Committed junk inflating the repo (~14 MB): `get-pip.py` (2.2 MB), `python3` and `python_launcher` binaries (5.9 MB each), `tmp/` artifacts (PDFs, scraped HTML). Recommend a cleanup wave — **not deleted yet** (pending reference check).
-- Default branch `secure-key-setup` does not contain the app; newcomers land on the utility branch. Consider making `main` default or adding a pointer README to the default branch.
-- Two utility scripts on the default branch publish to X from `~/.config/chatty/secrets.env`; they are manual, human-confirmed tools, not part of the running service.
+- The default branch is `main`. Keep historical branch-specific notes in PRs, not as current repository-navigation instructions.
+- Utility scripts for publishing to X are manual, human-confirmed tools, not evidence of a running production service.
 
 ## Opportunity finder: coding jobs + Cortese Digital prospects
 
