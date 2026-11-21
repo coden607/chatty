@@ -20,8 +20,8 @@ web dashboard. The codebase is a hybrid:
 
 | Branch | Content |
 |--------|---------|
-| `secure-key-setup` ← **default** | X (Twitter) credential setup only: `configure_x_keys.py`, `publish_approved_x.py`, agent-instruction files. No app code. |
-| `main` | The full application (1,719 files, ~19 MB). This README describes `main`. |
+| `secure-key-setup` (historical utility branch) | X (Twitter) credential setup scripts. **Not the default branch.** |
+| `main` ← **default** | The application code and the version of this README shown to new visitors. |
 | `feat/adaptive-orchestration-router` | `main` + `ADAPTIVE_ORCHESTRATION_ROUTER.py` (1,723 files). |
 | `design/portable-orchestration-20261003` | Design doc only: `docs/superpowers/specs/2026-10-03-portable-orchestration-design.md`. |
 
@@ -50,7 +50,7 @@ web dashboard. The codebase is a hybrid:
 ## Known issues found in audit
 
 - Committed junk inflating the repo (~14 MB): `get-pip.py` (2.2 MB), `python3` and `python_launcher` binaries (5.9 MB each), `tmp/` artifacts (PDFs, scraped HTML). Recommend a cleanup wave — **not deleted yet** (pending reference check).
-- Default branch `secure-key-setup` does not contain the app; newcomers land on the utility branch. Consider making `main` default or adding a pointer README to the default branch.
+- The GitHub default branch is `main` (verified November 21, 2026). The older `secure-key-setup` branch remains a historical utility branch; it is not the visitor landing branch.
 - Two utility scripts on the default branch publish to X from `~/.config/chatty/secrets.env`; they are manual, human-confirmed tools, not part of the running service.
 
 ## Opportunity finder: coding jobs + Cortese Digital prospects
