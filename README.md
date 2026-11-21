@@ -23,6 +23,8 @@ The codebase is a hybrid:
 
 The shared control plane is developed in the separate private `coden607/continuityos` repository. A private dependency is not a publicly inspectable portfolio sample.
 
+The supported public evidence is source code and CI. A continuously running production instance has not been verified here.
+
 ## What exists (verified 2026-10-08, wave-2 factory audit)
 
 - Orchestration: `CHATTY_MASTER_ORCHESTRATOR_v2.py`, `UNIFIED_AI_ORCHESTRATION.py`, `CHATTY_MODEL_ROUTER.py`, agent fleet/A2A protocol modules.
@@ -49,6 +51,7 @@ The shared control plane is developed in the separate private `coden607/continui
 
 - Committed junk inflating the repo (~14 MB): `get-pip.py` (2.2 MB), `python3` and `python_launcher` binaries (5.9 MB each), `tmp/` artifacts (PDFs, scraped HTML). Recommend a cleanup wave — **not deleted yet** (pending reference check).
 - The default branch is now `main`. Review any historical `secure-key-setup` branch separately before using its X credential or publishing utilities; no deployment or publishing capability is verified here.
+- Utility scripts for publishing to X are manual, human-confirmed tools, not evidence of a running production service.
 
 ## Opportunity finder: coding jobs + Cortese Digital prospects
 
