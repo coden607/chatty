@@ -1,5 +1,13 @@
 # chatty
 
+<!-- showcase:start -->
+**A self-hosted, multi-provider AI agent with a Python backend and Next.js dashboard. Deployment is not yet verified.**
+
+[![License: MIT](https://img.shields.io/badge/license-MIT-blue)](LICENSE)
+
+<!-- showcase:end -->
+
+
 > **Self-hosted multi-provider AI agent** — Python (FastAPI/Flask) backend and Next.js dashboard, routing across OpenAI, NVIDIA, Mistral, DeepSeek, Gemini, OpenRouter and Moonshot.
 > **Status: deployment not verified** — self-hosted server application requiring a compatible host and credentials only for the optional providers/integrations selected. **Not** a static site / PWA; GitHub Pages does not apply.
 
